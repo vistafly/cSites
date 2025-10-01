@@ -1295,3 +1295,51 @@ section {
         margin-bottom: 2.7rem;
     }
 }
+/* === MOBILE SAFARI FIXES === */
+@supports (-webkit-touch-callout: none) {
+    /* iOS Safari specific fixes */
+    body {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .preview-frame iframe {
+        -webkit-overflow-scrolling: auto;
+        overflow: auto;
+    }
+}
+
+/* Force disable heavy effects on mobile */
+@media (max-width: 768px) {
+    /* Disable all background animations */
+    .ambient-bg,
+    .grain-overlay,
+    .hero-bg-layers,
+    .layer,
+    .layer-1,
+    .layer-2,
+    .layer-3,
+    .card-glow {
+        display: none !important;
+    }
+    
+    /* Simplify transforms */
+    * {
+        transform: none !important;
+        animation: none !important;
+        transition: opacity 0.3s ease, color 0.3s ease !important;
+    }
+    
+    /* Re-enable only essential transitions */
+    .nav-menu,
+    .hamburger span,
+    .btn-primary,
+    .btn-submit {
+        transition: all 0.3s ease !important;
+    }
+    
+    /* Prevent iframe memory issues */
+    .preview-frame iframe {
+        will-change: auto !important;
+        transform: translateZ(0) !important;
+    }
+}
