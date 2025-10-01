@@ -371,6 +371,7 @@ class CustomCursor {
         `;
         document.head.appendChild(style);
 
+        // Mouse events
         document.addEventListener('mousemove', (e) => {
             this.target.x = e.clientX;
             this.target.y = e.clientY;
@@ -380,6 +381,24 @@ class CustomCursor {
                 this.cursor.style.opacity = '1';
             }
         });
+
+        // Touch events
+        document.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            this.target.x = touch.clientX;
+            this.target.y = touch.clientY;
+
+            if (!this.isVisible) {
+                this.isVisible = true;
+                this.cursor.style.opacity = '1';
+            }
+        }, { passive: true });
+
+        document.addEventListener('touchmove', (e) => {
+            const touch = e.touches[0];
+            this.target.x = touch.clientX;
+            this.target.y = touch.clientY;
+        }, { passive: true });
 
         document.addEventListener('mouseleave', () => {
             this.isVisible = false;
@@ -392,16 +411,14 @@ class CustomCursor {
     }
 
     setupIframeCursorHide() {
-        const previewFrames = $$('.preview-frame');
+        const previewFrames = document.querySelectorAll('.preview-frame');
         
         previewFrames.forEach(frame => {
             frame.addEventListener('mouseenter', () => {
-                // Hide custom cursor, show native cursor in iframes only
                 this.cursor.style.opacity = '0';
             });
 
             frame.addEventListener('mouseleave', () => {
-                // Show custom cursor again
                 if (this.isVisible) {
                     this.cursor.style.opacity = '1';
                 }
@@ -410,7 +427,7 @@ class CustomCursor {
     }
 
     setupHoverEffects() {
-        const hoverElements = $$('a, button, .portfolio-preview, .philosophy-card');
+        const hoverElements = document.querySelectorAll('a, button, .portfolio-preview, .philosophy-card');
 
         hoverElements.forEach(el => {
             el.addEventListener('mouseenter', () => {
@@ -422,6 +439,16 @@ class CustomCursor {
                 this.cursor.style.width = '10px';
                 this.cursor.style.height = '10px';
             });
+
+            el.addEventListener('touchstart', () => {
+                this.cursor.style.width = '30px';
+                this.cursor.style.height = '30px';
+            }, { passive: true });
+
+            el.addEventListener('touchend', () => {
+                this.cursor.style.width = '10px';
+                this.cursor.style.height = '10px';
+            }, { passive: true });
         });
     }
 
