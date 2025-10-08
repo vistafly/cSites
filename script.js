@@ -4,571 +4,498 @@
     'use strict';
 
     // === UTILITY FUNCTIONS ===
-    const $ = (selector, parent = document) => parent.querySelector(selector);
-    const $$ = (selector, parent = document) => [...parent.querySelectorAll(selector)];
+    var $ = function(selector, parent) {
+        return (parent || document).querySelector(selector);
+    };
+    
+    var $$ = function(selector, parent) {
+        var elements = (parent || document).querySelectorAll(selector);
+        var array = [];
+        for (var i = 0; i < elements.length; i++) {
+            array.push(elements[i]);
+        }
+        return array;
+    };
 
-    const throttle = (func, delay) => {
-        let lastCall = 0;
-        return (...args) => {
-            const now = Date.now();
+    var throttle = function(func, delay) {
+        var lastCall = 0;
+        return function() {
+            var args = arguments;
+            var now = Date.now();
             if (now - lastCall >= delay) {
                 lastCall = now;
-                func(...args);
+                func.apply(this, args);
             }
         };
     };
 
-    const debounce = (func, delay) => {
-        let timeout;
-        return (...args) => {
+    var debounce = function(func, delay) {
+        var timeout;
+        return function() {
+            var args = arguments;
+            var context = this;
             clearTimeout(timeout);
-            timeout = setTimeout(() => func(...args), delay);
+            timeout = setTimeout(function() {
+                func.apply(context, args);
+            }, delay);
         };
     };
 
     // === NAVIGATION ===
-    class Navigation {
-        constructor() {
-            this.nav = $('.navbar');
-            this.hamburger = $('.hamburger');
-            this.menu = $('.nav-menu');
-            this.links = $$('.nav-link');
-            this.sections = $$('section[id]');
-            
-            this.init();
-        }
+    var Navigation = function() {
+        this.nav = $('.navbar');
+        this.hamburger = $('.hamburger');
+        this.menu = $('.nav-menu');
+        this.links = $$('.nav-link');
+        this.sections = $$('section[id]');
+        this.init();
+    };
 
-        init() {
-            this.setupSmoothScroll();
-            this.setupMobileMenu();
-            this.setupScrollEffects();
-            this.setupActiveLinks();
-        }
+    Navigation.prototype.init = function() {
+        this.setupSmoothScroll();
+        this.setupMobileMenu();
+        this.setupScrollEffects();
+        this.setupActiveLinks();
+    };
 
-        setupSmoothScroll() {
-            $$('a[href^="#"]').forEach(anchor => {
-                anchor.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    const targetId = anchor.getAttribute('href');
-                    const target = $(targetId);
+    Navigation.prototype.setupSmoothScroll = function() {
+        var self = this;
+        $$('a[href^="#"]').forEach(function(anchor) {
+            anchor.addEventListener('click', function(e) {
+                e.preventDefault();
+                var targetId = anchor.getAttribute('href');
+                var target = $(targetId);
 
-                    if (target) {
-                        const navHeight = this.nav.offsetHeight;
-                        const targetPosition = target.offsetTop - navHeight;
-
-                        window.scrollTo({
-                            top: targetPosition,
-                            behavior: 'smooth'
-                        });
-
-                        this.closeMobileMenu();
-                    }
-                });
-            });
-        }
-
-        setupMobileMenu() {
-            if (!this.hamburger || !this.menu) return;
-
-            this.hamburger.addEventListener('click', () => {
-                this.toggleMobileMenu();
-            });
-
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && this.menu.classList.contains('active')) {
-                    this.closeMobileMenu();
+                if (target) {
+                    var navHeight = self.nav.offsetHeight;
+                    var targetPosition = target.offsetTop - navHeight;
+                    window.scrollTo({ top: targetPosition, behavior: 'smooth' });
+                    self.closeMobileMenu();
                 }
             });
+        });
+    };
 
-            document.addEventListener('click', (e) => {
-                if (this.menu.classList.contains('active') && 
-                    !this.menu.contains(e.target) && 
-                    !this.hamburger.contains(e.target)) {
-                    this.closeMobileMenu();
-                }
-            });
-        }
+    Navigation.prototype.setupMobileMenu = function() {
+        var self = this;
+        if (!this.hamburger || !this.menu) return;
 
-        toggleMobileMenu() {
-            this.menu.classList.toggle('active');
-            this.hamburger.classList.toggle('active');
-            document.body.style.overflow = this.menu.classList.contains('active') ? 'hidden' : '';
-        }
+        this.hamburger.addEventListener('click', function() {
+            self.toggleMobileMenu();
+        });
 
-        closeMobileMenu() {
-            this.menu.classList.remove('active');
-            this.hamburger.classList.remove('active');
-            document.body.style.overflow = '';
-        }
-
-        setupScrollEffects() {
-            const handleScroll = throttle(() => {
-                const scrollY = window.pageYOffset;
-                
-                if (scrollY > 100) {
-                    this.nav.classList.add('scrolled');
-                } else {
-                    this.nav.classList.remove('scrolled');
-                }
-            }, 100);
-
-            window.addEventListener('scroll', handleScroll, { passive: true });
-            handleScroll();
-        }
-
-        setupActiveLinks() {
-            const updateActiveLink = throttle(() => {
-                const scrollPosition = window.pageYOffset + window.innerHeight / 2;
-                const documentHeight = document.documentElement.scrollHeight;
-                const windowHeight = window.innerHeight;
-
-                let current = '';
-                
-                if (window.pageYOffset + windowHeight >= documentHeight - 50) {
-                    current = 'contact';
-                } else {
-                    this.sections.forEach(section => {
-                        const sectionTop = section.offsetTop;
-                        const sectionHeight = section.offsetHeight;
-
-                        if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
-                            current = section.getAttribute('id');
-                        }
-                    });
-                }
-
-                this.links.forEach(link => {
-                    link.classList.remove('active');
-                    if (link.getAttribute('href') === '#' + current) {
-                        link.classList.add('active');
-                    }
-                });
-            }, 100);
-
-            window.addEventListener('scroll', updateActiveLink, { passive: true });
-            updateActiveLink();
-        }
-    }
-
-    // === OPTIMIZED PARALLAX (Desktop Only) ===
-    class ParallaxController {
-        constructor() {
-            if (window.innerWidth <= 1024) return;
-
-            this.hero = $('.hero');
-            this.heroContent = $('.hero-content');
-            this.layers = $$('.layer');
-            
-            if (this.hero && this.heroContent) {
-                this.init();
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape' && self.menu.classList.contains('active')) {
+                self.closeMobileMenu();
             }
-        }
+        });
 
-        init() {
-            const handleParallax = throttle(() => {
-                const scrollY = window.pageYOffset;
-                const heroHeight = this.hero.offsetHeight;
+        document.addEventListener('click', function(e) {
+            if (self.menu.classList.contains('active') && 
+                !self.menu.contains(e.target) && 
+                !self.hamburger.contains(e.target)) {
+                self.closeMobileMenu();
+            }
+        });
+    };
 
-                if (scrollY < heroHeight) {
-                    const translateY = scrollY * 0.5;
-                    const opacity = 1 - (scrollY / heroHeight) * 1.5;
+    Navigation.prototype.toggleMobileMenu = function() {
+        this.menu.classList.toggle('active');
+        this.hamburger.classList.toggle('active');
+        document.body.style.overflow = this.menu.classList.contains('active') ? 'hidden' : '';
+    };
 
-                    this.heroContent.style.transform = 'translateY(' + translateY + 'px)';
-                    this.heroContent.style.opacity = Math.max(0, opacity);
+    Navigation.prototype.closeMobileMenu = function() {
+        this.menu.classList.remove('active');
+        this.hamburger.classList.remove('active');
+        document.body.style.overflow = '';
+    };
 
-                    this.layers.forEach((layer, index) => {
-                        const speed = 0.3 + (index * 0.1);
-                        layer.style.transform = 'translateY(' + (scrollY * speed) + 'px)';
-                    });
-                }
-            }, 32);
+    Navigation.prototype.setupScrollEffects = function() {
+        var self = this;
+        var handleScroll = throttle(function() {
+            var scrollY = window.pageYOffset;
+            if (scrollY > 100) {
+                self.nav.classList.add('scrolled');
+            } else {
+                self.nav.classList.remove('scrolled');
+            }
+        }, 100);
 
-            window.addEventListener('scroll', handleParallax, { passive: true });
-        }
-    }
+        window.addEventListener('scroll', handleScroll, { passive: true });
+        handleScroll();
+    };
 
-    // === OPTIMIZED SCROLL ANIMATIONS ===
-    class ScrollAnimations {
-        constructor() {
-            this.observerOptions = {
-                threshold: 0.15,
-                rootMargin: '0px 0px -100px 0px'
-            };
-
-            this.init();
-        }
-
-        init() {
-            this.setupIntersectionObserver();
-        }
-
-        setupIntersectionObserver() {
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
-                    if (entry.isIntersecting) {
-                        entry.target.classList.add('visible');
-                        observer.unobserve(entry.target);
+    Navigation.prototype.setupActiveLinks = function() {
+        var self = this;
+        var updateActiveLink = throttle(function() {
+            var scrollPosition = window.pageYOffset + window.innerHeight / 2;
+            var documentHeight = document.documentElement.scrollHeight;
+            var windowHeight = window.innerHeight;
+            var current = '';
+            
+            if (window.pageYOffset + windowHeight >= documentHeight - 50) {
+                current = 'contact';
+            } else {
+                self.sections.forEach(function(section) {
+                    var sectionTop = section.offsetTop;
+                    var sectionHeight = section.offsetHeight;
+                    if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
+                        current = section.getAttribute('id');
                     }
                 });
-            }, this.observerOptions);
+            }
 
-            $$('.portfolio-item, .philosophy-card').forEach(el => {
-                observer.observe(el);
+            self.links.forEach(function(link) {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
             });
-        }
-    }
+        }, 100);
 
-    // === SIMPLE AND RELIABLE IFRAME LOADER ===
-    class LazyLoader {
-        constructor() {
-            this.placeholders = $$('.iframe-placeholder');
-            this.loadedCount = 0;
-            this.init();
-        }
+        window.addEventListener('scroll', updateActiveLink, { passive: true });
+        updateActiveLink();
+    };
 
-        init() {
-            console.log('Initializing LazyLoader with ' + this.placeholders.length + ' iframes');
-            
-            const observer = new IntersectionObserver((entries) => {
-                entries.forEach(entry => {
+    // === PARALLAX ===
+    var ParallaxController = function() {
+        if (window.innerWidth <= 1024) return;
+        this.hero = $('.hero');
+        this.heroContent = $('.hero-content');
+        this.layers = $$('.layer');
+        if (this.hero && this.heroContent) this.init();
+    };
+
+    ParallaxController.prototype.init = function() {
+        var self = this;
+        var handleParallax = throttle(function() {
+            var scrollY = window.pageYOffset;
+            var heroHeight = self.hero.offsetHeight;
+
+            if (scrollY < heroHeight) {
+                var translateY = scrollY * 0.5;
+                var opacity = 1 - (scrollY / heroHeight) * 1.5;
+                self.heroContent.style.transform = 'translateY(' + translateY + 'px)';
+                self.heroContent.style.opacity = Math.max(0, opacity);
+
+                self.layers.forEach(function(layer, index) {
+                    var speed = 0.3 + (index * 0.1);
+                    layer.style.transform = 'translateY(' + (scrollY * speed) + 'px)';
+                });
+            }
+        }, 32);
+
+        window.addEventListener('scroll', handleParallax, { passive: true });
+    };
+
+    // === SCROLL ANIMATIONS ===
+    var ScrollAnimations = function() {
+        this.init();
+    };
+
+    ScrollAnimations.prototype.init = function() {
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('visible');
+                    observer.unobserve(entry.target);
+                }
+            });
+        }, {
+            threshold: 0.15,
+            rootMargin: '0px 0px -100px 0px'
+        });
+
+        $$('.portfolio-item, .philosophy-card').forEach(function(el) {
+            observer.observe(el);
+        });
+    };
+
+    // === LAZY LOADER ===
+    var LazyLoader = function() {
+        this.placeholders = $$('.iframe-placeholder');
+        this.loadedCount = 0;
+        this.isMobile = window.innerWidth <= 768;
+        this.activeIframe = null;
+        this.observers = new Map();
+        
+        console.log('LazyLoader initialized');
+        console.log('Placeholders found:', this.placeholders.length);
+        console.log('Mobile mode:', this.isMobile);
+        
+        this.init();
+    };
+
+    LazyLoader.prototype.init = function() {
+        if (this.isMobile) {
+            this.initMobileMode();
+        } else {
+            this.initDesktopMode();
+        }
+    };
+
+    LazyLoader.prototype.initMobileMode = function() {
+        var self = this;
+        this.placeholders.forEach(function(placeholder) {
+            var observer = new IntersectionObserver(function(entries) {
+                entries.forEach(function(entry) {
                     if (entry.isIntersecting) {
-                        const placeholder = entry.target;
-                        console.log('Placeholder visible, loading iframe...');
-                        this.loadIframe(placeholder);
-                        observer.unobserve(placeholder);
+                        console.log('Mobile: Loading iframe');
+                        self.loadIframe(entry.target);
+                    } else {
+                        var previewFrame = entry.target.closest('.preview-frame');
+                        if (previewFrame) {
+                            var iframe = previewFrame.querySelector('iframe');
+                            if (iframe) {
+                                console.log('Mobile: Unloading iframe');
+                                self.unloadIframe(iframe, previewFrame);
+                            }
+                        }
                     }
                 });
             }, {
-                rootMargin: '300px',
-                threshold: 0.01
+                rootMargin: '100px',
+                threshold: 0.1
             });
 
-            this.placeholders.forEach(placeholder => {
-                observer.observe(placeholder);
-            });
-        }
+            observer.observe(placeholder);
+            self.observers.set(placeholder, observer);
+        });
+    };
 
-        loadIframe(placeholder) {
-            const src = placeholder.dataset.src;
-            
-            if (!src) {
-                console.error('No src attribute found');
-                return;
-            }
-
-            console.log('Loading iframe: ' + src);
-
-            // Create iframe
-            const iframe = document.createElement('iframe');
-            iframe.src = src;
-            iframe.style.cssText = 'width: 100%; height: 100%; border: none; display: block;';
-            iframe.setAttribute('loading', 'lazy');
-            iframe.setAttribute('allowfullscreen', '');
-            iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
-            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox');
-
-            // Add load event listener
-            iframe.addEventListener('load', () => {
-                this.loadedCount++;
-                console.log('Iframe loaded successfully (' + this.loadedCount + '/' + this.placeholders.length + '): ' + src);
-                
-                // Block console logs from iframe content
-                try {
-                    if (iframe.contentWindow) {
-                        iframe.contentWindow.console.log = function() {};
-                        iframe.contentWindow.console.warn = function() {};
-                        iframe.contentWindow.console.error = function() {};
-                        iframe.contentWindow.console.info = function() {};
-                        iframe.contentWindow.console.debug = function() {};
-                    }
-                } catch (e) {
-                    // Cross-origin restriction - can't access iframe console
-                    // This is expected for external sites
+    LazyLoader.prototype.initDesktopMode = function() {
+        var self = this;
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    console.log('Desktop: Loading iframe');
+                    self.loadIframe(entry.target);
+                    observer.unobserve(entry.target);
                 }
             });
+        }, {
+            rootMargin: '300px',
+            threshold: 0.01
+        });
 
-            // Add error event listener
-            iframe.addEventListener('error', () => {
-                console.error('Iframe failed to load: ' + src);
-                this.showError(iframe, src);
+        this.placeholders.forEach(function(placeholder) {
+            observer.observe(placeholder);
+        });
+    };
+
+    LazyLoader.prototype.unloadIframe = function(iframe, previewFrame) {
+        var self = this;
+        var src = iframe.src;
+        
+        console.log('Unloading: ' + src);
+        iframe.src = 'about:blank';
+        
+        var newPlaceholder = document.createElement('div');
+        newPlaceholder.className = 'iframe-placeholder';
+        newPlaceholder.dataset.src = src;
+        newPlaceholder.innerHTML = '<div class="loading-spinner"></div><div class="load-status">Scroll to load...</div>';
+        
+        iframe.parentElement.removeChild(iframe);
+        previewFrame.appendChild(newPlaceholder);
+        
+        var observer = new IntersectionObserver(function(entries) {
+            entries.forEach(function(entry) {
+                if (entry.isIntersecting) {
+                    self.loadIframe(entry.target);
+                } else {
+                    var pf = entry.target.closest('.preview-frame');
+                    if (pf) {
+                        var ifr = pf.querySelector('iframe');
+                        if (ifr) self.unloadIframe(ifr, pf);
+                    }
+                }
             });
+        }, { rootMargin: '100px', threshold: 0.1 });
 
-            // Replace placeholder with iframe immediately
-            placeholder.replaceWith(iframe);
+        observer.observe(newPlaceholder);
+    };
+
+    LazyLoader.prototype.loadIframe = function(placeholder) {
+        var self = this;
+        var src = placeholder.dataset.src;
+        
+        if (!src) {
+            console.error('No src found');
+            return;
         }
 
-        showError(iframe, src) {
-            const errorDiv = document.createElement('div');
-            errorDiv.className = 'iframe-placeholder error';
-            errorDiv.innerHTML = '<div class="load-status">Unable to load preview<br><a href="' + src + '" target="_blank" rel="noopener noreferrer" style="color: rgba(248, 113, 113, 0.9); text-decoration: underline; font-size: 0.8rem; margin-top: 0.5rem; display: inline-block;">Visit site directly</a></div>';
-            iframe.replaceWith(errorDiv);
-        }
-    }
-
-    // === OPTIMIZED FORM HANDLER ===
-    class FormHandler {
-        constructor() {
-            this.form = $('.contact-form');
-            this.fields = $$('.form-field input, .form-field textarea');
-
-            if (this.form) {
-                this.init();
+        if (this.isMobile && this.activeIframe && this.activeIframe.parentElement) {
+            var previewFrame = this.activeIframe.closest('.preview-frame');
+            if (previewFrame) {
+                this.unloadIframe(this.activeIframe, previewFrame);
             }
         }
 
-        init() {
-            this.fields.forEach(field => {
-                field.setAttribute('placeholder', ' ');
-            });
+        console.log('Loading iframe: ' + src);
 
-            this.form.addEventListener('submit', (e) => this.handleSubmit(e));
-        }
+        var iframe = document.createElement('iframe');
+        iframe.src = src;
+        iframe.style.cssText = 'width: 100%; height: 100%; border: none; display: block;';
+        iframe.setAttribute('loading', 'lazy');
+        iframe.setAttribute('allowfullscreen', '');
 
-        async handleSubmit(e) {
+        iframe.addEventListener('load', function() {
+            self.loadedCount++;
+            console.log('Iframe loaded (' + self.loadedCount + '/' + self.placeholders.length + ')');
+            if (self.isMobile) {
+                self.activeIframe = iframe;
+            }
+        });
+
+        iframe.addEventListener('error', function() {
+            console.error('Iframe error: ' + src);
+            self.showError(iframe, src);
+        });
+
+        var parent = placeholder.parentElement;
+        parent.removeChild(placeholder);
+        parent.appendChild(iframe);
+    };
+
+    LazyLoader.prototype.showError = function(iframe, src) {
+        var errorDiv = document.createElement('div');
+        errorDiv.className = 'iframe-placeholder error';
+        errorDiv.innerHTML = '<div class="load-status">Unable to load<br><a href="' + src + '" target="_blank">Visit directly</a></div>';
+        iframe.parentElement.replaceChild(errorDiv, iframe);
+    };
+
+    // === FORM HANDLER ===
+    var FormHandler = function() {
+        this.form = $('.contact-form');
+        this.fields = $$('.form-field input, .form-field textarea');
+        if (this.form) this.init();
+    };
+
+    FormHandler.prototype.init = function() {
+        var self = this;
+        this.fields.forEach(function(field) {
+            field.setAttribute('placeholder', ' ');
+        });
+
+        this.form.addEventListener('submit', function(e) {
             e.preventDefault();
-
-            const submitBtn = $('.btn-submit');
-            const btnText = $('.btn-text', submitBtn);
-            const originalText = btnText.textContent;
+            var submitBtn = $('.btn-submit');
+            var btnText = $('.btn-text', submitBtn);
+            var originalText = btnText.textContent;
 
             submitBtn.disabled = true;
             btnText.textContent = 'Sending...';
 
-            await new Promise(resolve => setTimeout(resolve, 1500));
+            setTimeout(function() {
+                btnText.textContent = 'Message sent!';
+                submitBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                self.form.reset();
 
-            btnText.textContent = 'Message sent!';
-            submitBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                setTimeout(function() {
+                    btnText.textContent = originalText;
+                    submitBtn.style.background = '';
+                    submitBtn.disabled = false;
+                }, 3000);
+            }, 1500);
+        });
+    };
 
-            this.form.reset();
+    // === PAGE LOADER ===
+    var PageLoader = function() {
+        window.addEventListener('load', function() {
+            document.body.classList.add('loaded');
+        });
+    };
 
-            setTimeout(() => {
-                btnText.textContent = originalText;
-                submitBtn.style.background = '';
-                submitBtn.disabled = false;
-            }, 3000);
-        }
-    }
+    // === CUSTOM CURSOR ===
+    var CustomCursor = function() {
+        if (window.innerWidth <= 1024 || 'ontouchstart' in window) return;
 
-    // === PAGE LOAD OPTIMIZATION ===
-    class PageLoader {
-        constructor() {
-            this.init();
-        }
+        this.cursor = document.createElement('div');
+        this.cursor.style.cssText = 'position:fixed;width:10px;height:10px;background:rgba(255,255,255,0.9);border-radius:50%;pointer-events:none;z-index:9999;opacity:0;mix-blend-mode:difference;transition:width 0.3s,height 0.3s,opacity 0.3s;';
+        document.body.appendChild(this.cursor);
 
-        init() {
-            window.addEventListener('load', () => {
-                document.body.classList.add('loaded');
-            });
-        }
-    }
+        this.position = { x: 0, y: 0 };
+        this.target = { x: 0, y: 0 };
+        this.isVisible = false;
 
-    // === CUSTOM CURSOR (Desktop Only) ===
-    class CustomCursor {
-        constructor() {
-            if (window.innerWidth <= 1024 || 'ontouchstart' in window) return;
+        this.init();
+    };
 
-            this.cursor = this.createCursor();
-            this.position = { x: 0, y: 0 };
-            this.target = { x: 0, y: 0 };
-            this.isVisible = false;
-            this.animationId = null;
+    CustomCursor.prototype.init = function() {
+        var self = this;
+        document.body.style.cursor = 'none';
 
-            this.init();
-        }
+        document.addEventListener('mousemove', function(e) {
+            self.target.x = e.clientX;
+            self.target.y = e.clientY;
+            if (!self.isVisible) {
+                self.isVisible = true;
+                self.cursor.style.opacity = '1';
+            }
+        }, { passive: true });
 
-        createCursor() {
-            const cursor = document.createElement('div');
-            cursor.className = 'custom-cursor';
-            cursor.style.cssText = 'position: fixed; width: 10px; height: 10px; background: rgba(255, 255, 255, 0.9); border-radius: 50%; pointer-events: none; z-index: 9999; opacity: 0; mix-blend-mode: difference; transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;';
-            document.body.appendChild(cursor);
-            return cursor;
-        }
+        document.addEventListener('mouseleave', function() {
+            self.isVisible = false;
+            self.cursor.style.opacity = '0';
+        });
 
-        init() {
-            document.body.style.cursor = 'none';
-            
-            const style = document.createElement('style');
-            style.textContent = '*, *::before, *::after { cursor: none !important; } .preview-frame, .preview-frame *, iframe, iframe * { cursor: auto !important; }';
-            document.head.appendChild(style);
+        this.animate();
+    };
 
-            document.addEventListener('mousemove', (e) => {
-                this.target.x = e.clientX;
-                this.target.y = e.clientY;
+    CustomCursor.prototype.animate = function() {
+        var self = this;
+        var lerp = function(start, end, factor) {
+            return start + (end - start) * factor;
+        };
+        
+        this.position.x = lerp(this.position.x, this.target.x, 0.15);
+        this.position.y = lerp(this.position.y, this.target.y, 0.15);
 
-                if (!this.isVisible) {
-                    this.isVisible = true;
-                    this.cursor.style.opacity = '1';
-                }
-            }, { passive: true });
+        this.cursor.style.left = this.position.x + 'px';
+        this.cursor.style.top = this.position.y + 'px';
 
-            document.addEventListener('mouseleave', () => {
-                this.isVisible = false;
-                this.cursor.style.opacity = '0';
-            });
+        requestAnimationFrame(function() {
+            self.animate();
+        });
+    };
 
-            this.setupHoverEffects();
-            this.setupIframeCursorHide();
-            this.animate();
-        }
+    // === VIEWPORT FIX ===
+    var ViewportFix = function() {
+        this.setVH();
+        var self = this;
+        window.addEventListener('resize', debounce(function() {
+            self.setVH();
+        }, 250));
+    };
 
-        setupIframeCursorHide() {
-            $$('.preview-frame').forEach(frame => {
-                frame.addEventListener('mouseenter', () => {
-                    this.cursor.style.opacity = '0';
-                });
-
-                frame.addEventListener('mouseleave', () => {
-                    if (this.isVisible) {
-                        this.cursor.style.opacity = '1';
-                    }
-                });
-            });
-        }
-
-        setupHoverEffects() {
-            const hoverElements = $$('a, button, .portfolio-preview, .philosophy-card');
-
-            hoverElements.forEach(el => {
-                el.addEventListener('mouseenter', () => {
-                    this.cursor.style.width = '30px';
-                    this.cursor.style.height = '30px';
-                });
-
-                el.addEventListener('mouseleave', () => {
-                    this.cursor.style.width = '10px';
-                    this.cursor.style.height = '10px';
-                });
-            });
-        }
-
-        animate() {
-            const lerp = (start, end, factor) => start + (end - start) * factor;
-            
-            this.position.x = lerp(this.position.x, this.target.x, 0.15);
-            this.position.y = lerp(this.position.y, this.target.y, 0.15);
-
-            this.cursor.style.left = this.position.x + 'px';
-            this.cursor.style.top = this.position.y + 'px';
-
-            this.animationId = requestAnimationFrame(() => this.animate());
-        }
-    }
-
-    // === VIEWPORT HEIGHT FIX ===
-    class ViewportFix {
-        constructor() {
-            this.setVH();
-            window.addEventListener('resize', debounce(() => this.setVH(), 250));
-        }
-
-        setVH() {
-            const vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', vh + 'px');
-        }
-    }
+    ViewportFix.prototype.setVH = function() {
+        var vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', vh + 'px');
+    };
 
     // === ACCESSIBILITY ===
-    class AccessibilityEnhancer {
-        constructor() {
-            this.checkReducedMotion();
-            this.setupKeyboardNavigation();
+    var AccessibilityEnhancer = function() {
+        var prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+        if (prefersReducedMotion.matches) {
+            document.body.classList.add('reduce-motion');
         }
 
-        checkReducedMotion() {
-            const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-
-            if (prefersReducedMotion.matches) {
-                document.body.classList.add('reduce-motion');
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Tab') {
+                document.body.classList.add('keyboard-nav');
             }
-        }
+        });
 
-        setupKeyboardNavigation() {
-            document.addEventListener('keydown', (e) => {
-                if (e.key === 'Tab') {
-                    document.body.classList.add('keyboard-nav');
-                }
-            });
-
-            document.addEventListener('mousedown', () => {
-                document.body.classList.remove('keyboard-nav');
-            });
-        }
-    }
+        document.addEventListener('mousedown', function() {
+            document.body.classList.remove('keyboard-nav');
+        });
+    };
 
     // === INITIALIZATION ===
-    const init = () => {
+    var init = function() {
         console.log('VistaFly - Crafted with precision');
-
-        // Suppress common iframe console noise
-        const originalError = console.error;
-        const originalWarn = console.warn;
-        const originalLog = console.log;
-
-        const iframeNoisePatterns = [
-            'cast_sender.js',
-            'PresentationRequest',
-            'sandboxed',
-            'Violation',
-            'permissions policy',
-            'GSAP target',
-            'not found',
-            'ReferenceError',
-            'parseTime',
-            'setupHeroGlow',
-            'initMusicPlayer',
-            'firebase',
-            'Analytics',
-            'Auth state',
-            'Profile',
-            'Stripe',
-            'GET https://',
-            '404',
-            'Failed to load',
-            'Image',
-            'portfolio',
-            'Important image failed',
-            'Trying path',
-            'FAILED:',
-            'SUCCESS:',
-            'encrypted-media',
-            'autoplay',
-            'accelerometer',
-            'gyroscope',
-            'clipboard-write',
-            'web-share',
-            'payment',
-            'Slideshow',
-            'marquee',
-            'YouTube',
-            'isStaging',
-            'ScrollTrigger',
-            'Page load time'
-        ];
-
-        const shouldSuppress = (args) => {
-            const message = args.join(' ');
-            return iframeNoisePatterns.some(pattern => 
-                message.toLowerCase().includes(pattern.toLowerCase())
-            );
-        };
-
-        console.error = function(...args) {
-            if (!shouldSuppress(args)) {
-                originalError.apply(console, args);
-            }
-        };
-
-        console.warn = function(...args) {
-            if (!shouldSuppress(args)) {
-                originalWarn.apply(console, args);
-            }
-        };
-
-        console.log = function(...args) {
-            if (!shouldSuppress(args)) {
-                originalLog.apply(console, args);
-            }
-        };
 
         new Navigation();
         new ParallaxController();

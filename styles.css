@@ -533,16 +533,6 @@ section {
     opacity: 0.8;
 }
 
-/* Loading states */
-.iframe-placeholder.loading .loading-spinner {
-    display: block;
-}
-
-.iframe-placeholder.loaded .loading-spinner,
-.iframe-placeholder.loaded .load-status {
-    display: none;
-}
-
 .iframe-placeholder.error {
     background: rgba(220, 38, 38, 0.1);
 }
@@ -555,7 +545,7 @@ section {
     color: rgba(248, 113, 113, 0.9);
 }
 
-/* Iframe styles - only applied after successful load */
+/* Iframe styles */
 .preview-frame iframe {
     width: 100%;
     height: 100%;
@@ -763,7 +753,7 @@ section {
 
 /* === FOOTER === */
 .footer {
-    background: var(--#0e0e0e24);
+    background: var(--black);
     padding: 4rem 0 2rem;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
 }
