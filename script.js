@@ -1,6 +1,6 @@
 // VISTAFLY — OPTIMIZED INTERACTIONS
 
-(() => {
+(function() {
     'use strict';
 
     // === UTILITY FUNCTIONS ===
@@ -139,7 +139,7 @@
 
                 this.links.forEach(link => {
                     link.classList.remove('active');
-                    if (link.getAttribute('href') === `#${current}`) {
+                    if (link.getAttribute('href') === '#' + current) {
                         link.classList.add('active');
                     }
                 });
@@ -173,12 +173,12 @@
                     const translateY = scrollY * 0.5;
                     const opacity = 1 - (scrollY / heroHeight) * 1.5;
 
-                    this.heroContent.style.transform = `translateY(${translateY}px)`;
+                    this.heroContent.style.transform = 'translateY(' + translateY + 'px)';
                     this.heroContent.style.opacity = Math.max(0, opacity);
 
                     this.layers.forEach((layer, index) => {
                         const speed = 0.3 + (index * 0.1);
-                        layer.style.transform = `translateY(${scrollY * speed}px)`;
+                        layer.style.transform = 'translateY(' + (scrollY * speed) + 'px)';
                     });
                 }
             }, 32);
@@ -218,24 +218,29 @@
         }
     }
 
-    // === OPTIMIZED LAZY LOADING FOR IFRAMES ===
+    // === SIMPLE AND RELIABLE IFRAME LOADER ===
     class LazyLoader {
         constructor() {
             this.placeholders = $$('.iframe-placeholder');
-            this.loadedIframes = new Set();
+            this.loadedCount = 0;
             this.init();
         }
 
         init() {
+            console.log('Initializing LazyLoader with ' + this.placeholders.length + ' iframes');
+            
             const observer = new IntersectionObserver((entries) => {
                 entries.forEach(entry => {
-                    if (entry.isIntersecting && !this.loadedIframes.has(entry.target)) {
-                        this.loadIframe(entry.target);
-                        observer.unobserve(entry.target);
+                    if (entry.isIntersecting) {
+                        const placeholder = entry.target;
+                        console.log('Placeholder visible, loading iframe...');
+                        this.loadIframe(placeholder);
+                        observer.unobserve(placeholder);
                     }
                 });
             }, {
-                rootMargin: '400px'
+                rootMargin: '300px',
+                threshold: 0.01
             });
 
             this.placeholders.forEach(placeholder => {
@@ -245,15 +250,58 @@
 
         loadIframe(placeholder) {
             const src = placeholder.dataset.src;
-            if (!src) return;
+            
+            if (!src) {
+                console.error('No src attribute found');
+                return;
+            }
 
+            console.log('Loading iframe: ' + src);
+
+            // Create iframe
             const iframe = document.createElement('iframe');
             iframe.src = src;
-            iframe.loading = 'lazy';
             iframe.style.cssText = 'width: 100%; height: 100%; border: none; display: block;';
-            
-            placeholder.parentElement.replaceChild(iframe, placeholder);
-            this.loadedIframes.add(placeholder);
+            iframe.setAttribute('loading', 'lazy');
+            iframe.setAttribute('allowfullscreen', '');
+            iframe.setAttribute('referrerpolicy', 'no-referrer-when-downgrade');
+            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-popups allow-forms allow-popups-to-escape-sandbox');
+
+            // Add load event listener
+            iframe.addEventListener('load', () => {
+                this.loadedCount++;
+                console.log('Iframe loaded successfully (' + this.loadedCount + '/' + this.placeholders.length + '): ' + src);
+                
+                // Block console logs from iframe content
+                try {
+                    if (iframe.contentWindow) {
+                        iframe.contentWindow.console.log = function() {};
+                        iframe.contentWindow.console.warn = function() {};
+                        iframe.contentWindow.console.error = function() {};
+                        iframe.contentWindow.console.info = function() {};
+                        iframe.contentWindow.console.debug = function() {};
+                    }
+                } catch (e) {
+                    // Cross-origin restriction - can't access iframe console
+                    // This is expected for external sites
+                }
+            });
+
+            // Add error event listener
+            iframe.addEventListener('error', () => {
+                console.error('Iframe failed to load: ' + src);
+                this.showError(iframe, src);
+            });
+
+            // Replace placeholder with iframe immediately
+            placeholder.replaceWith(iframe);
+        }
+
+        showError(iframe, src) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'iframe-placeholder error';
+            errorDiv.innerHTML = '<div class="load-status">Unable to load preview<br><a href="' + src + '" target="_blank" rel="noopener noreferrer" style="color: rgba(248, 113, 113, 0.9); text-decoration: underline; font-size: 0.8rem; margin-top: 0.5rem; display: inline-block;">Visit site directly</a></div>';
+            iframe.replaceWith(errorDiv);
         }
     }
 
@@ -331,18 +379,7 @@
         createCursor() {
             const cursor = document.createElement('div');
             cursor.className = 'custom-cursor';
-            cursor.style.cssText = `
-                position: fixed;
-                width: 10px;
-                height: 10px;
-                background: rgba(255, 255, 255, 0.9);
-                border-radius: 50%;
-                pointer-events: none;
-                z-index: 9999;
-                opacity: 0;
-                mix-blend-mode: difference;
-                transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;
-            `;
+            cursor.style.cssText = 'position: fixed; width: 10px; height: 10px; background: rgba(255, 255, 255, 0.9); border-radius: 50%; pointer-events: none; z-index: 9999; opacity: 0; mix-blend-mode: difference; transition: width 0.3s ease, height 0.3s ease, opacity 0.3s ease;';
             document.body.appendChild(cursor);
             return cursor;
         }
@@ -351,14 +388,7 @@
             document.body.style.cursor = 'none';
             
             const style = document.createElement('style');
-            style.textContent = `
-                *, *::before, *::after {
-                    cursor: none !important;
-                }
-                .preview-frame, .preview-frame * {
-                    cursor: auto !important;
-                }
-            `;
+            style.textContent = '*, *::before, *::after { cursor: none !important; } .preview-frame, .preview-frame *, iframe, iframe * { cursor: auto !important; }';
             document.head.appendChild(style);
 
             document.addEventListener('mousemove', (e) => {
@@ -417,8 +447,8 @@
             this.position.x = lerp(this.position.x, this.target.x, 0.15);
             this.position.y = lerp(this.position.y, this.target.y, 0.15);
 
-            this.cursor.style.left = `${this.position.x}px`;
-            this.cursor.style.top = `${this.position.y}px`;
+            this.cursor.style.left = this.position.x + 'px';
+            this.cursor.style.top = this.position.y + 'px';
 
             this.animationId = requestAnimationFrame(() => this.animate());
         }
@@ -433,7 +463,7 @@
 
         setVH() {
             const vh = window.innerHeight * 0.01;
-            document.documentElement.style.setProperty('--vh', `${vh}px`);
+            document.documentElement.style.setProperty('--vh', vh + 'px');
         }
     }
 
@@ -449,16 +479,6 @@
 
             if (prefersReducedMotion.matches) {
                 document.body.classList.add('reduce-motion');
-                
-                const style = document.createElement('style');
-                style.textContent = `
-                    .reduce-motion * {
-                        animation-duration: 0.01ms !important;
-                        animation-iteration-count: 1 !important;
-                        transition-duration: 0.01ms !important;
-                    }
-                `;
-                document.head.appendChild(style);
             }
         }
 
@@ -477,6 +497,79 @@
 
     // === INITIALIZATION ===
     const init = () => {
+        console.log('VistaFly - Crafted with precision');
+
+        // Suppress common iframe console noise
+        const originalError = console.error;
+        const originalWarn = console.warn;
+        const originalLog = console.log;
+
+        const iframeNoisePatterns = [
+            'cast_sender.js',
+            'PresentationRequest',
+            'sandboxed',
+            'Violation',
+            'permissions policy',
+            'GSAP target',
+            'not found',
+            'ReferenceError',
+            'parseTime',
+            'setupHeroGlow',
+            'initMusicPlayer',
+            'firebase',
+            'Analytics',
+            'Auth state',
+            'Profile',
+            'Stripe',
+            'GET https://',
+            '404',
+            'Failed to load',
+            'Image',
+            'portfolio',
+            'Important image failed',
+            'Trying path',
+            'FAILED:',
+            'SUCCESS:',
+            'encrypted-media',
+            'autoplay',
+            'accelerometer',
+            'gyroscope',
+            'clipboard-write',
+            'web-share',
+            'payment',
+            'Slideshow',
+            'marquee',
+            'YouTube',
+            'isStaging',
+            'ScrollTrigger',
+            'Page load time'
+        ];
+
+        const shouldSuppress = (args) => {
+            const message = args.join(' ');
+            return iframeNoisePatterns.some(pattern => 
+                message.toLowerCase().includes(pattern.toLowerCase())
+            );
+        };
+
+        console.error = function(...args) {
+            if (!shouldSuppress(args)) {
+                originalError.apply(console, args);
+            }
+        };
+
+        console.warn = function(...args) {
+            if (!shouldSuppress(args)) {
+                originalWarn.apply(console, args);
+            }
+        };
+
+        console.log = function(...args) {
+            if (!shouldSuppress(args)) {
+                originalLog.apply(console, args);
+            }
+        };
+
         new Navigation();
         new ParallaxController();
         new ScrollAnimations();
@@ -486,9 +579,6 @@
         new CustomCursor();
         new ViewportFix();
         new AccessibilityEnhancer();
-
-        console.log('%cVistaFly', 'font-size: 48px; font-weight: bold; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent;');
-        console.log('%cCrafted with precision and attention to detail.', 'font-size: 14px; color: #86868b;');
     };
 
     if (document.readyState === 'loading') {
