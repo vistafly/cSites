@@ -2,20 +2,16 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig({
-  // Base public path - './' works for GitHub Pages
-  base: './',
+  base: './',  // Keep this as-is for GitHub Pages
   
-  // React plugin for proper JSX handling
   plugins: [react()],
   
-  // Development server configuration
   server: {
     port: 3000,
     open: true,
     host: true
   },
   
-  // Build configuration
   build: {
     outDir: 'dist',
     assetsDir: 'assets',
@@ -31,12 +27,10 @@ export default defineConfig({
     }
   },
   
-  // Preview server (for testing production build)
   preview: {
     port: 4173,
     open: true
   },
   
-  // Environment variables prefix
   envPrefix: 'VITE_'
 });
