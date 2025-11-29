@@ -13,6 +13,11 @@
     <link rel="dns-prefetch" href="https://vistafly.github.io">
     
     <link rel="stylesheet" href="styles.css">
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
     <!-- Ambient Background -->
@@ -28,8 +33,18 @@
                 <li><a href="#home" class="nav-link">Home</a></li>
                 <li><a href="#philosophy" class="nav-link">Services</a></li>
                 <li><a href="#portfolio" class="nav-link">Portfolio</a></li>
+                <li><a href="#contract" class="nav-link">Agreement</a></li>
                 <li><a href="#contact" class="nav-link">Connect</a></li>
             </ul>
+            <div class="auth-status" id="authStatus">
+                <button class="auth-btn" id="authActionBtn">
+                    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                    </svg>
+                    <span id="authStatusText">Sign In</span>
+                </button>
+            </div>
             <div class="hamburger">
                 <span></span>
                 <span></span>
@@ -102,184 +117,422 @@
     </section>
 
     <!-- Portfolio Section -->
+    <!-- Portfolio Section - 3D Dome Gallery (React) -->
     <section id="portfolio" class="portfolio">
         <div class="container-wide">
             <div class="portfolio-header">
                 <div class="section-eyebrow">Selected Work</div>
                 <h2 class="section-title">Projects that inspire</h2>
+                <p class="portfolio-subtitle">Drag to explore • Click to view</p>
             </div>
 
-            <div class="portfolio-grid">
-                <div class="portfolio-item" data-category="Services" data-priority="high">
-                    <div class="portfolio-preview">
-                        <div class="preview-frame">
-                            <div class="iframe-placeholder" data-src="https://vistafly.services/">
-                                <div class="loading-spinner"></div>
-                                <div class="load-status">Loading preview...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-info">
-                        <div class="info-top">
-                            <h3>VistaFly Services</h3>
-                            <span class="category-tag">Services Platform</span>
-                        </div>
-                        <p class="project-description">Enterprise-grade service platform with sophisticated user flows</p>
-                        <a href="https://vistafly.services/" target="_blank" rel="noopener noreferrer" class="project-link">
-                            <span>View live</span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 13L13 1M13 1H4M13 1V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </a>
+            <!-- React Dome Gallery Mount Point -->
+            <div id="portfolio-dome-root"></div>
+        </div>
+    </section>
+
+    <!-- Contract Section -->
+    <section id="contract" class="contract-section">
+        <div class="container">
+            <div class="section-eyebrow">Legal Agreement</div>
+            <h2 class="section-title">Development Agreement</h2>
+            <p class="contract-intro">Review and sign our standard website development agreement. This contract outlines the terms, deliverables, and expectations for all VistaFly projects.</p>
+            
+            <div class="contract-actions">
+                <button id="viewContractBtn" class="btn-contract">
+                    <span>View & Sign Agreement</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+                <button id="downloadTemplateBtn" class="btn-contract-secondary">
+                    <span>Download Template</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 2V12M8 12L12 8M8 12L4 8M2 14H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
+
+            <div class="contract-features">
+                <div class="feature-item">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M9 11l3 3L22 4"></path>
+                        <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"></path>
+                    </svg>
+                    <div>
+                        <h4>Digital Signatures</h4>
+                        <p>Sign electronically with legal validity</p>
                     </div>
                 </div>
-
-                <div class="portfolio-item" data-category="Corporate" data-priority="high">
-                    <div class="portfolio-preview">
-                        <div class="preview-frame">
-                            <div class="iframe-placeholder" data-src="https://agstounding.com/">
-                                <div class="loading-spinner"></div>
-                                <div class="load-status">Loading preview...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-info">
-                        <div class="info-top">
-                            <h3>AG Stounding</h3>
-                            <span class="category-tag">Corporate</span>
-                        </div>
-                        <p class="project-description">Bold corporate presence with refined visual storytelling</p>
-                        <a href="https://agstounding.com/" target="_blank" rel="noopener noreferrer" class="project-link">
-                            <span>View live</span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 13L13 1M13 1H4M13 1V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </a>
+                <div class="feature-item">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0110 0v4"></path>
+                    </svg>
+                    <div>
+                        <h4>Secure & Confidential</h4>
+                        <p>Your information is protected</p>
                     </div>
                 </div>
-
-                <div class="portfolio-item" data-category="Entertainment">
-                    <div class="portfolio-preview">
-                        <div class="preview-frame">
-                            <div class="iframe-placeholder" data-src="https://themorenosband.com/">
-                                <div class="loading-spinner"></div>
-                                <div class="load-status">Loading preview...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-info">
-                        <div class="info-top">
-                            <h3>The Morenos Band</h3>
-                            <span class="category-tag">Entertainment</span>
-                        </div>
-                        <p class="project-description">Immersive band experience with audio-visual harmony</p>
-                        <a href="https://themorenosband.com/" target="_blank" rel="noopener noreferrer" class="project-link">
-                            <span>View live</span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 13L13 1M13 1H4M13 1V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="portfolio-item" data-category="Creative">
-                    <div class="portfolio-preview">
-                        <div class="preview-frame">
-                            <div class="iframe-placeholder" data-src="https://vistafly.github.io/thebox/">
-                                <div class="loading-spinner"></div>
-                                <div class="load-status">Loading preview...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-info">
-                        <div class="info-top">
-                            <h3>The Box</h3>
-                            <span class="category-tag">Creative</span>
-                        </div>
-                        <p class="project-description">Experimental interface pushing creative boundaries</p>
-                        <a href="https://vistafly.github.io/thebox/" target="_blank" rel="noopener noreferrer" class="project-link">
-                            <span>View live</span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 13L13 1M13 1H4M13 1V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="portfolio-item" data-category="Platform">
-                    <div class="portfolio-preview">
-                        <div class="preview-frame">
-                            <div class="iframe-placeholder" data-src="https://vistafly.github.io/CSA/">
-                                <div class="loading-spinner"></div>
-                                <div class="load-status">Loading preview...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-info">
-                        <div class="info-top">
-                            <h3>CSA</h3>
-                            <span class="category-tag">Platform</span>
-                        </div>
-                        <p class="project-description">Streamlined service platform with intuitive navigation</p>
-                        <a href="https://vistafly.github.io/CSA/" target="_blank" rel="noopener noreferrer" class="project-link">
-                            <span>View live</span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 13L13 1M13 1H4M13 1V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="portfolio-item" data-category="E-commerce">
-                    <div class="portfolio-preview">
-                        <div class="preview-frame">
-                            <div class="iframe-placeholder" data-src="https://vistafly.github.io/Sprouts-Clothing/">
-                                <div class="loading-spinner"></div>
-                                <div class="load-status">Loading preview...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-info">
-                        <div class="info-top">
-                            <h3>Sprouts Clothing</h3>
-                            <span class="category-tag">E-commerce</span>
-                        </div>
-                        <p class="project-description">Modern retail experience with seamless checkout flow</p>
-                        <a href="https://vistafly.github.io/Sprouts-Clothing/" target="_blank" rel="noopener noreferrer" class="project-link">
-                            <span>View live</span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 13L13 1M13 1H4M13 1V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </a>
-                    </div>
-                </div>
-
-                <div class="portfolio-item" data-category="Services">
-                    <div class="portfolio-preview">
-                        <div class="preview-frame">
-                            <div class="iframe-placeholder" data-src="https://vistafly.github.io/landscapingcultura/">
-                                <div class="loading-spinner"></div>
-                                <div class="load-status">Loading preview...</div>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="portfolio-info">
-                        <div class="info-top">
-                            <h3>Landscaping Cultura</h3>
-                            <span class="category-tag">Services</span>
-                        </div>
-                        <p class="project-description">Nature-inspired design showcasing outdoor craftsmanship</p>
-                        <a href="https://vistafly.github.io/landscapingcultura/" target="_blank" rel="noopener noreferrer" class="project-link">
-                            <span>View live</span>
-                            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                                <path d="M1 13L13 1M13 1H4M13 1V10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                            </svg>
-                        </a>
+                <div class="feature-item">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                    </svg>
+                    <div>
+                        <h4>Download PDF</h4>
+                        <p>Keep a copy for your records</p>
                     </div>
                 </div>
             </div>
         </div>
     </section>
+
+    <!-- Authentication Modal -->
+    <div id="authModal" class="auth-modal">
+        <div class="auth-overlay"></div>
+        <div class="auth-content">
+            <button class="auth-close" id="closeAuthBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="auth-header">
+                <h2>Sign In</h2>
+                <p>Authentication required to access the contract form</p>
+            </div>
+
+            <!-- Login Form Only -->
+            <form id="loginForm" class="auth-form active-form">
+                <div class="form-group">
+                    <label for="loginEmail">Email</label>
+                    <input type="email" id="loginEmail" required placeholder="your@email.com" autocomplete="email">
+                </div>
+                <div class="form-group">
+                    <label for="loginPassword">Password</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
+                </div>
+                <button type="submit" class="btn-auth">Sign In</button>
+                <div class="auth-error" id="loginError"></div>
+            </form>
+
+            <p class="auth-note">Only authorized users can access the contract form. Contact the administrator if you need access.</p>
+        </div>
+    </div>
+
+    <!-- Contract Modal (Hidden by default, shown after auth) -->
+    <div id="contractModal" class="contract-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content">
+            <button class="modal-close" id="closeModalBtn">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+
+            <div class="modal-header">
+                <h1>WEBSITE DEVELOPMENT AGREEMENT</h1>
+                <p class="modal-subtitle">VistaFly - Carlos Martin</p>
+            </div>
+
+            <form id="contractForm" class="contract-form">
+                <!-- Parties Section -->
+                <section class="contract-section-inner">
+                    <h2>Parties to the Agreement</h2>
+                    <p class="intro-text">
+                        This Website Development Agreement ("Agreement") is made effective as of the date of the final signature 
+                        (the "Effective Date") and is entered into by and between:
+                    </p>
+                    
+                    <div class="party-info">
+                        <p><strong>VistaFly</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>
+                        <p>and</p>
+                        <div class="form-group">
+                            <label for="clientName">Client's Full Legal Name or Company Name *</label>
+                            <input type="text" id="clientName" name="clientName" required placeholder="Enter full legal name or company name">
+                        </div>
+                        <p class="small-text">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>
+                    </div>
+                </section>
+
+                <!-- Project Scope -->
+                <section class="contract-section-inner">
+                    <h2>1. PROJECT SCOPE</h2>
+                    
+                    <h3>1.1 Overview</h3>
+                    <p>Developer agrees to design, build, and deliver a custom website or web application using modern technologies, 
+                    which may include but are not limited to: Visual Studio Code, React, Next.js, Firebase, Vite, REST/Graph APIs, 
+                    and associated development tools.</p>
+
+                    <h3>1.2 Statement of Work (SOW)</h3>
+                    <p>All features, functionalities, pages, integrations, and deliverables will be detailed in a separate Proposal 
+                    or Statement of Work ("SOW") prepared by Developer and approved by Client.</p>
+
+                    <h3>1.3 Scope Limitations</h3>
+                    <p>Only items expressly included in the SOW form part of the Project Scope. Any request beyond that scope—whether 
+                    new features, design changes, additional pages, or system enhancements—requires an approved Change Order (Section 10).</p>
+                </section>
+
+                <!-- Packages & Pricing -->
+                <section class="contract-section-inner">
+                    <h2>2. PACKAGES & PRICING</h2>
+                    <p>Developer offers multiple service tiers, including Starter, Professional, Premium, and Elite website/application 
+                    packages. The applicable pricing, deliverables, and package level for this Agreement will be specified in the 
+                    attached SOW, which forms an integral part of this Agreement.</p>
+                </section>
+
+                <!-- Payment Terms -->
+                <section class="contract-section-inner">
+                    <h2>3. PAYMENT TERMS</h2>
+                    <p>Unless otherwise specified in the SOW:</p>
+
+                    <h3>3.1 Deposit</h3>
+                    <p>A non-refundable deposit of 50% is required before any work begins, unless the Developer chooses to accept 
+                    a different amount at their discretion.</p>
+
+                    <h3>3.2 Milestone Payments</h3>
+                    <p>If no custom timetable is specified in the SOW, the standard schedule is:</p>
+                    <ul>
+                        <li>25% due upon UI/UX design approval</li>
+                        <li>25% due at final delivery or prior to deployment, whichever the Developer determines is appropriate</li>
+                    </ul>
+                    <p>The Developer may, at their discretion, adjust the milestone dates, provide grace periods, or allow alternative 
+                    arrangements for the Client.</p>
+
+                    <h3>3.3 Late Payments</h3>
+                    <p>Payments not received within 7 days of the due date may, at the Developer's discretion, incur a monthly late 
+                    fee of up to 5%. The Developer may also pause or delay work until any outstanding balance is paid.</p>
+                </section>
+
+                <!-- Client Responsibilities -->
+                <section class="contract-section-inner">
+                    <h2>4. CLIENT RESPONSIBILITIES</h2>
+                    <p>Client agrees to provide all necessary materials—including copy, images, brand assets, credentials, and 
+                    requested information—within 5 business days of Developer's request.</p>
+                    <p>Any delays in providing required materials will directly extend the project timeline. Developer is not 
+                    responsible for delays caused by the Client.</p>
+                </section>
+
+                <!-- Revisions -->
+                <section class="contract-section-inner">
+                    <h2>5. REVISIONS</h2>
+                    <p>Unless otherwise stated in the SOW:</p>
+                    <ul>
+                        <li>Client receives up to two (2) rounds of revisions per milestone</li>
+                        <li>Additional revisions or redesigns require a Change Order and may incur additional charges</li>
+                    </ul>
+                </section>
+
+                <!-- Intellectual Property -->
+                <section class="contract-section-inner">
+                    <h2>6. INTELLECTUAL PROPERTY RIGHTS</h2>
+                    
+                    <h3>6.1 Developer Ownership</h3>
+                    <p>Developer retains full ownership of all proprietary materials, including:</p>
+                    <ul>
+                        <li>Source code</li>
+                        <li>Backend logic and architecture</li>
+                        <li>Custom components, scripts, and utilities</li>
+                        <li>Developer's internal systems, tools, libraries, and workflows</li>
+                    </ul>
+                    <p>These materials are licensed to Client solely for use within the delivered project and may not be reused, 
+                    distributed, or modified for other purposes without written authorization.</p>
+
+                    <h3>6.2 Client Ownership</h3>
+                    <p>Upon full payment:</p>
+                    <p>Client gains ownership of:</p>
+                    <ul>
+                        <li>The final website design</li>
+                        <li>All content supplied by Client (text, images, media)</li>
+                        <li>The compiled, minified production build of the project</li>
+                    </ul>
+                    <p>Client does not receive ownership of Developer's raw source code unless purchased through a Source Code 
+                    License Agreement, which carries additional fees.</p>
+                </section>
+
+                <!-- Maintenance & Support -->
+                <section class="contract-section-inner">
+                    <h2>7. MAINTENANCE & SUPPORT</h2>
+                    <p>Maintenance plans (Basic, Professional, Premium) may be purchased separately and will be defined in the SOW.</p>
+                    <p>Maintenance plans do not include:</p>
+                    <ul>
+                        <li>New pages or sections</li>
+                        <li>New features or functionalities</li>
+                        <li>Major redesigns</li>
+                        <li>Third-party outages or service provider failures</li>
+                        <li>Policy changes from platforms (e.g., Google, Firebase)</li>
+                        <li>Fixes related to Client misuse or unauthorized alterations</li>
+                    </ul>
+                    <p>Such items require additional billing.</p>
+                </section>
+
+                <!-- Timeline & Delivery -->
+                <section class="contract-section-inner">
+                    <h2>8. TIMELINE & DELIVERY</h2>
+                    <p>Developer will provide an estimated project timeline. Client acknowledges these timelines are estimates, 
+                    not guarantees.</p>
+                    <p>Any Client-caused delay automatically extends the project schedule.</p>
+                </section>
+
+                <!-- Change Orders -->
+                <section class="contract-section-inner">
+                    <h2>9. CHANGE ORDERS</h2>
+                    <p>Any request modifying the Project Scope—including added features, redesigns, advanced animations, dashboards, 
+                    APIs, or system logic—requires a signed Change Order that includes revised pricing and timelines.</p>
+                    <p>Developer is not obligated to begin any additional work until the Change Order is fully approved and paid 
+                    when applicable.</p>
+                </section>
+
+                <!-- Warranty & Limitations -->
+                <section class="contract-section-inner">
+                    <h2>10. WARRANTY & LIMITATIONS</h2>
+                    
+                    <h3>10.1 Developer Warranty</h3>
+                    <p>Developer warrants that the delivered website will function substantially as described in the SOW for 30 days 
+                    after deployment.</p>
+
+                    <h3>10.2 Exclusions</h3>
+                    <p>This warranty does not apply to issues caused by:</p>
+                    <ul>
+                        <li>Client-modified code or settings</li>
+                        <li>Third-party service changes or outages</li>
+                        <li>Library, package, or plugin updates</li>
+                        <li>Hosting issues</li>
+                        <li>Improper access, misuse, or security breaches caused by Client</li>
+                        <li>Weak passwords or unprotected credentials</li>
+                    </ul>
+
+                    <h3>10.3 Liability Limitations</h3>
+                    <p>Developer's total liability under this Agreement is limited to the total amount paid by Client. Developer 
+                    is not liable for:</p>
+                    <ul>
+                        <li>Lost revenue or business interruption</li>
+                        <li>Data loss</li>
+                        <li>Security incidents caused by third parties or Client</li>
+                        <li>Indirect, special, or consequential damages</li>
+                    </ul>
+                </section>
+
+                <!-- Confidentiality -->
+                <section class="contract-section-inner">
+                    <h2>11. CONFIDENTIALITY</h2>
+                    <p>Both Parties agree to maintain the confidentiality of all proprietary or sensitive information exchanged 
+                    during the course of this project. Confidential information shall not be disclosed to third parties without 
+                    prior written consent unless required by law.</p>
+                </section>
+
+                <!-- Indemnification -->
+                <section class="contract-section-inner">
+                    <h2>12. INDEMNIFICATION</h2>
+                    <p>Client agrees to indemnify and hold Developer harmless from any claims arising out of:</p>
+                    <ul>
+                        <li>Content supplied by Client (including copyrighted or illegal material)</li>
+                        <li>Misuse or misconfiguration of the website</li>
+                        <li>Unauthorized access resulting from Client actions</li>
+                        <li>Any business decisions made using data produced by the website</li>
+                    </ul>
+                </section>
+
+                <!-- Termination -->
+                <section class="contract-section-inner">
+                    <h2>13. TERMINATION</h2>
+                    <p>Either Party may terminate this Agreement with 7 days written notice.</p>
+                    <p>If Client terminates early:</p>
+                    <ul>
+                        <li>All deposits are forfeited</li>
+                        <li>All completed work must be paid for immediately</li>
+                        <li>Developer retains all rights to unfinished work</li>
+                    </ul>
+                </section>
+
+                <!-- Governing Law -->
+                <section class="contract-section-inner">
+                    <h2>14. GOVERNING LAW</h2>
+                    <p>This Agreement shall be governed by and construed in accordance with the laws of the State of California 
+                    without regard to conflict-of-law principles.</p>
+                </section>
+
+                <!-- Entire Agreement -->
+                <section class="contract-section-inner">
+                    <h2>15. ENTIRE AGREEMENT</h2>
+                    <p>This Agreement, together with all attached SOWs, proposals, and addenda, constitutes the entire and complete 
+                    agreement between the Parties and supersedes all prior discussions, negotiations, or understandings.</p>
+                </section>
+
+                <!-- Acknowledgment -->
+                <section class="contract-section-inner acknowledgment">
+                    <div class="form-group checkbox-group">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="acknowledgment" name="acknowledgment" required>
+                            <span>I acknowledge that I have read, understood, and agree to all terms and conditions outlined in this Agreement *</span>
+                        </label>
+                    </div>
+                </section>
+
+                <!-- Signatures -->
+                <section class="contract-section-inner signatures">
+                    <h2>SIGNATURES</h2>
+                    
+                    <div class="signature-grid">
+                        <!-- Developer Signature -->
+                        <div class="signature-block">
+                            <h3>Developer – VistaFly</h3>
+                            <div class="form-group">
+                                <label for="devName">Name</label>
+                                <input type="text" id="devName" name="devName" value="Carlos Martin" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Signature</label>
+                                <div class="signature-pad-container">
+                                    <canvas id="devSignaturePad" class="signature-pad"></canvas>
+                                    <button type="button" class="clear-btn" data-canvas="devSignaturePad">Clear</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="devDate">Date *</label>
+                                <input type="date" id="devDate" name="devDate" required>
+                            </div>
+                        </div>
+
+                        <!-- Client Signature -->
+                        <div class="signature-block">
+                            <h3>Client – <span id="clientNameDisplay">Client Name</span></h3>
+                            <div class="form-group">
+                                <label for="clientSignerName">Name *</label>
+                                <input type="text" id="clientSignerName" name="clientSignerName" required placeholder="Full name of person signing">
+                            </div>
+                            <div class="form-group">
+                                <label>Signature *</label>
+                                <div class="signature-pad-container">
+                                    <canvas id="clientSignaturePad" class="signature-pad"></canvas>
+                                    <button type="button" class="clear-btn" data-canvas="clientSignaturePad">Clear</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="clientDate">Date *</label>
+                                <input type="date" id="clientDate" name="clientDate" required>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Submit Buttons -->
+                <div class="action-buttons">
+                    <button type="button" id="downloadBtn" class="btn btn-secondary">Download PDF</button>
+                    <button type="submit" class="btn btn-primary">Submit Agreement</button>
+                </div>
+            </form>
+
+            <div class="modal-footer">
+                <p>&copy; 2024 VistaFly. All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal (Login/Signup) -->
 
     <!-- Contact Section -->
     <section id="contact" class="contact">
@@ -287,7 +540,7 @@
             <div class="contact-wrapper">
                 <div class="contact-content">
                     <div class="section-eyebrow">Get in Touch</div>
-                    <h2 class="section-title">Let's covert<br> your vision<br>into reality...</h2>
+                    <h2 class="section-title">Let's convert<br> your vision<br>into reality...</h2>
                     <p class="contact-tagline">Ready to elevate your digital presence? Let's talk.</p>
                 </div>
                 
@@ -347,6 +600,7 @@
                     </div>
                     <div class="footer-column">
                         <h4>Legal</h4>
+                        <a href="contract.html">Agreement</a>
                         <a href="#">Privacy</a>
                         <a href="#">Terms</a>
                     </div>
@@ -358,6 +612,18 @@
         </div>
     </footer>
 
-    <script src="script.js"></script>
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <!-- Firebase Configuration -->
+    <script type="module" src="/firebase-config.js"></script>
+    
+    <!-- React Portfolio Dome -->
+    <script type="module" src="/portfolio-dome.jsx"></script>
+    
+    <!-- Main Script -->
+    <script type="module" src="/script.js"></script>
 </body>
 </html>
