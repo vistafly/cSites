@@ -94,7 +94,7 @@ body {
 }
 
 .navbar.scrolled {
-    padding: 1rem 0;
+    padding: .5rem 0;
     background: rgba(15, 15, 15, 0.8);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -102,12 +102,11 @@ body {
 }
 
 .nav-container {
-    max-width: 1400px;
     margin: 0 auto;
-    padding: 0 clamp(1.5rem, 5vw, 3rem);
+    padding: 0 clamp(1.5rem, 2vw, 2.5rem);
     display: flex;
-    justify-content: space-between;
     align-items: center;
+    justify-content: space-between;
     position: relative;
     z-index: 1;
 }
@@ -120,6 +119,7 @@ body {
     align-items: center;
     z-index: 1001;
     transition: transform 0.3s var(--ease-smooth);
+    flex-shrink: 0;
 }
 
 .logo-crop-container:hover {
@@ -134,18 +134,28 @@ body {
 .nav-menu {
     display: flex;
     list-style: none;
-    gap: 2.5rem;
+    gap: 6rem;
     align-items: center;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
+.nav-right {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+    flex-shrink: 0;
 }
 
 /* === NAVIGATION LINKS === */
 .nav-link {
     position: relative;
     text-decoration: none;
-    font-size: 0.9375rem;
-    font-weight: 500;
+    font-size: 1.01rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-    padding: 0.5rem 0;
     display: inline-block;
 }
 
@@ -233,13 +243,12 @@ body {
 .auth-status {
     display: flex;
     align-items: center;
-    margin-left: 2rem;
 }
 
 .auth-btn {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 0.3rem;
     padding: 0.625rem 1.25rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -503,6 +512,12 @@ section {
 }
 
 
+/* ===================================================================
+   PORTFOLIO SECTION - RESPONSIVE UPDATES
+   Replace the existing portfolio section CSS in your styles.css 
+   with this updated version for better mobile responsiveness
+   =================================================================== */
+
 /* === PORTFOLIO SECTION === */
 .portfolio {
     padding: 10rem 0rem 10rem;
@@ -527,15 +542,38 @@ section {
 #portfolio-dome-root {
     width: 100%;
     height: 700px;
+    min-height: 400px;
 }
 
-@media (max-width: 768px) {
+/* Mobile phones (360px - 430px) */
+@media (max-width: 430px) {
     .portfolio {
-        padding: 4rem 0;
+        padding: 3rem 0 4rem;
     }
     
     .portfolio-header {
         margin-bottom: 2rem;
+        margin-top: -2rem;
+    }
+    
+    .portfolio-subtitle {
+        font-size: 0.875rem;
+    }
+    
+    #portfolio-dome-root {
+        height: 450px;
+    }
+}
+
+/* Small tablets (540px - 768px) */
+@media (min-width: 540px) and (max-width: 768px) {
+    .portfolio {
+        padding: 5rem 0 6rem;
+    }
+    
+    .portfolio-header {
+        margin-bottom: 3rem;
+        margin-top: -3rem;
     }
     
     #portfolio-dome-root {
@@ -543,9 +581,51 @@ section {
     }
 }
 
-@media (max-width: 480px) {
+/* Medium tablets (820px - 912px) */
+@media (min-width: 820px) and (max-width: 912px) {
+    .portfolio {
+        padding: 7rem 0 8rem;
+    }
+    
+    .portfolio-header {
+        margin-bottom: 5rem;
+        margin-top: -4rem;
+    }
+    
     #portfolio-dome-root {
-        height: 450px;
+        height: 600px;
+    }
+}
+
+/* Large tablets (1024px) */
+@media (min-width: 913px) and (max-width: 1024px) {
+    .portfolio {
+        padding: 8rem 0 9rem;
+    }
+    
+    .portfolio-header {
+        margin-bottom: 8rem;
+        margin-top: -4rem;
+    }
+    
+    #portfolio-dome-root {
+        height: 650px;
+    }
+}
+
+/* Landscape orientation for phones */
+@media (max-width: 932px) and (orientation: landscape) {
+    .portfolio {
+        padding: 2rem 0 3rem;
+    }
+    
+    .portfolio-header {
+        margin-bottom: 1.5rem;
+        margin-top: -1rem;
+    }
+    
+    #portfolio-dome-root {
+        height: 400px;
     }
 }
 
@@ -763,7 +843,7 @@ section {
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 0.75rem;
     padding: 2rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1.3rem;
 }
 
 .contract-section-inner h2 {
@@ -882,7 +962,7 @@ section {
 
 .signature-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 2rem;
 }
 
@@ -941,9 +1021,7 @@ section {
     display: flex;
     gap: 1rem;
     justify-content: center;
-    margin-top: 2rem;
-    padding-top: 2rem;
-    border-top: 2px solid rgba(255, 255, 255, 0.1);
+    padding-bottom: 20px;
 }
 
 .btn {
@@ -1053,7 +1131,7 @@ section {
 
 .auth-btn {
     width: 100%;
-    padding: 1rem;
+    padding: .7rem;
     background: var(--white);
     color: var(--black);
     border: none;
@@ -1063,7 +1141,6 @@ section {
     cursor: pointer;
     transition: all 0.3s var(--ease-smooth);
     font-family: var(--font-text);
-    margin-top: 1rem;
 }
 
 .auth-btn:hover {
@@ -1404,9 +1481,12 @@ section {
         display: flex;
     }
     
+    .nav-right {
+        gap: 1rem;
+    }
+    
     .auth-status {
-        margin-left: auto;
-        margin-right: 1rem;
+        margin-left: 0;
     }
     
     .auth-btn {
@@ -1435,6 +1515,8 @@ section {
         position: fixed;
         top: 0;
         right: -100%;
+        left: auto;
+        transform: none;
         width: 100%;
         height: 100vh;
         background: rgba(10, 10, 10, 0.98);
@@ -1745,4 +1827,61 @@ section {
     .auth-header h2 {
         font-size: 1.5rem;
     }
+}
+/* Hide custom cursor when viewing embeddings */
+.sphere-root[data-enlarging='true'] ~ * .custom-cursor,
+body:has(.sphere-root[data-enlarging='true']) .custom-cursor {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Re-enable normal cursor in overlays */
+.viewer .enlarge,
+.viewer .enlarge * {
+    cursor: auto !important;
+}
+/* Pending signature notice */
+.pending-notice {
+    background: rgba(255, 255, 255, 0.05);
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    text-align: center;
+}
+
+.pending-notice svg {
+    color: var(--medium-gray);
+    margin-bottom: 1rem;
+    opacity: 0.6;
+}
+
+.pending-notice p {
+    color: var(--silver);
+    margin: 0.5rem 0;
+}
+
+.pending-notice p strong {
+    color: var(--white);
+    display: block;
+    margin-bottom: 0.5rem;
+    font-size: 1.125rem;
+}
+
+.contract-note {
+    background: rgba(46, 204, 113, 0.1);
+    border: 2px solid rgba(46, 204, 113, 0.3);
+    border-radius: 0.75rem;
+    padding: 2rem;
+    margin-top: 2rem;
+    text-align: center;
+}
+
+.contract-note p {
+    color: var(--white);
+    margin: 0.5rem 0;
+    line-height: 1.6;
+}
+
+.contract-note p strong {
+    color: #2ecc71;
 }

@@ -27,7 +27,7 @@
     <nav class="navbar">
         <div class="nav-container">
             <div class="logo-crop-container">
-                <img src="https://s14.gifyu.com/images/bxbYz.gif" alt="VistaFly Logo" class="logo-crop-img" loading="eager" />
+                <img src="/images/csiteslogo.gif" alt="VistaFly Logo" class="logo-crop-img" loading="eager" />
             </div>
             <ul class="nav-menu">
                 <li><a href="#home" class="nav-link">Home</a></li>
@@ -473,58 +473,78 @@
                 </section>
 
                 <!-- Signatures -->
-                <section class="contract-section-inner signatures">
-                    <h2>SIGNATURES</h2>
-                    
-                    <div class="signature-grid">
-                        <!-- Developer Signature -->
-                        <div class="signature-block">
-                            <h3>Developer – VistaFly</h3>
-                            <div class="form-group">
-                                <label for="devName">Name</label>
-                                <input type="text" id="devName" name="devName" value="Carlos Martin" readonly>
-                            </div>
-                            <div class="form-group">
-                                <label>Signature</label>
-                                <div class="signature-pad-container">
-                                    <canvas id="devSignaturePad" class="signature-pad"></canvas>
-                                    <button type="button" class="clear-btn" data-canvas="devSignaturePad">Clear</button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="devDate">Date *</label>
-                                <input type="date" id="devDate" name="devDate" required>
-                            </div>
-                        </div>
-
-                        <!-- Client Signature -->
-                        <div class="signature-block">
-                            <h3>Client – <span id="clientNameDisplay">Client Name</span></h3>
-                            <div class="form-group">
-                                <label for="clientSignerName">Name *</label>
-                                <input type="text" id="clientSignerName" name="clientSignerName" required placeholder="Full name of person signing">
-                            </div>
-                            <div class="form-group">
-                                <label>Signature *</label>
-                                <div class="signature-pad-container">
-                                    <canvas id="clientSignaturePad" class="signature-pad"></canvas>
-                                    <button type="button" class="clear-btn" data-canvas="clientSignaturePad">Clear</button>
-                                </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="clientDate">Date *</label>
-                                <input type="date" id="clientDate" name="clientDate" required>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-
-                <!-- Submit Buttons -->
-                <div class="action-buttons">
-                    <button type="button" id="downloadBtn" class="btn btn-secondary">Download PDF</button>
-                    <button type="submit" class="btn btn-primary">Submit Agreement</button>
+<section class="contract-section-inner signatures">
+    <h2>SIGNATURES</h2>
+    
+    <div class="signature-grid">
+        <!-- Developer Signature (only shown to developer) -->
+        <div class="signature-block" id="devSignatureBlock" style="display: none;">
+            <h3>Developer – VistaFly</h3>
+            <div class="form-group">
+                <label for="devName">Name</label>
+                <input type="text" id="devName" name="devName" value="Carlos Martin" readonly>
+            </div>
+            <div class="form-group">
+                <label>Signature</label>
+                <div class="signature-pad-container">
+                    <canvas id="devSignaturePad" class="signature-pad"></canvas>
+                    <button type="button" class="clear-btn" data-canvas="devSignaturePad">Clear</button>
                 </div>
-            </form>
+            </div>
+            <div class="form-group">
+                <label for="devDate">Date *</label>
+                <input type="date" id="devDate" name="devDate">
+            </div>
+        </div>
+
+        <!-- Client Signature (only shown to client) -->
+        <div class="signature-block" id="clientSignatureBlock" style="display: none;">
+            <h3>Client – <span id="clientNameDisplay">Client Name</span></h3>
+            <div class="form-group">
+                <label for="clientSignerName">Name *</label>
+                <input type="text" id="clientSignerName" name="clientSignerName" placeholder="Full name of person signing">
+            </div>
+            <div class="form-group">
+                <label>Signature *</label>
+                <div class="signature-pad-container">
+                    <canvas id="clientSignaturePad" class="signature-pad"></canvas>
+                    <button type="button" class="clear-btn" data-canvas="clientSignaturePad">Clear</button>
+                </div>
+            </div>
+            <div class="form-group">
+                <label for="clientDate">Date *</label>
+                <input type="date" id="clientDate" name="clientDate">
+            </div>
+        </div>
+        
+        <!-- Developer Info (shown to client after they sign) -->
+        <div class="signature-block developer-pending" id="devPendingBlock" style="display: none;">
+            <h3>Developer – VistaFly</h3>
+            <div class="pending-notice">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                <p><strong>Pending Developer Signature</strong></p>
+                <p>You will receive the fully executed contract via email once the developer signs.</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Status message for clients -->
+    <div id="clientSubmitMessage" style="display: none;" class="contract-note">
+        <p><strong>✓ Your signature has been submitted successfully!</strong></p>
+        <p>The developer will review and sign the agreement. You will receive the fully executed contract via email at <strong id="clientEmailDisplay"></strong> within 24-48 hours.</p>
+    </div>
+</section>
+
+<!-- Submit Buttons -->
+<div class="action-buttons">
+    <button type="button" id="downloadBtn" class="btn btn-secondary" style="display: none;">Download PDF</button>
+    <button type="submit" class="btn btn-primary" id="submitBtn">
+        <span id="submitBtnText">Submit Agreement</span>
+    </button>
+</div>
 
             <div class="modal-footer">
                 <p>&copy; 2024 VistaFly. All rights reserved.</p>

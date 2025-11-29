@@ -29,7 +29,7 @@
 
 main.sphere-main {
   position: absolute;
-  inset: -15%;  /* Increased overflow for larger dome */
+  inset: -15%;
   display: grid;
   place-items: center;
   overflow: visible !important;
@@ -37,11 +37,12 @@ main.sphere-main {
   user-select: none;
   -webkit-user-select: none;
   background: transparent;
+  padding-top: 20px;
 }
 
 .stage {
-  width: 130%;  /* Larger stage */
-  height: 130%;  /* Larger stage */
+  width: 130%;
+  height: 130%;
   display: grid;
   place-items: center;
   perspective: calc(var(--radius) * 2);
@@ -76,7 +77,7 @@ main.sphere-main {
 .item__image {
   position: absolute;
   display: block;
-  inset: 12px;  /* Increased from 6px for more gap between cards */
+  inset: 12px;
   border-radius: var(--tile-radius, 12px);
   background: #0a0a0a;
   overflow: hidden;
@@ -85,24 +86,24 @@ main.sphere-main {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
               border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  cursor: none !important;  /* Respect custom cursor */
+  cursor: none !important;
   touch-action: manipulation;
-  pointer-events: auto !important;  /* Ensure clickable */
-  transform: translateZ(0) scale(1);  /* Base state with GPU acceleration */
+  pointer-events: auto !important;
+  transform: translateZ(0) scale(1);
   transform-style: preserve-3d;
-  will-change: transform;  /* Optimize for animation */
+  will-change: transform;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.03);
 }
 
 .item__image:hover {
-  transform: translateZ(20px) scale(1.08);  /* Lift and scale in 3D space */
+  transform: translateZ(20px) scale(1.08);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
   border-color: rgba(255, 255, 255, 0.2);
 }
 
 .item__image:active {
-  transform: translateZ(10px) scale(1.02);  /* Slight press effect */
+  transform: translateZ(10px) scale(1.02);
   transition-duration: 0.1s;
 }
 
@@ -142,14 +143,14 @@ main.sphere-main {
 .sphere-root[data-enlarging='true'] .viewer .scrim {
   opacity: 1;
   pointer-events: all;
-  cursor: none !important;  /* Respect custom cursor */
+  cursor: none !important;
 }
 
 .viewer .enlarge {
   position: fixed;
   z-index: 9999;
   pointer-events: all !important;
-  cursor: auto !important;  /* Allow normal cursor in overlay for iframe interaction */
+  cursor: auto !important;
 }
 
 .viewer .enlarge iframe,
@@ -161,47 +162,16 @@ main.sphere-main {
   pointer-events: all !important;
 }
 
-/* Mobile optimizations */
+/* Minimal mobile adjustments - just slight spacing tweaks */
 @media (max-width: 768px) {
-  .sphere-root {
-    --radius: 600px;
-  }
-  
-  main.sphere-main {
-    inset: -10%;
-  }
-  
-  .stage {
-    width: 120%;
-    height: 120%;
-    perspective: calc(var(--radius) * 1.8);
-  }
-  
   .item__image {
-    inset: 14px;  /* Increased from 8px for consistent gap */
-  }
-  
-  .item__image:hover {
-    transform: translateZ(15px) scale(1.05);  /* Reduced effect for mobile */
+    inset: 10px;
   }
 }
 
 @media (max-width: 480px) {
-  .sphere-root {
-    --radius: 450px;
-  }
-  
-  main.sphere-main {
-    inset: -8%;
-  }
-  
-  .stage {
-    width: 115%;
-    height: 115%;
-  }
-  
   .item__image {
-    inset: 16px;  /* Increased from 10px for consistent gap */
+    inset: 8px;
   }
 }
 
@@ -216,12 +186,18 @@ main.sphere-main {
   }
 }
 
-/* Touch device optimization - disable hover effects */
+/* Touch device optimization - disable hover effects on mobile */
 @media (hover: none) and (pointer: coarse) {
   .item__image:hover {
-    transform: translateZ(0) scale(1);  /* No hover effect on touch devices */
+    transform: translateZ(0) scale(1);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
     border-color: rgba(255, 255, 255, 0.03);
+  }
+  
+  .item__image:active {
+    transform: translateZ(5px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
   }
 }
 
@@ -231,4 +207,17 @@ main.sphere-main {
 .item__image {
   -webkit-backface-visibility: hidden;
   backface-visibility: hidden;
+}
+
+/* Hide custom cursor when viewing embeddings */
+.sphere-root[data-enlarging='true'] ~ * .custom-cursor,
+body:has(.sphere-root[data-enlarging='true']) .custom-cursor {
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+/* Re-enable normal cursor in overlays */
+.viewer .enlarge,
+.viewer .enlarge * {
+    cursor: auto !important;
 }

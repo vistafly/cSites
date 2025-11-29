@@ -52,6 +52,10 @@
                 return connection.effectiveType === 'slow-2g' || connection.effectiveType === '2g';
             }
             return navigator.hardwareConcurrency && navigator.hardwareConcurrency < 4;
+        },
+        // Check if screen is laptop size or larger (1024px+)
+        isLaptopOrLarger: function() {
+            return window.innerWidth >= 1024;
         }
     };
 
@@ -238,7 +242,6 @@
         var self = this;
         
         if (this.isMobile) {
-            // Mobile: Just use links, no iframes
             console.log('Mobile: Using thumbnail links only');
             this.thumbnails.forEach(function(thumbnail) {
                 thumbnail.addEventListener('click', function() {
@@ -249,7 +252,6 @@
                 });
             });
         } else {
-            // Desktop: Load iframes with lazy loading
             console.log('Desktop: Enabling iframe loading');
             this.setupDesktopIframes();
         }
@@ -346,66 +348,70 @@
         this.authModal = $('#authModal');
         this.contractModal = $('#contractModal');
         this.currentUser = null;
+        
+        if (!this.authModal || !this.contractModal) {
+            console.error('Auth or Contract modal not found');
+            return;
+        }
+        
         this.init();
     };
 
     FirebaseAuthHandler.prototype.init = function() {
         var self = this;
-
-        // Check if Firebase is loaded
-        if (typeof firebase === 'undefined') {
-            console.error('Firebase not loaded. Please include Firebase scripts.');
-            return;
-        }
-
-        // Auth state observer
-        firebase.auth().onAuthStateChanged(function(user) {
-            self.currentUser = user;
-            if (user) {
-                console.log('User signed in:', user.email);
-            } else {
-                console.log('User signed out');
-            }
-        });
-
-        // Setup auth modal handlers
-        this.setupAuthModal();
-        this.setupContractButtons();
-    };
-
-    FirebaseAuthHandler.prototype.setupAuthModal = function() {
-        var self = this;
-
-        // Tab switching
-        $$('.auth-tab').forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                var tabName = this.getAttribute('data-tab');
-                
-                $$('.auth-tab').forEach(function(t) { t.classList.remove('active'); });
-                $$('.auth-form').forEach(function(f) { f.classList.remove('active'); });
-                
-                this.classList.add('active');
-                $('#' + tabName + 'Form').classList.add('active');
+        
+        if (typeof firebase !== 'undefined' && firebase.auth) {
+            firebase.auth().onAuthStateChanged(function(user) {
+                self.handleAuthStateChange(user);
             });
-        });
-
-        // Close auth modal
+        } else {
+            console.error('Firebase is not loaded. Make sure you have created .env file with your Firebase credentials.');
+        }
+        
+        var authActionBtn = $('#authActionBtn');
+        if (authActionBtn) {
+            authActionBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                if (self.currentUser) {
+                    if (confirm('Are you sure you want to sign out?')) {
+                        self.handleLogout();
+                    }
+                } else {
+                    self.showAuthModal();
+                }
+            });
+        }
+        
+        var viewBtn = $('#viewContractBtn');
+        if (viewBtn) {
+            viewBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                self.checkAuthAndShowContract();
+            });
+        }
+        
+        var downloadBtn = $('#downloadTemplateBtn');
+        if (downloadBtn) {
+            downloadBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                self.checkAuthAndShowContract();
+            });
+        }
+        
         var closeAuthBtn = $('#closeAuthBtn');
         if (closeAuthBtn) {
             closeAuthBtn.addEventListener('click', function() {
-                self.authModal.classList.remove('active');
+                self.closeAuthModal();
             });
         }
-
-        // Close on overlay click
-        var authOverlay = $('.modal-overlay', this.authModal);
-        if (authOverlay) {
-            authOverlay.addEventListener('click', function() {
-                self.authModal.classList.remove('active');
+        
+        var closeModalBtn = $('#closeModalBtn');
+        if (closeModalBtn) {
+            closeModalBtn.addEventListener('click', function() {
+                self.closeContractModal();
             });
         }
-
-        // Login form
+        
         var loginForm = $('#loginForm');
         if (loginForm) {
             loginForm.addEventListener('submit', function(e) {
@@ -413,142 +419,147 @@
                 self.handleLogin();
             });
         }
-
-        // Signup form
-        var signupForm = $('#signupForm');
-        if (signupForm) {
-            signupForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                self.handleSignup();
+        
+        var authOverlay = $('.auth-overlay', this.authModal);
+        if (authOverlay) {
+            authOverlay.addEventListener('click', function() {
+                self.closeAuthModal();
             });
         }
-
-        // Google Sign In
-        var googleBtn = $('#googleSignInBtn');
-        if (googleBtn) {
-            googleBtn.addEventListener('click', function() {
-                self.handleGoogleSignIn();
+        
+        var modalOverlay = $('.modal-overlay', this.contractModal);
+        if (modalOverlay) {
+            modalOverlay.addEventListener('click', function() {
+                self.closeContractModal();
             });
         }
     };
 
-    FirebaseAuthHandler.prototype.setupContractButtons = function() {
-        var self = this;
-
-        // View Contract button
-        var viewBtn = $('#viewContractBtn');
-        if (viewBtn) {
-            viewBtn.addEventListener('click', function() {
-                if (self.currentUser) {
-                    self.showContractModal();
-                } else {
-                    self.showAuthModal();
-                }
-            });
+    FirebaseAuthHandler.prototype.checkAuthAndShowContract = function() {
+        if (this.currentUser) {
+            this.showContractModal();
+        } else {
+            this.showAuthModal();
         }
+    };
 
-        // Download Template button
-        var downloadBtn = $('#downloadTemplateBtn');
-        if (downloadBtn) {
-            downloadBtn.addEventListener('click', function() {
-                if (self.currentUser) {
-                    self.downloadTemplate();
-                } else {
-                    self.showAuthModal();
-                }
-            });
-        }
-
-        // Close contract modal
-        var closeModalBtn = $('#closeModalBtn');
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', function() {
-                self.contractModal.classList.remove('active');
-            });
-        }
-
-        // Close on overlay click
-        var contractOverlay = $('.modal-overlay', this.contractModal);
-        if (contractOverlay) {
-            contractOverlay.addEventListener('click', function() {
-                self.contractModal.classList.remove('active');
-            });
+    FirebaseAuthHandler.prototype.handleAuthStateChange = function(user) {
+        this.currentUser = user;
+        
+        var authBtn = $('#authActionBtn');
+        var authText = $('#authStatusText');
+        
+        if (user) {
+            console.log('User signed in:', user.email);
+            if (authBtn) authBtn.classList.add('logged-in');
+            if (authText) authText.textContent = user.email.split('@')[0];
+        } else {
+            console.log('User signed out');
+            if (authBtn) authBtn.classList.remove('logged-in');
+            if (authText) authText.textContent = 'Sign In';
+            this.closeContractModal();
         }
     };
 
     FirebaseAuthHandler.prototype.showAuthModal = function() {
-        this.authModal.classList.add('active');
+        if (this.authModal) {
+            this.authModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    };
+
+    FirebaseAuthHandler.prototype.closeAuthModal = function() {
+        if (this.authModal) {
+            this.authModal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
     };
 
     FirebaseAuthHandler.prototype.showContractModal = function() {
-        this.contractModal.classList.add('active');
+        if (this.contractModal) {
+            this.contractModal.classList.add('show');
+            document.body.style.overflow = 'hidden';
+        }
+    };
+
+    FirebaseAuthHandler.prototype.closeContractModal = function() {
+        if (this.contractModal) {
+            this.contractModal.classList.remove('show');
+            document.body.style.overflow = '';
+        }
     };
 
     FirebaseAuthHandler.prototype.handleLogin = function() {
-        var email = $('#loginEmail').value;
+        var email = $('#loginEmail').value.trim();
         var password = $('#loginPassword').value;
         var errorEl = $('#loginError');
+        var submitBtn = $('#loginForm button[type="submit"]');
+        
+        if (!email || !password) {
+            this.showError(errorEl, 'Please fill in all fields');
+            return;
+        }
+        
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Signing in...';
+        
         var self = this;
-
         firebase.auth().signInWithEmailAndPassword(email, password)
             .then(function(userCredential) {
                 console.log('Login successful');
-                self.authModal.classList.remove('active');
-                self.showContractModal();
+                self.closeAuthModal();
+                $('#loginForm').reset();
+                setTimeout(function() {
+                    self.showContractModal();
+                }, 300);
             })
             .catch(function(error) {
                 console.error('Login error:', error);
-                errorEl.textContent = error.message;
+                self.showError(errorEl, self.getErrorMessage(error.code));
+            })
+            .finally(function() {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Sign In';
             });
     };
 
-    FirebaseAuthHandler.prototype.handleSignup = function() {
-        var email = $('#signupEmail').value;
-        var password = $('#signupPassword').value;
-        var confirmPassword = $('#signupConfirmPassword').value;
-        var errorEl = $('#signupError');
+    FirebaseAuthHandler.prototype.handleLogout = function() {
         var self = this;
-
-        if (password !== confirmPassword) {
-            errorEl.textContent = 'Passwords do not match';
-            return;
-        }
-
-        if (password.length < 6) {
-            errorEl.textContent = 'Password must be at least 6 characters';
-            return;
-        }
-
-        firebase.auth().createUserWithEmailAndPassword(email, password)
-            .then(function(userCredential) {
-                console.log('Signup successful');
-                self.authModal.classList.remove('active');
-                self.showContractModal();
+        firebase.auth().signOut()
+            .then(function() {
+                console.log('Logged out successfully');
+                self.closeContractModal();
             })
             .catch(function(error) {
-                console.error('Signup error:', error);
-                errorEl.textContent = error.message;
+                console.error('Logout error:', error);
+                alert('Error signing out. Please try again.');
             });
     };
 
-    FirebaseAuthHandler.prototype.handleGoogleSignIn = function() {
-        var self = this;
-        var provider = new firebase.auth.GoogleAuthProvider();
-
-        firebase.auth().signInWithPopup(provider)
-            .then(function(result) {
-                console.log('Google sign-in successful');
-                self.authModal.classList.remove('active');
-                self.showContractModal();
-            })
-            .catch(function(error) {
-                console.error('Google sign-in error:', error);
-                alert('Google sign-in failed: ' + error.message);
-            });
+    FirebaseAuthHandler.prototype.showError = function(element, message) {
+        if (element) {
+            element.textContent = message;
+            element.classList.add('show');
+            
+            setTimeout(function() {
+                element.classList.remove('show');
+            }, 5000);
+        }
     };
 
-    FirebaseAuthHandler.prototype.downloadTemplate = function() {
-        window.print();
+    FirebaseAuthHandler.prototype.getErrorMessage = function(errorCode) {
+        var messages = {
+            'auth/configuration-not-found': 'Firebase is not configured. Please check your .env file.',
+            'auth/invalid-email': 'Invalid email address',
+            'auth/user-not-found': 'No account found. Contact administrator for access.',
+            'auth/wrong-password': 'Incorrect password',
+            'auth/too-many-requests': 'Too many failed attempts. Try again later',
+            'auth/network-request-failed': 'Network error. Please check your connection',
+            'auth/user-disabled': 'This account has been disabled. Contact administrator.',
+            'auth/invalid-credential': 'Invalid email or password'
+        };
+        
+        return messages[errorCode] || 'Authentication error. Please try again or contact administrator.';
     };
 
     // === SIGNATURE PAD CLASS ===
@@ -571,30 +582,53 @@
         var rect = this.canvas.getBoundingClientRect();
         this.canvas.width = rect.width;
         this.canvas.height = rect.height;
+        console.log('Canvas resized:', this.canvas.width, 'x', this.canvas.height);
     };
     
     SignaturePad.prototype.setupEventListeners = function() {
         var self = this;
         
-        this.canvas.addEventListener('mousedown', function(e) { self.startDrawing(e); });
-        this.canvas.addEventListener('mousemove', function(e) { self.draw(e); });
-        this.canvas.addEventListener('mouseup', function() { self.stopDrawing(); });
-        this.canvas.addEventListener('mouseout', function() { self.stopDrawing(); });
+        // Mouse events
+        this.canvas.addEventListener('mousedown', function(e) { 
+            e.preventDefault();
+            self.startDrawing(e); 
+        });
+        this.canvas.addEventListener('mousemove', function(e) { 
+            e.preventDefault();
+            self.draw(e); 
+        });
+        this.canvas.addEventListener('mouseup', function(e) { 
+            e.preventDefault();
+            self.stopDrawing(); 
+        });
+        this.canvas.addEventListener('mouseout', function(e) { 
+            e.preventDefault();
+            self.stopDrawing(); 
+        });
         
+        // Touch events - CRITICAL for mobile/tablet
         this.canvas.addEventListener('touchstart', function(e) {
             e.preventDefault();
-            self.startDrawing(e.touches[0]);
-        });
+            var touch = e.touches[0];
+            self.startDrawing(touch);
+        }, { passive: false });
+        
         this.canvas.addEventListener('touchmove', function(e) {
             e.preventDefault();
-            self.draw(e.touches[0]);
-        });
+            var touch = e.touches[0];
+            self.draw(touch);
+        }, { passive: false });
+        
         this.canvas.addEventListener('touchend', function(e) {
             e.preventDefault();
             self.stopDrawing();
+        }, { passive: false });
+        
+        window.addEventListener('resize', function() { 
+            self.resizeCanvas(); 
         });
         
-        window.addEventListener('resize', function() { self.resizeCanvas(); });
+        console.log('Signature pad event listeners attached to canvas:', this.canvas.id);
     };
     
     SignaturePad.prototype.getCoordinates = function(event) {
@@ -611,6 +645,7 @@
         this.ctx.beginPath();
         this.ctx.moveTo(coords.x, coords.y);
         this.hasSignature = true;
+        console.log('Started drawing at:', coords.x, coords.y);
     };
     
     SignaturePad.prototype.draw = function(event) {
@@ -621,6 +656,9 @@
     };
     
     SignaturePad.prototype.stopDrawing = function() {
+        if (this.isDrawing) {
+            console.log('Stopped drawing');
+        }
         this.isDrawing = false;
         this.ctx.beginPath();
     };
@@ -628,6 +666,7 @@
     SignaturePad.prototype.clear = function() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
         this.hasSignature = false;
+        console.log('Signature cleared');
     };
     
     SignaturePad.prototype.isEmpty = function() {
@@ -639,162 +678,395 @@
     };
 
     // === CONTRACT FORM HANDLER ===
-    var ContractFormHandler = function() {
-        this.form = $('#contractForm');
-        if (!this.form) return;
-        
-        this.devSignaturePad = null;
-        this.clientSignaturePad = null;
-        this.init();
-    };
+var ContractFormHandler = function() {
+    this.form = $('#contractForm');
+    if (!this.form) {
+        console.log('Contract form not found');
+        return;
+    }
+    
+    this.devSignaturePad = null;
+    this.clientSignaturePad = null;
+    this.isDeveloper = false;
+    this.currentContract = null;
+    this.DEVELOPER_EMAIL = 'your-developer-email@gmail.com'; // UPDATE THIS!
+    this.init();
+};
 
-    ContractFormHandler.prototype.init = function() {
-        var self = this;
-        
-        // Initialize signature pads
-        var devCanvas = $('#devSignaturePad');
-        var clientCanvas = $('#clientSignaturePad');
-        
-        if (devCanvas) this.devSignaturePad = new SignaturePad(devCanvas);
-        if (clientCanvas) this.clientSignaturePad = new SignaturePad(clientCanvas);
-        
-        // Set today's date
-        var today = new Date().toISOString().split('T')[0];
-        var devDate = $('#devDate');
-        var clientDate = $('#clientDate');
-        if (devDate) devDate.value = today;
-        if (clientDate) clientDate.value = today;
-        
-        // Clear buttons
-        $$('.clear-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() {
-                var canvasId = this.getAttribute('data-canvas');
-                if (canvasId === 'devSignaturePad' && self.devSignaturePad) {
-                    self.devSignaturePad.clear();
-                } else if (canvasId === 'clientSignaturePad' && self.clientSignaturePad) {
-                    self.clientSignaturePad.clear();
-                }
-            });
-        });
-        
-        // Update client name display
-        var clientNameInput = $('#clientName');
-        var clientNameDisplay = $('#clientNameDisplay');
-        if (clientNameInput && clientNameDisplay) {
-            clientNameInput.addEventListener('input', function() {
-                clientNameDisplay.textContent = this.value || 'Client Name';
-            });
+ContractFormHandler.prototype.init = function() {
+    var self = this;
+    
+    console.log('Initializing contract form handler');
+    
+    // Check if user is developer
+    firebase.auth().onAuthStateChanged(function(user) {
+        if (user) {
+            self.isDeveloper = user.email === self.DEVELOPER_EMAIL;
+            console.log('User role:', self.isDeveloper ? 'Developer' : 'Client');
+            self.setupForm();
         }
-        
-        // Form submission
-        this.form.addEventListener('submit', function(e) {
+    });
+};
+
+ContractFormHandler.prototype.setupForm = function() {
+    var self = this;
+    
+    // Initialize signature pads
+    var devCanvas = $('#devSignaturePad');
+    var clientCanvas = $('#clientSignaturePad');
+    
+    if (devCanvas) {
+        this.devSignaturePad = new SignaturePad(devCanvas);
+    }
+    
+    if (clientCanvas) {
+        this.clientSignaturePad = new SignaturePad(clientCanvas);
+    }
+    
+    // Show appropriate sections based on role
+    if (this.isDeveloper) {
+        this.setupDeveloperView();
+    } else {
+        this.setupClientView();
+    }
+    
+    // Set today's date
+    var today = new Date().toISOString().split('T')[0];
+    var devDate = $('#devDate');
+    var clientDate = $('#clientDate');
+    if (devDate) devDate.value = today;
+    if (clientDate) clientDate.value = today;
+    
+    // Clear buttons
+    $$('.clear-btn').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
             e.preventDefault();
-            if (self.validateForm()) {
-                self.submitForm();
+            var canvasId = this.getAttribute('data-canvas');
+            if (canvasId === 'devSignaturePad' && self.devSignaturePad) {
+                self.devSignaturePad.clear();
+            } else if (canvasId === 'clientSignaturePad' && self.clientSignaturePad) {
+                self.clientSignaturePad.clear();
             }
         });
-        
-        // Download PDF button
-        var downloadBtn = $('#downloadBtn');
-        if (downloadBtn) {
-            downloadBtn.addEventListener('click', function() {
-                if (self.validateForm()) {
-                    self.generatePDF();
-                }
-            });
+    });
+    
+    // Update client name display
+    var clientNameInput = $('#clientName');
+    var clientNameDisplay = $('#clientNameDisplay');
+    if (clientNameInput && clientNameDisplay) {
+        clientNameInput.addEventListener('input', function() {
+            clientNameDisplay.textContent = this.value || 'Client Name';
+        });
+    }
+    
+    // Form submission
+    this.form.addEventListener('submit', function(e) {
+        e.preventDefault();
+        if (self.isDeveloper) {
+            if (self.validateDeveloperForm()) {
+                self.finalizeContract();
+            }
+        } else {
+            if (self.validateClientForm()) {
+                self.submitClientSignature();
+            }
         }
-    };
+    });
+    
+    // Download PDF button (only for developer after signing)
+    var downloadBtn = $('#downloadBtn');
+    if (downloadBtn) {
+        downloadBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            self.generatePDF();
+        });
+    }
+};
 
-    ContractFormHandler.prototype.validateForm = function() {
-        var errors = [];
-        
-        var clientName = $('#clientName');
-        if (clientName && !clientName.value.trim()) {
-            errors.push('Please enter the client name or company name');
-        }
-        
-        var acknowledgment = $('#acknowledgment');
-        if (acknowledgment && !acknowledgment.checked) {
-            errors.push('Please acknowledge that you have read and agree to the terms');
-        }
-        
-        var clientSignerName = $('#clientSignerName');
-        if (clientSignerName && !clientSignerName.value.trim()) {
-            errors.push('Please enter the name of the person signing for the client');
-        }
-        
-        if (this.devSignaturePad && this.devSignaturePad.isEmpty()) {
-            errors.push('Developer signature is required');
-        }
-        
-        if (this.clientSignaturePad && this.clientSignaturePad.isEmpty()) {
-            errors.push('Client signature is required');
-        }
-        
-        var devDate = $('#devDate');
-        var clientDate = $('#clientDate');
-        if ((devDate && !devDate.value) || (clientDate && !clientDate.value)) {
-            errors.push('Signature dates are required');
-        }
-        
-        if (errors.length > 0) {
-            alert('Please complete all required fields:\n\n' + errors.join('\n'));
-            return false;
-        }
-        
-        return true;
-    };
+ContractFormHandler.prototype.setupDeveloperView = function() {
+    console.log('Setting up developer view');
+    
+    // Show developer signature block
+    var devBlock = $('#devSignatureBlock');
+    if (devBlock) devBlock.style.display = 'block';
+    
+    // Hide client blocks
+    var clientBlock = $('#clientSignatureBlock');
+    if (clientBlock) clientBlock.style.display = 'none';
+    
+    var devPending = $('#devPendingBlock');
+    if (devPending) devPending.style.display = 'none';
+    
+    // Change submit button text
+    var submitBtn = $('#submitBtnText');
+    if (submitBtn) submitBtn.textContent = 'Finalize & Download';
+    
+    // Show download button
+    var downloadBtn = $('#downloadBtn');
+    if (downloadBtn) downloadBtn.style.display = 'inline-flex';
+    
+    // Load pending contracts for developer to sign
+    this.loadPendingContract();
+};
 
-    ContractFormHandler.prototype.submitForm = function() {
-        var self = this;
-        var formData = {
-            clientName: $('#clientName').value,
-            clientSignerName: $('#clientSignerName').value,
-            devDate: $('#devDate').value,
-            clientDate: $('#clientDate').value,
-            devSignature: this.devSignaturePad.getDataURL(),
-            clientSignature: this.clientSignaturePad.getDataURL(),
-            timestamp: new Date().toISOString(),
-            userEmail: firebase.auth().currentUser ? firebase.auth().currentUser.email : null
+ContractFormHandler.prototype.setupClientView = function() {
+    console.log('Setting up client view');
+    
+    // Hide developer signature block
+    var devBlock = $('#devSignatureBlock');
+    if (devBlock) devBlock.style.display = 'none';
+    
+    // Show client signature block
+    var clientBlock = $('#clientSignatureBlock');
+    if (clientBlock) clientBlock.style.display = 'block';
+    
+    // Show developer pending block
+    var devPending = $('#devPendingBlock');
+    if (devPending) devPending.style.display = 'block';
+    
+    // Change submit button text
+    var submitBtn = $('#submitBtnText');
+    if (submitBtn) submitBtn.textContent = 'Submit Client Signature';
+};
+
+ContractFormHandler.prototype.loadPendingContract = function() {
+    var self = this;
+    
+    // Get the most recent pending contract
+    firebase.firestore().collection('contracts')
+        .where('status', '==', 'pending_developer')
+        .orderBy('timestamp', 'desc')
+        .limit(1)
+        .get()
+        .then(function(querySnapshot) {
+            if (!querySnapshot.empty) {
+                var doc = querySnapshot.docs[0];
+                self.currentContract = { id: doc.id, data: doc.data() };
+                self.populateFormWithContract(self.currentContract.data);
+                console.log('Loaded pending contract:', self.currentContract.id);
+            } else {
+                console.log('No pending contracts found');
+            }
+        })
+        .catch(function(error) {
+            console.error('Error loading pending contract:', error);
+        });
+};
+
+ContractFormHandler.prototype.populateFormWithContract = function(data) {
+    // Populate form fields with client's data
+    var clientName = $('#clientName');
+    if (clientName) clientName.value = data.clientName || '';
+    
+    var clientSignerName = $('#clientSignerName');
+    if (clientSignerName) {
+        clientSignerName.value = data.clientSignerName || '';
+        clientSignerName.setAttribute('readonly', 'readonly');
+    }
+    
+    var clientDate = $('#clientDate');
+    if (clientDate) {
+        clientDate.value = data.clientDate || '';
+        clientDate.setAttribute('readonly', 'readonly');
+    }
+    
+    var clientNameDisplay = $('#clientNameDisplay');
+    if (clientNameDisplay) clientNameDisplay.textContent = data.clientName || 'Client Name';
+    
+    // Display client signature (read-only)
+    if (data.clientSignature && this.clientSignaturePad) {
+        var img = new Image();
+        img.onload = function() {
+            var canvas = $('#clientSignaturePad');
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
         };
+        img.src = data.clientSignature;
         
-        // Save to Firestore
-        firebase.firestore().collection('contracts').add(formData)
-            .then(function(docRef) {
-                console.log('Contract saved with ID:', docRef.id);
-                self.showSuccessMessage();
-                
-                // Auto-download PDF
-                setTimeout(function() {
-                    self.generatePDF();
-                }, 1000);
-            })
-            .catch(function(error) {
-                console.error('Error saving contract:', error);
-                alert('Error saving contract. Please try again.');
-            });
-    };
-
-    ContractFormHandler.prototype.showSuccessMessage = function() {
-        var successMsg = $('.success-message');
-        
-        if (!successMsg) {
-            successMsg = document.createElement('div');
-            successMsg.className = 'success-message';
-            successMsg.textContent = '✓ Agreement signed successfully! Downloading PDF...';
-            this.form.insertBefore(successMsg, this.form.firstChild);
+        // Disable client signature pad
+        var clientBlock = $('#clientSignatureBlock');
+        if (clientBlock) {
+            clientBlock.style.display = 'block';
+            clientBlock.style.opacity = '0.6';
+            var clearBtn = $('.clear-btn[data-canvas="clientSignaturePad"]');
+            if (clearBtn) clearBtn.style.display = 'none';
         }
-        
-        successMsg.classList.add('show');
-        
-        setTimeout(function() {
-            successMsg.classList.remove('show');
-        }, 5000);
-    };
+    }
+};
 
-    ContractFormHandler.prototype.generatePDF = function() {
-        window.print();
+ContractFormHandler.prototype.validateClientForm = function() {
+    var errors = [];
+    
+    var clientName = $('#clientName');
+    if (clientName && !clientName.value.trim()) {
+        errors.push('Please enter the client name or company name');
+    }
+    
+    var acknowledgment = $('#acknowledgment');
+    if (acknowledgment && !acknowledgment.checked) {
+        errors.push('Please acknowledge that you have read and agree to the terms');
+    }
+    
+    var clientSignerName = $('#clientSignerName');
+    if (clientSignerName && !clientSignerName.value.trim()) {
+        errors.push('Please enter your full name');
+    }
+    
+    if (this.clientSignaturePad && this.clientSignaturePad.isEmpty()) {
+        errors.push('Your signature is required');
+    }
+    
+    var clientDate = $('#clientDate');
+    if (clientDate && !clientDate.value) {
+        errors.push('Signature date is required');
+    }
+    
+    if (errors.length > 0) {
+        alert('Please complete all required fields:\n\n' + errors.join('\n'));
+        return false;
+    }
+    
+    return true;
+};
+
+ContractFormHandler.prototype.validateDeveloperForm = function() {
+    var errors = [];
+    
+    if (this.devSignaturePad && this.devSignaturePad.isEmpty()) {
+        errors.push('Developer signature is required');
+    }
+    
+    var devDate = $('#devDate');
+    if (devDate && !devDate.value) {
+        errors.push('Developer signature date is required');
+    }
+    
+    if (errors.length > 0) {
+        alert('Please complete all required fields:\n\n' + errors.join('\n'));
+        return false;
+    }
+    
+    return true;
+};
+
+ContractFormHandler.prototype.submitClientSignature = function() {
+    var self = this;
+    var submitBtn = $('#submitBtn');
+    var originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span>Submitting...</span>';
+    
+    var formData = {
+        clientName: $('#clientName').value,
+        clientSignerName: $('#clientSignerName').value,
+        clientDate: $('#clientDate').value,
+        clientSignature: this.clientSignaturePad.getDataURL(),
+        clientEmail: firebase.auth().currentUser.email,
+        timestamp: new Date().toISOString(),
+        status: 'pending_developer'
     };
+    
+    firebase.firestore().collection('contracts').add(formData)
+        .then(function(docRef) {
+            console.log('Client signature saved with ID:', docRef.id);
+            self.showClientSuccessMessage();
+            submitBtn.style.display = 'none';
+        })
+        .catch(function(error) {
+            console.error('Error saving client signature:', error);
+            alert('Error submitting signature. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+};
+
+ContractFormHandler.prototype.finalizeContract = function() {
+    var self = this;
+    var submitBtn = $('#submitBtn');
+    var originalText = submitBtn.innerHTML;
+    
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<span>Finalizing...</span>';
+    
+    if (!this.currentContract) {
+        alert('No pending contract found');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = originalText;
+        return;
+    }
+    
+    var updateData = {
+        devSignature: this.devSignaturePad.getDataURL(),
+        devDate: $('#devDate').value,
+        devEmail: firebase.auth().currentUser.email,
+        finalizedTimestamp: new Date().toISOString(),
+        status: 'completed'
+    };
+    
+    firebase.firestore().collection('contracts')
+        .doc(this.currentContract.id)
+        .update(updateData)
+        .then(function() {
+            console.log('Contract finalized');
+            self.showDeveloperSuccessMessage();
+            
+            // Generate and download PDF
+            setTimeout(function() {
+                self.generatePDF();
+            }, 1000);
+        })
+        .catch(function(error) {
+            console.error('Error finalizing contract:', error);
+            alert('Error finalizing contract. Please try again.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = originalText;
+        });
+};
+
+ContractFormHandler.prototype.showClientSuccessMessage = function() {
+    var messageDiv = $('#clientSubmitMessage');
+    var emailDisplay = $('#clientEmailDisplay');
+    
+    if (messageDiv && emailDisplay) {
+        var user = firebase.auth().currentUser;
+        if (user) {
+            emailDisplay.textContent = user.email;
+        }
+        messageDiv.style.display = 'block';
+        
+        // Scroll to message
+        messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+    
+    // Hide signature section
+    var clientBlock = $('#clientSignatureBlock');
+    if (clientBlock) clientBlock.style.display = 'none';
+    
+    var devPending = $('#devPendingBlock');
+    if (devPending) devPending.style.display = 'none';
+};
+
+ContractFormHandler.prototype.showDeveloperSuccessMessage = function() {
+    var successMsg = $('.success-message');
+    
+    if (!successMsg) {
+        successMsg = document.createElement('div');
+        successMsg.className = 'success-message';
+        successMsg.textContent = '✓ Contract finalized successfully! Downloading PDF...';
+        this.form.insertBefore(successMsg, this.form.firstChild);
+    }
+    
+    successMsg.classList.add('show');
+    
+    setTimeout(function() {
+        successMsg.classList.remove('show');
+    }, 5000);
+};
+
+ContractFormHandler.prototype.generatePDF = function() {
+    window.print();
+};
 
     // === PAGE LOADER ===
     var PageLoader = function() {
@@ -803,10 +1075,15 @@
         });
     };
 
-    // === CUSTOM CURSOR (Desktop Only) ===
-    // === CUSTOM CURSOR ===
+    // === CUSTOM CURSOR (LAPTOP/DESKTOP ONLY - 1024px+) ===
     var CustomCursor = function() {
-        if (DeviceDetector.isMobile()) return;
+        // ONLY initialize on laptop screens and larger
+        if (!DeviceDetector.isLaptopOrLarger()) {
+            console.log('Custom cursor disabled - screen too small');
+            return;
+        }
+
+        console.log('Custom cursor enabled - laptop/desktop screen');
 
         this.cursor = document.createElement('div');
         this.cursor.className = 'custom-cursor';
@@ -819,14 +1096,16 @@
         this.isHovering = false;
 
         this.init();
+        this.handleResize();
     };
 
     CustomCursor.prototype.init = function() {
         var self = this;
         
-        // Force cursor: none globally
+        // Force cursor: none globally ONLY on laptop+
         var style = document.createElement('style');
-        style.textContent = '* { cursor: none !important; }';
+        style.id = 'custom-cursor-style';
+        style.textContent = '@media (min-width: 1024px) { * { cursor: none !important; } }';
         document.head.appendChild(style);
 
         document.addEventListener('mousemove', function(e) {
@@ -837,7 +1116,6 @@
                 self.cursor.style.opacity = '1';
             }
             
-            // Check if hovering over interactive element
             var element = document.elementFromPoint(e.clientX, e.clientY);
             self.checkHoverState(element);
         }, { passive: true });
@@ -850,10 +1128,35 @@
         this.animate();
     };
 
+    CustomCursor.prototype.handleResize = function() {
+        var self = this;
+        window.addEventListener('resize', function() {
+            // Disable cursor if screen becomes too small
+            if (!DeviceDetector.isLaptopOrLarger()) {
+                if (self.cursor) {
+                    self.cursor.style.display = 'none';
+                }
+                var style = document.getElementById('custom-cursor-style');
+                if (style) {
+                    style.remove();
+                }
+            } else {
+                if (self.cursor) {
+                    self.cursor.style.display = 'block';
+                }
+                if (!document.getElementById('custom-cursor-style')) {
+                    var newStyle = document.createElement('style');
+                    newStyle.id = 'custom-cursor-style';
+                    newStyle.textContent = '@media (min-width: 1024px) { * { cursor: none !important; } }';
+                    document.head.appendChild(newStyle);
+                }
+            }
+        });
+    };
+
     CustomCursor.prototype.checkHoverState = function(element) {
         if (!element) return;
         
-        // Check if element or any parent is interactive
         var isInteractive = false;
         var current = element;
         
@@ -867,7 +1170,10 @@
                             current.classList.contains('auth-close') ||
                             current.classList.contains('nav-link') ||
                             current.classList.contains('btn') ||
-                            current.classList.contains('hamburger');
+                            current.classList.contains('hamburger') ||
+                            current.classList.contains('item') ||
+                            current.classList.contains('item__image') ||
+                            current.classList.contains('enlarge');
             
             if (isClickable) {
                 isInteractive = true;
@@ -936,252 +1242,20 @@
         });
     };
 
-    // === FIREBASE AUTHENTICATION HANDLER ===
-    var FirebaseAuthHandler = function() {
-        this.authModal = $('#authModal');
-        this.contractModal = $('#contractModal');
-        this.currentUser = null;
-        
-        if (!this.authModal || !this.contractModal) {
-            console.error('Auth or Contract modal not found');
-            return;
-        }
-        
-        this.init();
-    };
-
-    FirebaseAuthHandler.prototype.init = function() {
-        var self = this;
-        
-        // Listen for auth state changes
-        if (typeof firebase !== 'undefined' && firebase.auth) {
-            firebase.auth().onAuthStateChanged(function(user) {
-                self.handleAuthStateChange(user);
-            });
-        } else {
-            console.error('Firebase is not loaded. Make sure you have created .env file with your Firebase credentials.');
-        }
-        
-        // Auth button in navbar - shows login or logout
-        var authActionBtn = $('#authActionBtn');
-        if (authActionBtn) {
-            authActionBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                if (self.currentUser) {
-                    // User is logged in, show logout confirmation
-                    if (confirm('Are you sure you want to sign out?')) {
-                        self.handleLogout();
-                    }
-                } else {
-                    // User is logged out, show login modal
-                    self.showAuthModal();
-                }
-            });
-        }
-        
-        // View Contract button - shows auth modal or contract
-        var viewBtn = $('#viewContractBtn');
-        if (viewBtn) {
-            viewBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                self.checkAuthAndShowContract();
-            });
-        }
-        
-        // Download Template button
-        var downloadBtn = $('#downloadTemplateBtn');
-        if (downloadBtn) {
-            downloadBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                self.checkAuthAndShowContract();
-            });
-        }
-        
-        // Close auth modal
-        var closeAuthBtn = $('#closeAuthBtn');
-        if (closeAuthBtn) {
-            closeAuthBtn.addEventListener('click', function() {
-                self.closeAuthModal();
-            });
-        }
-        
-        // Close contract modal
-        var closeModalBtn = $('#closeModalBtn');
-        if (closeModalBtn) {
-            closeModalBtn.addEventListener('click', function() {
-                self.closeContractModal();
-            });
-        }
-        
-        // Login form only
-        var loginForm = $('#loginForm');
-        if (loginForm) {
-            loginForm.addEventListener('submit', function(e) {
-                e.preventDefault();
-                self.handleLogin();
-            });
-        }
-        
-        // Close auth modal on overlay click
-        var authOverlay = $('.auth-overlay', this.authModal);
-        if (authOverlay) {
-            authOverlay.addEventListener('click', function() {
-                self.closeAuthModal();
-            });
-        }
-        
-        // Close contract modal on overlay click
-        var modalOverlay = $('.modal-overlay', this.contractModal);
-        if (modalOverlay) {
-            modalOverlay.addEventListener('click', function() {
-                self.closeContractModal();
-            });
-        }
-    };
-
-    FirebaseAuthHandler.prototype.checkAuthAndShowContract = function() {
-        if (this.currentUser) {
-            this.showContractModal();
-        } else {
-            this.showAuthModal();
-        }
-    };
-
-    FirebaseAuthHandler.prototype.handleAuthStateChange = function(user) {
-        this.currentUser = user;
-        
-        // Update auth status indicator
-        var authBtn = $('#authActionBtn');
-        var authText = $('#authStatusText');
-        
-        if (user) {
-            console.log('User signed in:', user.email);
-            // Update button to show logged in state
-            if (authBtn) authBtn.classList.add('logged-in');
-            if (authText) authText.textContent = user.email.split('@')[0]; // Show username part
-        } else {
-            console.log('User signed out');
-            // Update button to show logged out state
-            if (authBtn) authBtn.classList.remove('logged-in');
-            if (authText) authText.textContent = 'Sign In';
-            this.closeContractModal();
-        }
-    };
-
-    FirebaseAuthHandler.prototype.showAuthModal = function() {
-        if (this.authModal) {
-            this.authModal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-    };
-
-    FirebaseAuthHandler.prototype.closeAuthModal = function() {
-        if (this.authModal) {
-            this.authModal.classList.remove('show');
-            document.body.style.overflow = '';
-        }
-    };
-
-    FirebaseAuthHandler.prototype.showContractModal = function() {
-        if (this.contractModal) {
-            this.contractModal.classList.add('show');
-            document.body.style.overflow = 'hidden';
-        }
-    };
-
-    FirebaseAuthHandler.prototype.closeContractModal = function() {
-        if (this.contractModal) {
-            this.contractModal.classList.remove('show');
-            document.body.style.overflow = '';
-        }
-    };
-
-    FirebaseAuthHandler.prototype.handleLogin = function() {
-        var email = $('#loginEmail').value.trim();
-        var password = $('#loginPassword').value;
-        var errorEl = $('#loginError');
-        var submitBtn = $('#loginForm button[type="submit"]');
-        
-        if (!email || !password) {
-            this.showError(errorEl, 'Please fill in all fields');
-            return;
-        }
-        
-        submitBtn.disabled = true;
-        submitBtn.textContent = 'Signing in...';
-        
-        var self = this;
-        firebase.auth().signInWithEmailAndPassword(email, password)
-            .then(function(userCredential) {
-                console.log('Login successful');
-                self.closeAuthModal();
-                $('#loginForm').reset();
-                // Show contract modal after brief delay for smooth transition
-                setTimeout(function() {
-                    self.showContractModal();
-                }, 300);
-            })
-            .catch(function(error) {
-                console.error('Login error:', error);
-                self.showError(errorEl, self.getErrorMessage(error.code));
-            })
-            .finally(function() {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Sign In';
-            });
-    };
-
-    FirebaseAuthHandler.prototype.handleLogout = function() {
-        var self = this;
-        firebase.auth().signOut()
-            .then(function() {
-                console.log('Logged out successfully');
-                self.closeContractModal();
-            })
-            .catch(function(error) {
-                console.error('Logout error:', error);
-                alert('Error signing out. Please try again.');
-            });
-    };
-
-    FirebaseAuthHandler.prototype.showError = function(element, message) {
-        if (element) {
-            element.textContent = message;
-            element.classList.add('show');
-            
-            setTimeout(function() {
-                element.classList.remove('show');
-            }, 5000);
-        }
-    };
-
-    FirebaseAuthHandler.prototype.getErrorMessage = function(errorCode) {
-        var messages = {
-            'auth/configuration-not-found': 'Firebase is not configured. Please check your .env file.',
-            'auth/invalid-email': 'Invalid email address',
-            'auth/user-not-found': 'No account found. Contact administrator for access.',
-            'auth/wrong-password': 'Incorrect password',
-            'auth/too-many-requests': 'Too many failed attempts. Try again later',
-            'auth/network-request-failed': 'Network error. Please check your connection',
-            'auth/user-disabled': 'This account has been disabled. Contact administrator.',
-            'auth/invalid-credential': 'Invalid email or password'
-        };
-        
-        return messages[errorCode] || 'Authentication error. Please try again or contact administrator.';
-    };
-
     // === INITIALIZATION ===
     var init = function() {
         console.log('VistaFly - Crafted with precision');
         console.log('Device: ' + (DeviceDetector.isMobile() ? 'Mobile' : 'Desktop'));
+        console.log('Screen width:', window.innerWidth);
+        console.log('Custom cursor:', DeviceDetector.isLaptopOrLarger() ? 'Enabled' : 'Disabled');
 
         new Navigation();
         new ParallaxController();
         new ScrollAnimations();
         new PortfolioHandler();
         new FormHandler();
-        new FirebaseAuthHandler(); // Firebase authentication for contract
-        new ContractFormHandler(); // Contract form handler
+        new FirebaseAuthHandler();
+        new ContractFormHandler();
         new PageLoader();
         new CustomCursor();
         new ViewportFix();
