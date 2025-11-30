@@ -715,8 +715,17 @@
         this.clientSignaturePad = null;
         this.isDeveloper = false;
         this.currentContract = null;
-        this.DEVELOPER_EMAIL = 'your-developer-email@gmail.com';
+        this.currentUserEmail = null;
+        
+        // Developer email loaded from environment variable (set in .env file)
+        // Add VITE_DEVELOPER_EMAIL=your-email@gmail.com to your .env file
+        this.DEVELOPER_EMAIL = (window.VITE_DEVELOPER_EMAIL || '').trim().toLowerCase();
+        
         this.signaturePadsInitialized = false;
+        this.formSetup = false;
+        
+        console.log('ContractFormHandler created');
+        console.log('Developer email from env:', this.DEVELOPER_EMAIL || '(not set)');
         
         this.init();
     };
@@ -726,18 +735,51 @@
         
         console.log('Initializing contract form handler');
         
-        // Listen for modal open event to initialize signature pads
+        // Listen for modal open event to initialize signature pads and check role
         window.addEventListener('contractModalOpened', function() {
-            console.log('Contract modal opened - initializing signature pads');
-            self.initializeSignaturePads();
+            console.log('Contract modal opened');
+            
+            // Re-check user role when modal opens (in case auth state changed)
+            var user = firebase.auth().currentUser;
+            if (user) {
+                self.currentUserEmail = user.email.trim().toLowerCase();
+                self.isDeveloper = self.currentUserEmail === self.DEVELOPER_EMAIL;
+                
+                console.log('=== ROLE CHECK ===');
+                console.log('Current user email:', self.currentUserEmail);
+                console.log('Developer email:', self.DEVELOPER_EMAIL);
+                console.log('Emails match:', self.currentUserEmail === self.DEVELOPER_EMAIL);
+                console.log('isDeveloper:', self.isDeveloper);
+                console.log('==================');
+                
+                // Setup the correct view based on role
+                if (self.isDeveloper) {
+                    self.setupDeveloperView();
+                } else {
+                    self.setupClientView();
+                }
+            }
+            
+            // Initialize signature pads after view is set up
+            setTimeout(function() {
+                self.initializeSignaturePads();
+            }, 100);
         });
         
+        // Initial auth state check
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged(function(user) {
                 if (user) {
-                    self.isDeveloper = user.email === self.DEVELOPER_EMAIL;
-                    console.log('User role:', self.isDeveloper ? 'Developer' : 'Client');
+                    self.currentUserEmail = user.email.trim().toLowerCase();
+                    self.isDeveloper = self.currentUserEmail === self.DEVELOPER_EMAIL;
+                    
+                    console.log('Auth state changed - User:', self.currentUserEmail);
+                    console.log('isDeveloper:', self.isDeveloper);
+                    
                     self.setupForm();
+                } else {
+                    self.currentUserEmail = null;
+                    self.isDeveloper = false;
                 }
             });
         }
@@ -746,51 +788,61 @@
     ContractFormHandler.prototype.initializeSignaturePads = function() {
         var self = this;
         
-        if (this.signaturePadsInitialized) {
-            console.log('Signature pads already initialized, resizing...');
-            if (this.devSignaturePad) this.devSignaturePad.resize();
-            if (this.clientSignaturePad) this.clientSignaturePad.resize();
-            return;
-        }
+        console.log('Initializing signature pads, isDeveloper:', this.isDeveloper);
         
         var devCanvas = document.getElementById('devSignaturePad');
         var clientCanvas = document.getElementById('clientSignaturePad');
         
-        // Check which canvas is visible and initialize it
-        if (devCanvas && devCanvas.offsetParent !== null) {
-            this.devSignaturePad = createSignaturePad(devCanvas);
+        // Initialize the appropriate signature pad based on role
+        if (this.isDeveloper) {
+            // Developer view - initialize dev signature pad
+            if (devCanvas) {
+                this.devSignaturePad = createSignaturePad(devCanvas);
+                console.log('Dev signature pad created');
+            }
+        } else {
+            // Client view - initialize client signature pad
+            if (clientCanvas) {
+                this.clientSignaturePad = createSignaturePad(clientCanvas);
+                console.log('Client signature pad created');
+            }
         }
         
-        if (clientCanvas && clientCanvas.offsetParent !== null) {
-            this.clientSignaturePad = createSignaturePad(clientCanvas);
-        }
-        
-        // Setup clear buttons
-        $$('.clear-btn').forEach(function(btn) {
-            // Remove old listeners by cloning
-            var newBtn = btn.cloneNode(true);
-            btn.parentNode.replaceChild(newBtn, btn);
-            
-            newBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var canvasId = this.getAttribute('data-canvas');
-                console.log('Clear clicked:', canvasId);
-                
-                if (canvasId === 'devSignaturePad' && self.devSignaturePad) {
-                    self.devSignaturePad.clear();
-                } else if (canvasId === 'clientSignaturePad' && self.clientSignaturePad) {
-                    self.clientSignaturePad.clear();
-                }
+        // Setup clear buttons (only once)
+        if (!this.signaturePadsInitialized) {
+            $$('.clear-btn').forEach(function(btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    var canvasId = this.getAttribute('data-canvas');
+                    console.log('Clear clicked:', canvasId);
+                    
+                    if (canvasId === 'devSignaturePad' && self.devSignaturePad) {
+                        self.devSignaturePad.clear();
+                    } else if (canvasId === 'clientSignaturePad' && self.clientSignaturePad) {
+                        self.clientSignaturePad.clear();
+                    }
+                });
             });
-        });
+            this.signaturePadsInitialized = true;
+        }
         
-        this.signaturePadsInitialized = true;
         console.log('Signature pads initialized');
     };
 
     ContractFormHandler.prototype.setupForm = function() {
         var self = this;
+        
+        // Prevent multiple setups
+        if (this.formSetup) {
+            console.log('Form already setup, updating view only');
+            if (this.isDeveloper) {
+                this.setupDeveloperView();
+            } else {
+                this.setupClientView();
+            }
+            return;
+        }
         
         // Show appropriate sections based on role
         if (this.isDeveloper) {
@@ -815,19 +867,29 @@
             });
         }
         
-        // Form submission
+        // IMPORTANT: Prevent default form submission and handle via button click
         this.form.addEventListener('submit', function(e) {
             e.preventDefault();
-            if (self.isDeveloper) {
-                if (self.validateDeveloperForm()) {
-                    self.finalizeContract();
-                }
-            } else {
-                if (self.validateClientForm()) {
-                    self.submitClientSignature();
-                }
-            }
+            e.stopPropagation();
+            console.log('Form submit prevented');
+            return false;
         });
+        
+        // Handle submit button click directly
+        var submitBtn = $('#submitBtn');
+        if (submitBtn) {
+            submitBtn.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                console.log('Submit button clicked, isDeveloper:', self.isDeveloper);
+                
+                if (self.isDeveloper) {
+                    self.handleDeveloperSubmit();
+                } else {
+                    self.handleClientSubmit();
+                }
+            });
+        }
         
         var downloadBtn = $('#downloadBtn');
         if (downloadBtn) {
@@ -836,13 +898,25 @@
                 self.generatePDF();
             });
         }
+        
+        this.formSetup = true;
     };
 
     ContractFormHandler.prototype.setupDeveloperView = function() {
         console.log('Setting up developer view');
         
+        // HIDE the entire contract form for developers initially
+        var contractForm = $('#contractForm');
+        if (contractForm) {
+            contractForm.style.display = 'none';
+        }
+        
+        // Show the developer dashboard instead
+        this.showDeveloperDashboard();
+        
+        // Hide all signature blocks initially until a contract is selected
         var devBlock = $('#devSignatureBlock');
-        if (devBlock) devBlock.style.display = 'block';
+        if (devBlock) devBlock.style.display = 'none';
         
         var clientBlock = $('#clientSignatureBlock');
         if (clientBlock) clientBlock.style.display = 'none';
@@ -850,33 +924,733 @@
         var devPending = $('#devPendingBlock');
         if (devPending) devPending.style.display = 'none';
         
-        var submitBtn = $('#submitBtnText');
-        if (submitBtn) submitBtn.textContent = 'Finalize & Download';
+        // Disable all client form fields
+        var clientNameField = $('#clientName');
+        if (clientNameField) {
+            clientNameField.disabled = true;
+            clientNameField.removeAttribute('required');
+            clientNameField.setAttribute('readonly', 'readonly');
+        }
+        
+        var clientSignerName = $('#clientSignerName');
+        if (clientSignerName) {
+            clientSignerName.disabled = true;
+            clientSignerName.removeAttribute('required');
+        }
+        
+        var clientDate = $('#clientDate');
+        if (clientDate) {
+            clientDate.disabled = true;
+            clientDate.removeAttribute('required');
+        }
+        
+        var acknowledgment = $('#acknowledgment');
+        if (acknowledgment) {
+            acknowledgment.disabled = true;
+            acknowledgment.removeAttribute('required');
+            acknowledgment.checked = true;
+        }
+        
+        var ackSection = $('.acknowledgment');
+        if (ackSection) ackSection.style.display = 'none';
+        
+        // Hide submit button until contract is selected
+        var submitBtn = $('#submitBtn');
+        if (submitBtn) submitBtn.style.display = 'none';
         
         var downloadBtn = $('#downloadBtn');
-        if (downloadBtn) downloadBtn.style.display = 'inline-flex';
+        if (downloadBtn) downloadBtn.style.display = 'none';
+    };
+    
+    ContractFormHandler.prototype.showDeveloperDashboard = function() {
+        var self = this;
         
-        this.loadPendingContract();
+        console.log('Loading developer dashboard...');
+        
+        // HIDE the contract form when showing dashboard
+        var contractForm = $('#contractForm');
+        if (contractForm) {
+            contractForm.style.display = 'none';
+        }
+        
+        // HIDE the modal header for developer
+        var modalHeader = $('.modal-header');
+        if (modalHeader) {
+            modalHeader.style.display = 'none';
+        }
+        
+        // Create dashboard container if it doesn't exist
+        var dashboard = $('#developerDashboard');
+        if (!dashboard) {
+            dashboard = document.createElement('div');
+            dashboard.id = 'developerDashboard';
+            dashboard.className = 'developer-dashboard';
+            
+            // Insert at the top of the modal content
+            var modalContent = $('.modal-content');
+            if (modalContent) {
+                modalContent.insertBefore(dashboard, modalContent.firstChild);
+            }
+        }
+        
+        // Show loading state
+        dashboard.innerHTML = '<div class="dashboard-loading"><p>Loading contracts...</p></div>';
+        dashboard.style.display = 'block';
+        
+        // Fetch all contracts
+        this.fetchAllContracts();
+    };
+    
+    ContractFormHandler.prototype.fetchAllContracts = function() {
+        var self = this;
+        
+        var pendingContracts = [];
+        var completedContracts = [];
+        
+        // Fetch pending contracts
+        firebase.firestore().collection('contracts')
+            .where('status', '==', 'pending_developer')
+            .get()
+            .then(function(pendingSnapshot) {
+                pendingSnapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    data.id = doc.id;
+                    data.daysSinceSubmission = self.calculateDaysSince(data.timestamp);
+                    pendingContracts.push(data);
+                });
+                
+                // Sort by days since submission (most urgent first)
+                pendingContracts.sort(function(a, b) {
+                    return b.daysSinceSubmission - a.daysSinceSubmission;
+                });
+                
+                // Now fetch completed contracts
+                return firebase.firestore().collection('contracts')
+                    .where('status', '==', 'completed')
+                    .get();
+            })
+            .then(function(completedSnapshot) {
+                completedSnapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    data.id = doc.id;
+                    data.daysSinceSubmission = self.calculateDaysSince(data.timestamp);
+                    completedContracts.push(data);
+                });
+                
+                // Sort completed by finalized date (most recent first)
+                completedContracts.sort(function(a, b) {
+                    var aTime = a.finalizedTimestamp ? a.finalizedTimestamp.toDate().getTime() : 0;
+                    var bTime = b.finalizedTimestamp ? b.finalizedTimestamp.toDate().getTime() : 0;
+                    return bTime - aTime;
+                });
+                
+                // Render the dashboard
+                self.renderDeveloperDashboard(pendingContracts, completedContracts);
+            })
+            .catch(function(error) {
+                console.error('Error fetching contracts:', error);
+                var dashboard = $('#developerDashboard');
+                if (dashboard) {
+                    dashboard.innerHTML = '<div class="dashboard-error"><p>Error loading contracts: ' + error.message + '</p></div>';
+                }
+            });
+    };
+    
+    ContractFormHandler.prototype.calculateDaysSince = function(timestamp) {
+        if (!timestamp) return 0;
+        
+        var submissionDate;
+        if (timestamp.toDate) {
+            submissionDate = timestamp.toDate();
+        } else if (timestamp instanceof Date) {
+            submissionDate = timestamp;
+        } else {
+            submissionDate = new Date(timestamp);
+        }
+        
+        var now = new Date();
+        var diffTime = Math.abs(now - submissionDate);
+        var diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        return diffDays;
+    };
+    
+    ContractFormHandler.prototype.getUrgencyLevel = function(days) {
+        if (days >= 7) return { level: 'critical', label: 'URGENT', color: '#ef4444', icon: '🔴' };
+        if (days >= 3) return { level: 'high', label: 'ACTION NEEDED', color: '#f59e0b', icon: '🟠' };
+        if (days >= 1) return { level: 'medium', label: 'NEW', color: '#3b82f6', icon: '🔵' };
+        return { level: 'low', label: 'JUST IN', color: '#10b981', icon: '🟢' };
+    };
+    
+    ContractFormHandler.prototype.formatCurrency = function(amount) {
+        return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount || 0);
+    };
+    
+    ContractFormHandler.prototype.renderDeveloperDashboard = function(pendingContracts, completedContracts) {
+        var self = this;
+        var dashboard = $('#developerDashboard');
+        
+        if (!dashboard) return;
+        
+        // Calculate business metrics
+        var totalContracts = pendingContracts.length + completedContracts.length;
+        var urgentCount = pendingContracts.filter(function(c) { return c.daysSinceSubmission >= 7; }).length;
+        var thisMonthCompleted = completedContracts.filter(function(c) {
+            if (!c.finalizedTimestamp) return false;
+            var date = c.finalizedTimestamp.toDate ? c.finalizedTimestamp.toDate() : new Date(c.finalizedTimestamp);
+            var now = new Date();
+            return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+        }).length;
+        
+        var html = '';
+        
+        // Header with greeting
+        var hour = new Date().getHours();
+        var greeting = hour < 12 ? 'Good Morning' : hour < 18 ? 'Good Afternoon' : 'Good Evening';
+        
+        html += '<div class="dashboard-header">' +
+            '<div class="header-content">' +
+            '<h2>' + greeting + ', Carlos 👋</h2>' +
+            '<p class="header-subtitle">Here\'s your business overview</p>' +
+            '</div>' +
+            '<div class="header-date">' +
+            '<span class="current-date">' + new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }) + '</span>' +
+            '</div>' +
+            '</div>';
+        
+        // Alert Banner (if urgent contracts exist)
+        if (urgentCount > 0) {
+            html += '<div class="alert-banner urgent">' +
+                '<div class="alert-icon">⚠️</div>' +
+                '<div class="alert-content">' +
+                '<strong>' + urgentCount + ' contract' + (urgentCount !== 1 ? 's' : '') + ' need' + (urgentCount === 1 ? 's' : '') + ' immediate attention!</strong>' +
+                '<p>Client' + (urgentCount !== 1 ? 's have' : ' has') + ' been waiting 7+ days for your signature.</p>' +
+                '</div>' +
+                '</div>';
+        } else if (pendingContracts.length === 0 && completedContracts.length > 0) {
+            html += '<div class="alert-banner success">' +
+                '<div class="alert-icon">🎉</div>' +
+                '<div class="alert-content">' +
+                '<strong>All caught up!</strong>' +
+                '<p>No pending contracts. Great job staying on top of things!</p>' +
+                '</div>' +
+                '</div>';
+        }
+        
+        // Quick Stats Row
+        html += '<div class="quick-stats">' +
+            '<div class="quick-stat action-required">' +
+            '<div class="quick-stat-icon">📝</div>' +
+            '<div class="quick-stat-content">' +
+            '<span class="quick-stat-number">' + pendingContracts.length + '</span>' +
+            '<span class="quick-stat-label">Awaiting Signature</span>' +
+            '</div>' +
+            '</div>' +
+            '<div class="quick-stat completed-stat">' +
+            '<div class="quick-stat-icon">✅</div>' +
+            '<div class="quick-stat-content">' +
+            '<span class="quick-stat-number">' + completedContracts.length + '</span>' +
+            '<span class="quick-stat-label">Completed</span>' +
+            '</div>' +
+            '</div>' +
+            '<div class="quick-stat monthly-stat">' +
+            '<div class="quick-stat-icon">📈</div>' +
+            '<div class="quick-stat-content">' +
+            '<span class="quick-stat-number">' + thisMonthCompleted + '</span>' +
+            '<span class="quick-stat-label">This Month</span>' +
+            '</div>' +
+            '</div>' +
+            '</div>';
+        
+        // Action Required Section (Pending Contracts)
+        html += '<div class="dashboard-section action-section">' +
+            '<div class="section-header">' +
+            '<h3>🖊️ Action Required</h3>' +
+            '<span class="section-badge">' + pendingContracts.length + ' pending</span>' +
+            '</div>';
+        
+        if (pendingContracts.length === 0) {
+            html += '<div class="empty-state success-state">' +
+                '<div class="empty-icon">✨</div>' +
+                '<p>No contracts waiting for your signature</p>' +
+                '</div>';
+        } else {
+            html += '<div class="action-list">';
+            pendingContracts.forEach(function(contract, index) {
+                var urgency = self.getUrgencyLevel(contract.daysSinceSubmission);
+                var submissionDate = contract.timestamp ? 
+                    (contract.timestamp.toDate ? contract.timestamp.toDate().toLocaleDateString() : new Date(contract.timestamp).toLocaleDateString()) 
+                    : 'N/A';
+                
+                html += '<div class="action-item" data-contract-id="' + contract.id + '">' +
+                    '<div class="action-priority" style="background: ' + urgency.color + ';">' +
+                    '<span class="priority-number">#' + (index + 1) + '</span>' +
+                    '</div>' +
+                    '<div class="action-details">' +
+                    '<div class="action-client">' +
+                    '<h4>' + (contract.clientName || 'Unknown Client') + '</h4>' +
+                    '<span class="urgency-tag" style="background: ' + urgency.color + '22; color: ' + urgency.color + ';">' + urgency.icon + ' ' + urgency.label + '</span>' +
+                    '</div>' +
+                    '<div class="action-meta">' +
+                    '<span class="meta-item"><strong>Email:</strong> ' + (contract.clientEmail || 'N/A') + '</span>' +
+                    '<span class="meta-item"><strong>Waiting:</strong> ' + contract.daysSinceSubmission + ' day' + (contract.daysSinceSubmission !== 1 ? 's' : '') + '</span>' +
+                    '<span class="meta-item"><strong>Received:</strong> ' + submissionDate + '</span>' +
+                    '</div>' +
+                    '</div>' +
+                    '<div class="action-cta">' +
+                    '<button class="btn-sign-contract" data-contract-id="' + contract.id + '">' +
+                    '<span class="btn-icon">✍️</span>' +
+                    '<span class="btn-text">Sign Now</span>' +
+                    '</button>' +
+                    '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+        
+        // Completed Contracts Section
+        html += '<div class="dashboard-section history-section">' +
+            '<div class="section-header">' +
+            '<h3>📁 Completed Contracts</h3>' +
+            '<span class="section-badge success">' + completedContracts.length + ' total</span>' +
+            '</div>';
+        
+        if (completedContracts.length === 0) {
+            html += '<div class="empty-state">' +
+                '<div class="empty-icon">📋</div>' +
+                '<p>No completed contracts yet</p>' +
+                '</div>';
+        } else {
+            html += '<div class="history-list">';
+            completedContracts.forEach(function(contract) {
+                var finalizedDate = contract.finalizedTimestamp ? 
+                    (contract.finalizedTimestamp.toDate ? contract.finalizedTimestamp.toDate().toLocaleDateString() : new Date(contract.finalizedTimestamp).toLocaleDateString()) 
+                    : 'N/A';
+                
+                html += '<div class="history-item" data-contract-id="' + contract.id + '">' +
+                    '<div class="history-status">' +
+                    '<span class="status-icon">✓</span>' +
+                    '</div>' +
+                    '<div class="history-details">' +
+                    '<h4>' + (contract.clientName || 'Unknown Client') + '</h4>' +
+                    '<span class="history-meta">Completed ' + finalizedDate + '</span>' +
+                    '</div>' +
+                    '<div class="history-actions">' +
+                    '<button class="btn-download" data-contract-id="' + contract.id + '" title="Download PDF">' +
+                    '📄 Download' +
+                    '</button>' +
+                    '</div>' +
+                    '</div>';
+            });
+            html += '</div>';
+        }
+        html += '</div>';
+        
+        // Close Modal Button
+        html += '<div class="dashboard-footer">' +
+            '<button class="btn-close-dashboard" onclick="document.querySelector(\'.contract-modal\').classList.remove(\'show\'); document.body.classList.remove(\'modal-open\');">Close Dashboard</button>' +
+            '</div>';
+        
+        dashboard.innerHTML = html;
+        
+        // Add event listeners for sign buttons
+        $$('.btn-sign-contract').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var contractId = this.getAttribute('data-contract-id');
+                self.selectContractToSign(contractId, pendingContracts);
+            });
+        });
+        
+        // Add event listeners for download buttons
+        $$('.btn-download').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                var contractId = this.getAttribute('data-contract-id');
+                self.viewCompletedContract(contractId, completedContracts);
+            });
+        });
+    };
+    
+    ContractFormHandler.prototype.selectContractToSign = function(contractId, contracts) {
+        var self = this;
+        
+        // Find the contract
+        var contract = contracts.find(function(c) { return c.id === contractId; });
+        if (!contract) {
+            alert('Contract not found');
+            return;
+        }
+        
+        console.log('Selected contract to sign:', contractId);
+        
+        // Store as current contract
+        this.currentContract = { id: contractId, data: contract };
+        
+        // Hide dashboard
+        var dashboard = $('#developerDashboard');
+        if (dashboard) dashboard.style.display = 'none';
+        
+        // SHOW the contract form
+        var contractForm = $('#contractForm');
+        if (contractForm) {
+            contractForm.style.display = 'block';
+        }
+        
+        // Show the contract form sections
+        this.showContractSigningForm(contract);
+    };
+    
+    ContractFormHandler.prototype.showContractSigningForm = function(contract) {
+        var self = this;
+        
+        // Make sure contract form is visible
+        var contractForm = $('#contractForm');
+        if (contractForm) {
+            contractForm.style.display = 'block';
+        }
+        
+        // Show modal header when signing a contract
+        var modalHeader = $('.modal-header');
+        if (modalHeader) {
+            modalHeader.style.display = 'block';
+        }
+        
+        // Show developer signature block
+        var devBlock = $('#devSignatureBlock');
+        if (devBlock) {
+            devBlock.style.display = 'block';
+            var devInputs = devBlock.querySelectorAll('input');
+            devInputs.forEach(function(input) {
+                input.disabled = false;
+            });
+            
+            var devHeader = devBlock.querySelector('h3');
+            if (devHeader) {
+                devHeader.innerHTML = 'Developer Signature — VistaFly <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
+            }
+        }
+        
+        // Set today's date for developer
+        var today = new Date().toISOString().split('T')[0];
+        var devDate = $('#devDate');
+        if (devDate) devDate.value = today;
+        
+        // Populate form with client data
+        this.populateFormWithContract(contract);
+        
+        // Show submit button
+        var submitBtn = $('#submitBtn');
+        if (submitBtn) {
+            submitBtn.style.display = 'inline-flex';
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = '<span id="submitBtnText">Upload & Finalize</span>';
+            submitBtn.style.background = '';
+        }
+        
+        // Add back button to return to dashboard (remove existing one first)
+        var existingBackBtn = $('#backToDashboard');
+        if (existingBackBtn) {
+            existingBackBtn.remove();
+        }
+        
+        var backBtn = document.createElement('button');
+        backBtn.id = 'backToDashboard';
+        backBtn.className = 'btn btn-secondary';
+        backBtn.innerHTML = '← Back to Dashboard';
+        backBtn.style.marginRight = '10px';
+        backBtn.onclick = function(e) {
+            e.preventDefault();
+            self.showDeveloperDashboard();
+            // Reset signature pad
+            if (self.devSignaturePad) self.devSignaturePad.clear();
+        };
+        
+        var actionButtons = $('.action-buttons');
+        if (actionButtons) {
+            actionButtons.insertBefore(backBtn, actionButtons.firstChild);
+        }
+        
+        // Initialize developer signature pad
+        setTimeout(function() {
+            var devCanvas = document.getElementById('devSignaturePad');
+            if (devCanvas) {
+                self.devSignaturePad = createSignaturePad(devCanvas);
+                console.log('Dev signature pad initialized for signing');
+            }
+        }, 200);
+    };
+    
+    ContractFormHandler.prototype.viewCompletedContract = function(contractId, contracts) {
+        var self = this;
+        
+        // Find the contract
+        var contract = contracts.find(function(c) { return c.id === contractId; });
+        if (!contract) {
+            alert('Contract not found');
+            return;
+        }
+        
+        console.log('Viewing completed contract:', contractId);
+        
+        // Store as current contract for PDF generation
+        this.currentContract = { id: contractId, data: contract };
+        
+        // Generate PDF directly
+        this.generatePDF();
     };
 
     ContractFormHandler.prototype.setupClientView = function() {
         console.log('Setting up client view');
         
+        var self = this;
+        
         var devBlock = $('#devSignatureBlock');
-        if (devBlock) devBlock.style.display = 'none';
+        if (devBlock) {
+            devBlock.style.display = 'none';
+            // Disable developer fields so they don't trigger validation
+            var devInputs = devBlock.querySelectorAll('input');
+            devInputs.forEach(function(input) {
+                input.disabled = true;
+                input.removeAttribute('required');
+            });
+        }
         
         var clientBlock = $('#clientSignatureBlock');
-        if (clientBlock) clientBlock.style.display = 'block';
+        if (clientBlock) {
+            clientBlock.style.display = 'block';
+            // Enable client fields
+            var clientInputs = clientBlock.querySelectorAll('input');
+            clientInputs.forEach(function(input) {
+                input.disabled = false;
+            });
+        }
         
         var devPending = $('#devPendingBlock');
         if (devPending) devPending.style.display = 'block';
         
         var submitBtn = $('#submitBtnText');
-        if (submitBtn) submitBtn.textContent = 'Submit Client Signature';
+        if (submitBtn) submitBtn.textContent = 'Submit Agreement';
+        
+        var downloadBtn = $('#downloadBtn');
+        if (downloadBtn) downloadBtn.style.display = 'none';
+        
+        // Check if client has any existing contracts
+        this.checkClientContracts();
+    };
+    
+    ContractFormHandler.prototype.checkClientContracts = function() {
+        var self = this;
+        var userEmail = firebase.auth().currentUser.email;
+        
+        console.log('Checking for existing contracts for:', userEmail);
+        
+        // First check for completed contracts
+        firebase.firestore().collection('contracts')
+            .where('clientEmail', '==', userEmail)
+            .where('status', '==', 'completed')
+            .orderBy('finalizedTimestamp', 'desc')
+            .limit(1)
+            .get()
+            .then(function(querySnapshot) {
+                if (!querySnapshot.empty) {
+                    var doc = querySnapshot.docs[0];
+                    self.showCompletedContract(doc.id, doc.data());
+                } else {
+                    // Check for pending contracts
+                    self.checkPendingClientContract(userEmail);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error checking completed contracts:', error);
+                // If index error, try without ordering
+                self.checkPendingClientContract(userEmail);
+            });
+    };
+    
+    ContractFormHandler.prototype.checkPendingClientContract = function(userEmail) {
+        var self = this;
+        
+        firebase.firestore().collection('contracts')
+            .where('clientEmail', '==', userEmail)
+            .where('status', '==', 'pending_developer')
+            .limit(1)
+            .get()
+            .then(function(querySnapshot) {
+                if (!querySnapshot.empty) {
+                    self.showPendingStatus();
+                }
+            })
+            .catch(function(error) {
+                console.error('Error checking pending contracts:', error);
+            });
+    };
+    
+    ContractFormHandler.prototype.showCompletedContract = function(contractId, data) {
+        console.log('Showing completed contract:', contractId);
+        
+        var self = this;
+        
+        // Hide the form sections
+        var clientBlock = $('#clientSignatureBlock');
+        if (clientBlock) clientBlock.style.display = 'none';
+        
+        var devPending = $('#devPendingBlock');
+        if (devPending) devPending.style.display = 'none';
+        
+        var acknowledgment = $('.acknowledgment');
+        if (acknowledgment) acknowledgment.style.display = 'none';
+        
+        // Populate form with completed data (read-only)
+        var clientName = $('#clientName');
+        if (clientName) {
+            clientName.value = data.clientName || '';
+            clientName.setAttribute('readonly', 'readonly');
+        }
+        
+        // Create or update success message
+        var messageDiv = $('#clientSubmitMessage');
+        if (messageDiv) {
+            messageDiv.innerHTML = '<p><strong>✓ Your contract has been fully executed!</strong></p>' +
+                '<p>Both you and the developer have signed the agreement.</p>' +
+                '<p>Contract Date: ' + (data.clientDate || 'N/A') + '</p>' +
+                '<p>Finalized: ' + (data.finalizedTimestamp ? new Date(data.finalizedTimestamp.toDate()).toLocaleDateString() : 'N/A') + '</p>';
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = 'rgba(46, 204, 113, 0.15)';
+            messageDiv.style.borderColor = 'rgba(46, 204, 113, 0.4)';
+        }
+        
+        // Show download button for completed contract
+        var submitBtn = $('#submitBtn');
+        if (submitBtn) {
+            submitBtn.innerHTML = '<span>Download Signed Contract</span>';
+            submitBtn.style.display = 'inline-flex';
+            submitBtn.disabled = false;
+            submitBtn.onclick = function(e) {
+                e.preventDefault();
+                self.generatePDF();
+            };
+        }
+        
+        // Store the contract data for PDF generation
+        this.currentContract = { id: contractId, data: data };
+        
+        // Show both signatures
+        this.displayBothSignatures(data);
+    };
+    
+    ContractFormHandler.prototype.displayBothSignatures = function(data) {
+        // Show client signature block (read-only)
+        var clientBlock = $('#clientSignatureBlock');
+        if (clientBlock && data.clientSignature) {
+            clientBlock.style.display = 'block';
+            clientBlock.style.opacity = '0.9';
+            
+            var clientCanvas = document.getElementById('clientSignaturePad');
+            if (clientCanvas) {
+                var rect = clientCanvas.getBoundingClientRect();
+                var ctx = clientCanvas.getContext('2d');
+                var dpr = window.devicePixelRatio || 1;
+                clientCanvas.width = rect.width * dpr;
+                clientCanvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                
+                var img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                };
+                img.src = data.clientSignature;
+            }
+            
+            // Update client signer name and date
+            var clientSignerName = $('#clientSignerName');
+            if (clientSignerName) {
+                clientSignerName.value = data.clientSignerName || '';
+                clientSignerName.setAttribute('readonly', 'readonly');
+            }
+            
+            var clientDate = $('#clientDate');
+            if (clientDate) {
+                clientDate.value = data.clientDate || '';
+                clientDate.setAttribute('readonly', 'readonly');
+            }
+            
+            // Hide clear button
+            var clearBtn = $('.clear-btn[data-canvas="clientSignaturePad"]');
+            if (clearBtn) clearBtn.style.display = 'none';
+        }
+        
+        // Show developer signature block (read-only)
+        var devBlock = $('#devSignatureBlock');
+        if (devBlock && data.devSignature) {
+            devBlock.style.display = 'block';
+            devBlock.style.opacity = '0.9';
+            
+            var devCanvas = document.getElementById('devSignaturePad');
+            if (devCanvas) {
+                var rect = devCanvas.getBoundingClientRect();
+                var ctx = devCanvas.getContext('2d');
+                var dpr = window.devicePixelRatio || 1;
+                devCanvas.width = rect.width * dpr;
+                devCanvas.height = rect.height * dpr;
+                ctx.scale(dpr, dpr);
+                
+                var img = new Image();
+                img.onload = function() {
+                    ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                };
+                img.src = data.devSignature;
+            }
+            
+            // Update dev name and date
+            var devName = $('#devName');
+            if (devName) {
+                devName.value = data.devName || 'Carlos Martin';
+            }
+            
+            var devDate = $('#devDate');
+            if (devDate) {
+                devDate.value = data.devDate || '';
+                devDate.setAttribute('readonly', 'readonly');
+            }
+            
+            // Hide clear button
+            var devClearBtn = $('.clear-btn[data-canvas="devSignaturePad"]');
+            if (devClearBtn) devClearBtn.style.display = 'none';
+        }
+        
+        // Hide the pending block
+        var devPending = $('#devPendingBlock');
+        if (devPending) devPending.style.display = 'none';
+    };
+    
+    ContractFormHandler.prototype.showPendingStatus = function() {
+        console.log('Client has a pending contract');
+        
+        // Hide signature input
+        var clientBlock = $('#clientSignatureBlock');
+        if (clientBlock) clientBlock.style.display = 'none';
+        
+        // Update the pending message
+        var messageDiv = $('#clientSubmitMessage');
+        if (messageDiv) {
+            messageDiv.innerHTML = '<p><strong>⏳ Your agreement is pending developer signature</strong></p>' +
+                '<p>You have already signed this agreement. The developer will review and sign it shortly.</p>' +
+                '<p>You will be able to download the fully executed contract once both parties have signed.</p>';
+            messageDiv.style.display = 'block';
+            messageDiv.style.background = 'rgba(241, 196, 15, 0.15)';
+            messageDiv.style.borderColor = 'rgba(241, 196, 15, 0.4)';
+        }
+        
+        // Hide submit button
+        var submitBtn = $('#submitBtn');
+        if (submitBtn) submitBtn.style.display = 'none';
     };
 
     ContractFormHandler.prototype.loadPendingContract = function() {
         var self = this;
+        
+        console.log('Loading pending contracts...');
         
         firebase.firestore().collection('contracts')
             .where('status', '==', 'pending_developer')
@@ -899,151 +1673,269 @@
     };
 
     ContractFormHandler.prototype.populateFormWithContract = function(data) {
+        console.log('Populating form for developer with client data:', data.clientName);
+        
+        // Show a message about which contract is being signed
+        var contractInfo = document.createElement('div');
+        contractInfo.id = 'pendingContractInfo';
+        contractInfo.style.cssText = 'background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; padding: 15px; margin-bottom: 20px; text-align: center;';
+        contractInfo.innerHTML = '<p style="margin: 0; color: #fff;"><strong>📋 Pending Contract from Client</strong></p>' +
+            '<p style="margin: 5px 0 0 0; color: rgba(255,255,255,0.8);">Client: <strong>' + (data.clientName || 'N/A') + '</strong> | ' +
+            'Submitted: <strong>' + (data.clientDate || 'N/A') + '</strong></p>';
+        
+        // Insert at the top of the signatures section
+        var signaturesSection = $('.signatures');
+        if (signaturesSection && !$('#pendingContractInfo')) {
+            signaturesSection.insertBefore(contractInfo, signaturesSection.firstChild.nextSibling);
+        }
+        
+        // Populate client name field (read-only, just for display)
         var clientName = $('#clientName');
-        if (clientName) clientName.value = data.clientName || '';
-        
-        var clientSignerName = $('#clientSignerName');
-        if (clientSignerName) {
-            clientSignerName.value = data.clientSignerName || '';
-            clientSignerName.setAttribute('readonly', 'readonly');
+        if (clientName) {
+            clientName.value = data.clientName || '';
+            clientName.setAttribute('readonly', 'readonly');
+            clientName.disabled = true;
+            clientName.style.opacity = '0.7';
         }
         
-        var clientDate = $('#clientDate');
-        if (clientDate) {
-            clientDate.value = data.clientDate || '';
-            clientDate.setAttribute('readonly', 'readonly');
-        }
-        
+        // Update client name display in header
         var clientNameDisplay = $('#clientNameDisplay');
         if (clientNameDisplay) clientNameDisplay.textContent = data.clientName || 'Client Name';
+        
+        // Show client signature block with their signature (read-only display)
+        var clientBlock = $('#clientSignatureBlock');
+        if (clientBlock && data.clientSignature) {
+            clientBlock.style.display = 'block';
+            clientBlock.style.opacity = '0.7';
+            clientBlock.style.pointerEvents = 'none';
+            
+            // Add a label showing this is the client's signature
+            var clientHeader = clientBlock.querySelector('h3');
+            if (clientHeader) {
+                clientHeader.innerHTML = 'Client Signature — ' + (data.clientName || 'Client') + ' <span style="font-size: 12px; color: #10b981;">✓ Signed</span>';
+            }
+            
+            // Update client signer name and date (read-only)
+            var clientSignerName = $('#clientSignerName');
+            if (clientSignerName) {
+                clientSignerName.value = data.clientSignerName || '';
+                clientSignerName.setAttribute('readonly', 'readonly');
+                clientSignerName.disabled = true;
+            }
+            
+            var clientDateField = $('#clientDate');
+            if (clientDateField) {
+                clientDateField.value = data.clientDate || '';
+                clientDateField.setAttribute('readonly', 'readonly');
+                clientDateField.disabled = true;
+            }
+            
+            // Display saved signature on canvas
+            var clientCanvas = document.getElementById('clientSignaturePad');
+            if (clientCanvas) {
+                // Need to wait for canvas to be visible
+                setTimeout(function() {
+                    var rect = clientCanvas.getBoundingClientRect();
+                    var dpr = window.devicePixelRatio || 1;
+                    clientCanvas.width = rect.width * dpr;
+                    clientCanvas.height = rect.height * dpr;
+                    var ctx = clientCanvas.getContext('2d');
+                    ctx.scale(dpr, dpr);
+                    
+                    var img = new Image();
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+                    };
+                    img.src = data.clientSignature;
+                }, 200);
+            }
+            
+            // Hide clear button for client signature
+            var clearBtn = $('.clear-btn[data-canvas="clientSignaturePad"]');
+            if (clearBtn) clearBtn.style.display = 'none';
+        }
+        
+        // Hide acknowledgment section for developer
+        var ackSection = $('.acknowledgment');
+        if (ackSection) ackSection.style.display = 'none';
+        
+        // Make sure developer signature block is visible and enabled
+        var devBlock = $('#devSignatureBlock');
+        if (devBlock) {
+            devBlock.style.display = 'block';
+            devBlock.style.opacity = '1';
+            
+            var devHeader = devBlock.querySelector('h3');
+            if (devHeader) {
+                devHeader.innerHTML = 'Developer Signature — VistaFly <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
+            }
+        }
+        
+        console.log('Form populated with contract data for developer review');
     };
 
-    ContractFormHandler.prototype.validateClientForm = function() {
+    ContractFormHandler.prototype.handleClientSubmit = function() {
+        console.log('Handling client submit...');
+        
+        // Validate client fields
         var errors = [];
         
         var clientName = $('#clientName');
-        if (clientName && !clientName.value.trim()) {
+        if (!clientName || !clientName.value.trim()) {
             errors.push('Please enter the client name or company name');
         }
         
         var acknowledgment = $('#acknowledgment');
-        if (acknowledgment && !acknowledgment.checked) {
-            errors.push('Please acknowledge the terms');
+        if (!acknowledgment || !acknowledgment.checked) {
+            errors.push('Please acknowledge that you have read and agree to the terms');
         }
         
         var clientSignerName = $('#clientSignerName');
-        if (clientSignerName && !clientSignerName.value.trim()) {
+        if (!clientSignerName || !clientSignerName.value.trim()) {
             errors.push('Please enter your full name');
         }
         
-        if (this.clientSignaturePad && this.clientSignaturePad.isEmpty()) {
+        if (!this.clientSignaturePad || this.clientSignaturePad.isEmpty()) {
             errors.push('Your signature is required');
         }
         
         var clientDate = $('#clientDate');
-        if (clientDate && !clientDate.value) {
+        if (!clientDate || !clientDate.value) {
             errors.push('Signature date is required');
         }
         
         if (errors.length > 0) {
             alert('Please complete all required fields:\n\n' + errors.join('\n'));
-            return false;
+            return;
         }
         
-        return true;
+        // All validation passed, submit to Firebase
+        this.submitClientSignature();
     };
 
-    ContractFormHandler.prototype.validateDeveloperForm = function() {
+    ContractFormHandler.prototype.handleDeveloperSubmit = function() {
+        console.log('Handling developer submit...');
+        
+        // Validate developer fields
         var errors = [];
         
-        if (this.devSignaturePad && this.devSignaturePad.isEmpty()) {
+        if (!this.devSignaturePad || this.devSignaturePad.isEmpty()) {
             errors.push('Developer signature is required');
         }
         
         var devDate = $('#devDate');
-        if (devDate && !devDate.value) {
+        if (!devDate || !devDate.value) {
             errors.push('Developer signature date is required');
+        }
+        
+        if (!this.currentContract) {
+            errors.push('No pending contract found to finalize');
         }
         
         if (errors.length > 0) {
             alert('Please complete all required fields:\n\n' + errors.join('\n'));
-            return false;
+            return;
         }
         
-        return true;
+        // All validation passed, finalize contract
+        this.finalizeContract();
     };
 
     ContractFormHandler.prototype.submitClientSignature = function() {
         var self = this;
         var submitBtn = $('#submitBtn');
-        var originalText = submitBtn.innerHTML;
+        var originalText = submitBtn ? submitBtn.innerHTML : '';
         
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span>Submitting...</span>';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Submitting...</span>';
+        }
+        
+        console.log('Submitting client signature to Firebase...');
         
         var formData = {
-            clientName: $('#clientName').value,
-            clientSignerName: $('#clientSignerName').value,
+            clientName: $('#clientName').value.trim(),
+            clientSignerName: $('#clientSignerName').value.trim(),
             clientDate: $('#clientDate').value,
             clientSignature: this.clientSignaturePad.toDataURL(),
             clientEmail: firebase.auth().currentUser.email,
-            timestamp: new Date().toISOString(),
+            timestamp: firebase.firestore.FieldValue.serverTimestamp(),
             status: 'pending_developer'
         };
+        
+        console.log('Form data:', { ...formData, clientSignature: '[BASE64 IMAGE]' });
         
         firebase.firestore().collection('contracts').add(formData)
             .then(function(docRef) {
                 console.log('Client signature saved with ID:', docRef.id);
                 self.showClientSuccessMessage();
-                submitBtn.style.display = 'none';
+                if (submitBtn) submitBtn.style.display = 'none';
             })
             .catch(function(error) {
                 console.error('Error saving client signature:', error);
-                alert('Error submitting signature. Please try again.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                alert('Error submitting signature: ' + error.message + '\n\nPlease try again.');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
             });
     };
 
     ContractFormHandler.prototype.finalizeContract = function() {
         var self = this;
         var submitBtn = $('#submitBtn');
-        var originalText = submitBtn.innerHTML;
+        var originalText = submitBtn ? submitBtn.innerHTML : '';
         
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '<span>Finalizing...</span>';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span>Finalizing...</span>';
+        }
         
         if (!this.currentContract) {
-            alert('No pending contract found');
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
+            alert('No pending contract found to finalize');
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
             return;
         }
         
+        console.log('Finalizing contract:', this.currentContract.id);
+        
+        // Get developer signature
+        var devSignatureData = this.devSignaturePad ? this.devSignaturePad.toDataURL() : '';
+        var devDateValue = $('#devDate') ? $('#devDate').value : new Date().toISOString().split('T')[0];
+        
         var updateData = {
-            devSignature: this.devSignaturePad.toDataURL(),
-            devDate: $('#devDate').value,
+            devName: 'Carlos Martin',
+            devSignature: devSignatureData,
+            devDate: devDateValue,
             devEmail: firebase.auth().currentUser.email,
-            finalizedTimestamp: new Date().toISOString(),
+            finalizedTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
             status: 'completed'
         };
+        
+        // Merge with existing contract data for PDF generation
+        var fullContractData = Object.assign({}, this.currentContract.data, updateData);
         
         firebase.firestore().collection('contracts')
             .doc(this.currentContract.id)
             .update(updateData)
             .then(function() {
-                console.log('Contract finalized');
-                self.showDeveloperSuccessMessage();
+                console.log('Contract finalized successfully in Firebase');
                 
-                setTimeout(function() {
-                    self.generatePDF();
-                }, 1000);
+                // Store full data for PDF generation
+                self.currentContract.data = fullContractData;
+                
+                self.showDeveloperSuccessMessage();
             })
             .catch(function(error) {
                 console.error('Error finalizing contract:', error);
-                alert('Error finalizing contract. Please try again.');
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = originalText;
+                alert('Error finalizing contract: ' + error.message + '\n\nPlease try again.');
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = originalText;
+                }
             });
     };
 
@@ -1051,41 +1943,278 @@
         var messageDiv = $('#clientSubmitMessage');
         var emailDisplay = $('#clientEmailDisplay');
         
-        if (messageDiv && emailDisplay) {
+        if (messageDiv) {
             var user = firebase.auth().currentUser;
-            if (user) {
+            if (user && emailDisplay) {
                 emailDisplay.textContent = user.email;
             }
             messageDiv.style.display = 'block';
             messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
         
+        // Hide signature sections
         var clientBlock = $('#clientSignatureBlock');
         if (clientBlock) clientBlock.style.display = 'none';
         
         var devPending = $('#devPendingBlock');
         if (devPending) devPending.style.display = 'none';
+        
+        // Hide acknowledgment section
+        var ackSection = $('.acknowledgment');
+        if (ackSection) ackSection.style.display = 'none';
     };
 
     ContractFormHandler.prototype.showDeveloperSuccessMessage = function() {
-        var successMsg = $('.success-message');
+        var self = this;
+        var submitBtn = $('#submitBtn');
         
-        if (!successMsg) {
-            successMsg = document.createElement('div');
-            successMsg.className = 'success-message';
-            successMsg.textContent = '✓ Contract finalized successfully!';
-            this.form.insertBefore(successMsg, this.form.firstChild);
+        if (submitBtn) {
+            submitBtn.innerHTML = '<span>✓ Uploaded! Click to Download PDF</span>';
+            submitBtn.style.background = 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+            submitBtn.disabled = false;
+            
+            // Change button to download PDF
+            submitBtn.onclick = function(e) {
+                e.preventDefault();
+                self.generatePDF();
+            };
         }
         
-        successMsg.classList.add('show');
+        // Show download button too
+        var downloadBtn = $('#downloadBtn');
+        if (downloadBtn) {
+            downloadBtn.style.display = 'inline-flex';
+            downloadBtn.onclick = function(e) {
+                e.preventDefault();
+                self.generatePDF();
+            };
+        }
         
-        setTimeout(function() {
-            successMsg.classList.remove('show');
-        }, 5000);
+        alert('Contract uploaded successfully! Click the button to download the PDF.');
     };
 
     ContractFormHandler.prototype.generatePDF = function() {
-        window.print();
+        var self = this;
+        var contractData = this.currentContract ? this.currentContract.data : null;
+        
+        if (!contractData) {
+            alert('No contract data available to generate PDF');
+            return;
+        }
+        
+        console.log('Generating PDF with data:', contractData);
+        
+        // Create a new window with the formatted contract
+        var printWindow = window.open('', '_blank');
+        
+        if (!printWindow) {
+            alert('Please allow popups to download the PDF');
+            return;
+        }
+        
+        var clientDate = contractData.clientDate || 'N/A';
+        var devDate = contractData.devDate || 'N/A';
+        var clientName = contractData.clientName || 'N/A';
+        var clientSignerName = contractData.clientSignerName || 'N/A';
+        var clientEmail = contractData.clientEmail || 'N/A';
+        var devName = contractData.devName || 'Carlos Martin';
+        var devEmail = contractData.devEmail || 'N/A';
+        var clientSignature = contractData.clientSignature || '';
+        var devSignature = contractData.devSignature || '';
+        
+        var htmlContent = '<!DOCTYPE html>' +
+        '<html><head>' +
+        '<title>Website Development Agreement - ' + clientName + '</title>' +
+        '<style>' +
+        '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+        'body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in; }' +
+        'h1 { font-size: 18pt; text-align: center; margin-bottom: 5px; font-weight: bold; }' +
+        'h2 { font-size: 14pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 5px; }' +
+        'h3 { font-size: 12pt; margin-top: 15px; margin-bottom: 8px; font-weight: bold; }' +
+        'p { margin-bottom: 10px; text-align: justify; }' +
+        'ul { margin-left: 25px; margin-bottom: 10px; }' +
+        'li { margin-bottom: 5px; }' +
+        '.header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }' +
+        '.subtitle { font-size: 12pt; color: #333; margin-top: 5px; }' +
+        '.parties { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin: 20px 0; }' +
+        '.section { margin-bottom: 20px; page-break-inside: avoid; }' +
+        '.signature-page { page-break-before: always; margin-top: 50px; }' +
+        '.signature-block { display: inline-block; width: 45%; vertical-align: top; margin: 20px 2%; }' +
+        '.signature-line { border-bottom: 1px solid #000; height: 80px; margin: 10px 0; display: flex; align-items: flex-end; justify-content: center; }' +
+        '.signature-line img { max-height: 70px; max-width: 100%; }' +
+        '.signature-label { font-size: 10pt; color: #666; margin-top: 5px; }' +
+        '.signature-name { font-weight: bold; margin-top: 10px; }' +
+        '.signature-date { margin-top: 5px; }' +
+        '.signature-email { font-size: 10pt; color: #666; }' +
+        '.footer { margin-top: 50px; text-align: center; font-size: 10pt; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }' +
+        '.contract-id { font-size: 9pt; color: #999; margin-top: 10px; }' +
+        '@media print { body { padding: 0.5in; } .signature-page { page-break-before: always; } }' +
+        '@page { margin: 0.75in; }' +
+        '</style>' +
+        '</head><body>' +
+        
+        '<div class="header">' +
+        '<h1>WEBSITE DEVELOPMENT AGREEMENT</h1>' +
+        '<div class="subtitle">VistaFly — Carlos Martin</div>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>PARTIES TO THE AGREEMENT</h2>' +
+        '<p>This Website Development Agreement ("Agreement") is made effective as of <strong>' + clientDate + '</strong> (the "Effective Date") and is entered into by and between:</p>' +
+        '<div class="parties">' +
+        '<p><strong>VistaFly</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>' +
+        '<p>and</p>' +
+        '<p><strong>' + clientName + '</strong> (the "Client")</p>' +
+        '<p style="font-size: 10pt; color: #666; margin-top: 10px;">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>' +
+        '</div>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>1. PROJECT SCOPE</h2>' +
+        '<h3>1.1 Overview</h3>' +
+        '<p>Developer agrees to design, build, and deliver a custom website or web application using modern technologies, which may include but are not limited to: Visual Studio Code, React, Next.js, Firebase, Vite, REST/Graph APIs, and associated development tools.</p>' +
+        '<h3>1.2 Statement of Work (SOW)</h3>' +
+        '<p>All features, functionalities, pages, integrations, and deliverables will be detailed in a separate Proposal or Statement of Work ("SOW") prepared by Developer and approved by Client.</p>' +
+        '<h3>1.3 Scope Limitations</h3>' +
+        '<p>Only items expressly included in the SOW form part of the Project Scope. Any request beyond that scope—whether new features, design changes, additional pages, or system enhancements—requires an approved Change Order (Section 10).</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>2. PACKAGES & PRICING</h2>' +
+        '<p>Developer offers multiple service tiers, including Starter, Professional, Premium, and Elite website/application packages. The applicable pricing, deliverables, and package level for this Agreement will be specified in the attached SOW, which forms an integral part of this Agreement.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>3. PAYMENT TERMS</h2>' +
+        '<p>Unless otherwise specified in the SOW:</p>' +
+        '<h3>3.1 Deposit</h3>' +
+        '<p>A non-refundable deposit of 50% is required before any work begins, unless the Developer chooses to accept a different amount at their discretion.</p>' +
+        '<h3>3.2 Milestone Payments</h3>' +
+        '<p>If no custom timetable is specified in the SOW, the standard schedule is:</p>' +
+        '<ul>' +
+        '<li>25% due upon UI/UX design approval</li>' +
+        '<li>25% due at final delivery or prior to deployment, whichever the Developer determines is appropriate</li>' +
+        '</ul>' +
+        '<h3>3.3 Late Payments</h3>' +
+        '<p>Payments not received within 7 days of the due date may, at the Developer\'s discretion, incur a monthly late fee of up to 5%. The Developer may also pause or delay work until any outstanding balance is paid.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>4. CLIENT RESPONSIBILITIES</h2>' +
+        '<p>Client agrees to provide all necessary materials—including copy, images, brand assets, credentials, and requested information—within 5 business days of Developer\'s request.</p>' +
+        '<p>Any delays in providing required materials will directly extend the project timeline. Developer is not responsible for delays caused by the Client.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>5. REVISIONS</h2>' +
+        '<p>Unless otherwise stated in the SOW:</p>' +
+        '<ul>' +
+        '<li>Client receives up to two (2) rounds of revisions per milestone</li>' +
+        '<li>Additional revisions or redesigns require a Change Order and may incur additional charges</li>' +
+        '</ul>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>6. INTELLECTUAL PROPERTY RIGHTS</h2>' +
+        '<h3>6.1 Developer Ownership</h3>' +
+        '<p>Developer retains full ownership of all proprietary materials, including source code, backend logic and architecture, custom components, scripts, and utilities, and Developer\'s internal systems, tools, libraries, and workflows.</p>' +
+        '<h3>6.2 Client Ownership</h3>' +
+        '<p>Upon full payment, Client gains ownership of the final website design, all content supplied by Client (text, images, media), and the compiled, minified production build of the project.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>7. MAINTENANCE & SUPPORT</h2>' +
+        '<p>Maintenance plans (Basic, Professional, Premium) may be purchased separately and will be defined in the SOW. Maintenance plans do not include new pages or sections, new features or functionalities, major redesigns, third-party outages, policy changes from platforms, or fixes related to Client misuse.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>8. TIMELINE & DELIVERY</h2>' +
+        '<p>Developer will provide an estimated project timeline. Client acknowledges these timelines are estimates, not guarantees. Any Client-caused delay automatically extends the project schedule.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>9. CHANGE ORDERS</h2>' +
+        '<p>Any request modifying the Project Scope—including added features, redesigns, advanced animations, dashboards, APIs, or system logic—requires a signed Change Order that includes revised pricing and timelines.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>10. WARRANTY & LIMITATIONS</h2>' +
+        '<h3>10.1 Developer Warranty</h3>' +
+        '<p>Developer warrants that the delivered website will function substantially as described in the SOW for 30 days after deployment.</p>' +
+        '<h3>10.2 Exclusions</h3>' +
+        '<p>This warranty does not apply to issues caused by Client-modified code, third-party service changes, library updates, hosting issues, improper access, or security breaches caused by Client.</p>' +
+        '<h3>10.3 Liability Limitations</h3>' +
+        '<p>Developer\'s total liability under this Agreement is limited to the total amount paid by Client.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>11. CONFIDENTIALITY</h2>' +
+        '<p>Both Parties agree to maintain the confidentiality of all proprietary or sensitive information exchanged during the course of this project.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>12. INDEMNIFICATION</h2>' +
+        '<p>Client agrees to indemnify and hold Developer harmless from any claims arising out of content supplied by Client, misuse of the website, unauthorized access, or business decisions made using data produced by the website.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>13. TERMINATION</h2>' +
+        '<p>Either Party may terminate this Agreement with 7 days written notice. If Client terminates early, all deposits are forfeited, all completed work must be paid for immediately, and Developer retains all rights to unfinished work.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>14. GOVERNING LAW</h2>' +
+        '<p>This Agreement shall be governed by and construed in accordance with the laws of the State of California without regard to conflict-of-law principles.</p>' +
+        '</div>' +
+        
+        '<div class="section">' +
+        '<h2>15. ENTIRE AGREEMENT</h2>' +
+        '<p>This Agreement, together with all attached SOWs, proposals, and addenda, constitutes the entire and complete agreement between the Parties and supersedes all prior discussions, negotiations, or understandings.</p>' +
+        '</div>' +
+        
+        '<div class="signature-page">' +
+        '<h2 style="text-align: center; border: none;">SIGNATURES</h2>' +
+        '<p style="text-align: center; margin-bottom: 30px;">By signing below, both parties acknowledge that they have read, understood, and agree to all terms and conditions outlined in this Agreement.</p>' +
+        
+        '<div style="display: flex; justify-content: space-between; margin-top: 40px;">' +
+        
+        '<div class="signature-block">' +
+        '<h3>Developer — VistaFly</h3>' +
+        '<div class="signature-line">' +
+        (devSignature ? '<img src="' + devSignature + '" alt="Developer Signature" />' : '<span style="color: #999;">Pending</span>') +
+        '</div>' +
+        '<div class="signature-label">Signature</div>' +
+        '<div class="signature-name">' + devName + '</div>' +
+        '<div class="signature-date">Date: ' + devDate + '</div>' +
+        '<div class="signature-email">' + devEmail + '</div>' +
+        '</div>' +
+        
+        '<div class="signature-block">' +
+        '<h3>Client — ' + clientName + '</h3>' +
+        '<div class="signature-line">' +
+        (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="color: #999;">Pending</span>') +
+        '</div>' +
+        '<div class="signature-label">Signature</div>' +
+        '<div class="signature-name">' + clientSignerName + '</div>' +
+        '<div class="signature-date">Date: ' + clientDate + '</div>' +
+        '<div class="signature-email">' + clientEmail + '</div>' +
+        '</div>' +
+        
+        '</div>' +
+        
+        '<div class="footer">' +
+        '<p>© ' + new Date().getFullYear() + ' VistaFly. All rights reserved.</p>' +
+        '<p class="contract-id">Contract ID: ' + (self.currentContract ? self.currentContract.id : 'N/A') + '</p>' +
+        '</div>' +
+        '</div>' +
+        
+        '<script>' +
+        'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
+        '</script>' +
+        '</body></html>';
+        
+        printWindow.document.write(htmlContent);
+        printWindow.document.close();
     };
 
     // === PAGE LOADER ===

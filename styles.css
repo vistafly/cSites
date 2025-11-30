@@ -1952,3 +1952,534 @@ body.modal-open .custom-cursor {
     z-index: 10;
     touch-action: manipulation;
 }
+
+/* ============================================
+   DEVELOPER DASHBOARD STYLES - Business Owner Centric
+   ============================================ */
+
+.developer-dashboard {
+    padding: 2rem;
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.98) 0%, rgba(20, 20, 20, 0.98) 100%);
+    max-height: 80vh;
+    overflow-y: auto;
+}
+
+/* Custom Scrollbar */
+.developer-dashboard::-webkit-scrollbar {
+    width: 6px;
+}
+
+.developer-dashboard::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.developer-dashboard::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+}
+
+/* Dashboard Header */
+.dashboard-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.header-content h2 {
+    font-size: 1.75rem;
+    margin: 0 0 0.25rem 0;
+    color: #fff;
+    font-weight: 600;
+}
+
+.header-subtitle {
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+.header-date {
+    text-align: right;
+}
+
+.current-date {
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.85rem;
+}
+
+/* Alert Banner */
+.alert-banner {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    border-radius: 12px;
+    margin-bottom: 1.5rem;
+    animation: slideIn 0.3s ease;
+}
+
+.alert-banner.urgent {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.alert-banner.success {
+    background: rgba(16, 185, 129, 0.15);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.alert-icon {
+    font-size: 1.5rem;
+}
+
+.alert-content strong {
+    display: block;
+    color: #fff;
+    margin-bottom: 0.25rem;
+}
+
+.alert-content p {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.85rem;
+    margin: 0;
+}
+
+@keyframes slideIn {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Quick Stats */
+.quick-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.quick-stat {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1.25rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.quick-stat:hover {
+    background: rgba(255, 255, 255, 0.05);
+    transform: translateY(-2px);
+}
+
+.quick-stat-icon {
+    font-size: 1.75rem;
+    width: 50px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.quick-stat.action-required .quick-stat-icon {
+    background: rgba(245, 158, 11, 0.15);
+}
+
+.quick-stat.completed-stat .quick-stat-icon {
+    background: rgba(16, 185, 129, 0.15);
+}
+
+.quick-stat.monthly-stat .quick-stat-icon {
+    background: rgba(99, 102, 241, 0.15);
+}
+
+.quick-stat-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.quick-stat-number {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1;
+}
+
+.quick-stat-label {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+    margin-top: 0.25rem;
+}
+
+/* Dashboard Sections */
+.dashboard-section {
+    margin-bottom: 2rem;
+}
+
+.section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.section-header h3 {
+    font-size: 1.1rem;
+    color: #fff;
+    margin: 0;
+    font-weight: 600;
+}
+
+.section-badge {
+    font-size: 0.75rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+    font-weight: 500;
+}
+
+.section-badge.success {
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+}
+
+/* Action List (Pending Contracts) */
+.action-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.action-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem 1.25rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    transition: all 0.3s ease;
+}
+
+.action-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+    border-color: rgba(255, 255, 255, 0.12);
+}
+
+.action-priority {
+    width: 45px;
+    height: 45px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.priority-number {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: #fff;
+}
+
+.action-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.action-client {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.action-client h4 {
+    font-size: 1rem;
+    color: #fff;
+    margin: 0;
+    font-weight: 600;
+}
+
+.urgency-tag {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+}
+
+.action-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.meta-item strong {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.action-cta {
+    flex-shrink: 0;
+}
+
+.btn-sign-contract {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.25rem;
+    background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.btn-sign-contract:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(245, 158, 11, 0.35);
+}
+
+.btn-icon {
+    font-size: 1rem;
+}
+
+/* History List (Completed Contracts) */
+.history-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.history-item {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.875rem 1rem;
+    background: rgba(255, 255, 255, 0.02);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.history-item:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.history-status {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: rgba(16, 185, 129, 0.15);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.status-icon {
+    color: #10b981;
+    font-weight: 700;
+}
+
+.history-details {
+    flex: 1;
+    min-width: 0;
+}
+
+.history-details h4 {
+    font-size: 0.95rem;
+    color: #fff;
+    margin: 0 0 0.15rem 0;
+    font-weight: 500;
+}
+
+.history-meta {
+    font-size: 0.8rem;
+    color: rgba(255, 255, 255, 0.4);
+}
+
+.history-actions {
+    flex-shrink: 0;
+}
+
+.btn-download {
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 8px;
+    color: #fff;
+    font-size: 0.8rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.btn-download:hover {
+    background: rgba(255, 255, 255, 0.12);
+    transform: translateY(-1px);
+}
+
+/* Empty States */
+.empty-state {
+    text-align: center;
+    padding: 2.5rem;
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 12px;
+    border: 1px dashed rgba(255, 255, 255, 0.1);
+}
+
+.empty-state.success-state {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.2);
+}
+
+.empty-icon {
+    font-size: 2rem;
+    margin-bottom: 0.75rem;
+}
+
+.empty-state p {
+    color: rgba(255, 255, 255, 0.5);
+    margin: 0;
+    font-size: 0.95rem;
+}
+
+/* Dashboard Footer */
+.dashboard-footer {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.08);
+    text-align: center;
+}
+
+.btn-close-dashboard {
+    padding: 0.75rem 2rem;
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 10px;
+    color: #fff;
+    font-size: 0.9rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-family: inherit;
+}
+
+.btn-close-dashboard:hover {
+    background: rgba(255, 255, 255, 0.12);
+}
+
+/* Loading & Error States */
+.dashboard-loading {
+    text-align: center;
+    padding: 4rem 2rem;
+}
+
+.dashboard-loading p {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1rem;
+}
+
+.dashboard-error {
+    text-align: center;
+    padding: 2rem;
+    background: rgba(239, 68, 68, 0.1);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    border-radius: 12px;
+}
+
+.dashboard-error p {
+    color: #ef4444;
+    margin: 0;
+}
+
+/* Back to Dashboard Button */
+#backToDashboard {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #fff !important;
+}
+
+#backToDashboard:hover {
+    background: rgba(255, 255, 255, 0.12) !important;
+}
+
+/* Pending Contract Info Banner */
+#pendingContractInfo {
+    animation: slideIn 0.3s ease;
+}
+
+/* Responsive Dashboard */
+@media (max-width: 768px) {
+    .developer-dashboard {
+        padding: 1.25rem;
+    }
+    
+    .dashboard-header {
+        flex-direction: column;
+        gap: 0.75rem;
+    }
+    
+    .header-date {
+        text-align: left;
+    }
+    
+    .quick-stats {
+        grid-template-columns: 1fr;
+    }
+    
+    .action-item {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+        gap: 0.75rem;
+    }
+    
+    .action-priority {
+        width: auto;
+        height: auto;
+        padding: 0.5rem;
+        flex-direction: row;
+        gap: 0.5rem;
+    }
+    
+    .action-client {
+        justify-content: center;
+    }
+    
+    .action-meta {
+        justify-content: center;
+        flex-direction: column;
+        gap: 0.25rem;
+    }
+    
+    .action-cta {
+        width: 100%;
+    }
+    
+    .btn-sign-contract {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .history-item {
+        flex-direction: column;
+        text-align: center;
+        gap: 0.5rem;
+    }
+}

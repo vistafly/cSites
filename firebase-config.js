@@ -11,11 +11,27 @@ const firebaseConfig = {
     appId: import.meta.env.VITE_FIREBASE_APP_ID
 };
 
+// ============================================================
+// DEVELOPER EMAIL - Used to determine who can finalize contracts
+// Add VITE_DEVELOPER_EMAIL=your-email@gmail.com to your .env file
+// ============================================================
+window.VITE_DEVELOPER_EMAIL = import.meta.env.VITE_DEVELOPER_EMAIL || '';
+
+console.log('=== FIREBASE CONFIG ===');
+console.log('Project ID:', firebaseConfig.projectId || 'Not set');
+console.log('Developer Email:', window.VITE_DEVELOPER_EMAIL || 'NOT SET - Add VITE_DEVELOPER_EMAIL to .env');
+console.log('=======================');
+
 // Validate configuration
 if (!firebaseConfig.apiKey) {
     console.error('❌ Firebase configuration error: Missing environment variables!');
     console.error('📝 Please create a .env file based on .env.example');
     console.error('🔑 Add your Firebase credentials from Firebase Console');
+}
+
+if (!window.VITE_DEVELOPER_EMAIL) {
+    console.error('❌ VITE_DEVELOPER_EMAIL not set in .env file!');
+    console.error('📝 Add this line to your .env: VITE_DEVELOPER_EMAIL=your-email@gmail.com');
 }
 
 // Initialize Firebase
@@ -28,4 +44,4 @@ const db = firebase.firestore();
 // Google Auth Provider
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 
-console.log('✅ Firebase initialized:', firebaseConfig.projectId || 'No project ID');
+console.log('✅ Firebase initialized successfully');
