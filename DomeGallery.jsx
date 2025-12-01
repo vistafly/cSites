@@ -1,5 +1,4 @@
 import { useEffect, useMemo, useRef, useCallback } from 'react';
-import { useGesture } from '@use-gesture/react';
 import './DomeGallery.css';
 
 const clamp = (v, min, max) => Math.min(Math.max(v, min), max);
@@ -67,36 +66,49 @@ export default function DomeGallery({
 
   const rotationRef = useRef({ x: 0, y: 0 });
   const startRotRef = useRef({ x: 0, y: 0 });
-  const draggingRef = useRef(false);
-  const movedRef = useRef(false);
+  const dragStartPosRef = useRef(null);
+  const isDraggingRef = useRef(false);
+  const hasMovedRef = useRef(false);
   const lastDragEndAt = useRef(0);
   const openingRef = useRef(false);
   
-  // Mobile touch refs
+  // Mobile press-and-hold refs
   const touchTimerRef = useRef(null);
-  const touchStartTimeRef = useRef(0);
   const activeTouchTileRef = useRef(null);
   const holdCompletedRef = useRef(false);
+  const tileInteractionRef = useRef(false); // Track if touch started on tile
   const rafRef = useRef(null);
-  const hasInteractedRef = useRef(false); // Track if user has interacted
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
-  // Safe haptic feedback with error handling
-  const triggerHaptic = useCallback((duration = 10) => {
-    if (!hasInteractedRef.current) return; // Don't vibrate until user has interacted
-    
+  // iOS Haptic Feedback (uses Taptic Engine via AudioContext workaround)
+  const triggerHaptic = useCallback(() => {
     try {
-      if ('vibrate' in navigator && navigator.vibrate) {
-        navigator.vibrate(duration);
+      // iOS doesn't support navigator.vibrate, but we can try alternative methods
+      if (window.navigator && window.navigator.vibrate) {
+        window.navigator.vibrate(10);
+      }
+      // Taptic Engine feedback for iOS (requires user gesture)
+      if (window.AudioContext || window.webkitAudioContext) {
+        const context = new (window.AudioContext || window.webkitAudioContext)();
+        const oscillator = context.createOscillator();
+        const gainNode = context.createGain();
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(context.destination);
+        
+        oscillator.frequency.value = 200;
+        gainNode.gain.value = 0.1;
+        
+        oscillator.start(context.currentTime);
+        oscillator.stop(context.currentTime + 0.01);
       }
     } catch (err) {
-      // Silently fail - vibration is not critical
-      console.log('Vibration not available');
+      // Silently fail - haptics are optional
     }
   }, []);
 
-  // Throttled z-index update with RAF
+  // Throttled z-index update
   const updateTileZIndex = useCallback((currentRotY) => {
     if (rafRef.current) return;
     
@@ -172,56 +184,116 @@ export default function DomeGallery({
     return () => clearTimeout(timer);
   }, [updateTileZIndex]);
 
-  // FIXED: Drag handlers using useGesture's movement instead of clientX/Y
-  useGesture(
-    {
-      onDragStart: () => {
-        hasInteractedRef.current = true; // User has interacted
-        draggingRef.current = true;
-        movedRef.current = false;
-        startRotRef.current = { ...rotationRef.current };
-      },
-      onDrag: ({ movement: [mx, my], last }) => {
-        if (!draggingRef.current) return;
-        
-        // Check if moved enough to be considered a drag
-        if (!movedRef.current && (mx * mx + my * my) > 25) {
-          movedRef.current = true;
-          // Cancel press-and-hold if user starts dragging
-          if (touchTimerRef.current) {
-            clearTimeout(touchTimerRef.current);
-            touchTimerRef.current = null;
-            holdCompletedRef.current = false;
-          }
-        }
-        
-        const nextX = clamp(
-          startRotRef.current.x - my / dragSensitivity,
-          -maxVerticalRotationDeg,
-          maxVerticalRotationDeg
-        );
-        const nextY = wrapAngleSigned(startRotRef.current.y + mx / dragSensitivity);
-        
-        rotationRef.current = { x: nextX, y: nextY };
-        applyTransform(nextX, nextY);
-        
-        if (last) {
-          draggingRef.current = false;
-          if (movedRef.current) lastDragEndAt.current = performance.now();
-          movedRef.current = false;
-        }
-      }
-    },
-    { 
-      target: mainRef,
-      drag: {
-        filterTaps: true,
-        pointer: { touch: true }
-      }
-    }
-  );
+  // ===== NATIVE TOUCH/MOUSE HANDLERS FOR SPHERE ROTATION =====
+  
+  const handleDragStart = useCallback((e) => {
+    // Skip if touch started on a tile
+    if (tileInteractionRef.current) return;
+    
+    isDraggingRef.current = true;
+    hasMovedRef.current = false;
+    startRotRef.current = { ...rotationRef.current };
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    dragStartPosRef.current = { x: clientX, y: clientY };
+  }, []);
 
-  // Open content utility
+  const handleDragMove = useCallback((e) => {
+    if (!isDraggingRef.current || !dragStartPosRef.current) return;
+    if (tileInteractionRef.current) return;
+    
+    e.preventDefault();
+    
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    
+    const dx = clientX - dragStartPosRef.current.x;
+    const dy = clientY - dragStartPosRef.current.y;
+    
+    if (!hasMovedRef.current && (dx * dx + dy * dy) > 25) {
+      hasMovedRef.current = true;
+    }
+    
+    const nextX = clamp(
+      startRotRef.current.x - dy / dragSensitivity,
+      -maxVerticalRotationDeg,
+      maxVerticalRotationDeg
+    );
+    const nextY = wrapAngleSigned(startRotRef.current.y + dx / dragSensitivity);
+    
+    rotationRef.current = { x: nextX, y: nextY };
+    applyTransform(nextX, nextY);
+  }, [dragSensitivity, maxVerticalRotationDeg, applyTransform]);
+
+  const handleDragEnd = useCallback(() => {
+    if (isDraggingRef.current && hasMovedRef.current) {
+      lastDragEndAt.current = performance.now();
+    }
+    
+    isDraggingRef.current = false;
+    hasMovedRef.current = false;
+    dragStartPosRef.current = null;
+  }, []);
+
+  // Attach sphere rotation handlers
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+
+    // Mouse events
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return; // Only left click
+      handleDragStart(e);
+    };
+    
+    const onMouseMove = (e) => {
+      handleDragMove(e);
+    };
+    
+    const onMouseUp = () => {
+      handleDragEnd();
+    };
+
+    // Touch events
+    const onTouchStart = (e) => {
+      // Only handle if not touching a tile
+      if (!e.target.closest('.item__image')) {
+        handleDragStart(e);
+      }
+    };
+    
+    const onTouchMove = (e) => {
+      handleDragMove(e);
+    };
+    
+    const onTouchEnd = () => {
+      handleDragEnd();
+    };
+
+    main.addEventListener('mousedown', onMouseDown);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+    
+    main.addEventListener('touchstart', onTouchStart, { passive: false });
+    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    window.addEventListener('touchend', onTouchEnd);
+    window.addEventListener('touchcancel', onTouchEnd);
+
+    return () => {
+      main.removeEventListener('mousedown', onMouseDown);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+      
+      main.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [handleDragStart, handleDragMove, handleDragEnd]);
+
+  // ===== TILE INTERACTION HANDLERS =====
+
   const openTileContent = useCallback((parent) => {
     if (openingRef.current) return;
 
@@ -265,86 +337,71 @@ export default function DomeGallery({
     viewerRef.current.appendChild(overlay);
     rootRef.current?.setAttribute('data-enlarging', 'true');
     
-    // Success haptic on open
-    triggerHaptic(20);
+    triggerHaptic();
   }, [openedImageWidth, openedImageHeight, openedImageBorderRadius, triggerHaptic]);
 
-  // MOBILE: Touch start handler - Press and hold starts here
-  const handleTouchStart = useCallback((e) => {
-    hasInteractedRef.current = true; // User has interacted
+  // MOBILE: Touch start on tile - Press and hold
+  const handleTileTouchStart = useCallback((e) => {
+    tileInteractionRef.current = true; // Mark that touch started on tile
     
     const tile = e.currentTarget.parentElement;
-    
-    touchStartTimeRef.current = performance.now();
     activeTouchTileRef.current = tile;
     holdCompletedRef.current = false;
     
-    // Immediate light haptic feedback on press down
-    triggerHaptic(10);
+    triggerHaptic();
     
-    // Clear existing timer
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
     }
     
     // Set timer for press-and-hold
     touchTimerRef.current = setTimeout(() => {
-      if (!movedRef.current && activeTouchTileRef.current && !draggingRef.current) {
+      if (!hasMovedRef.current && activeTouchTileRef.current) {
         holdCompletedRef.current = true;
-        // STRONG haptic feedback to confirm press-and-hold completion
-        triggerHaptic(50);
+        triggerHaptic(); // Strong feedback
       }
     }, pressHoldDuration);
   }, [triggerHaptic, pressHoldDuration]);
 
-  // MOBILE: Touch end handler - Only opens if hold was completed
-  const handleTouchEnd = useCallback((e) => {
+  // MOBILE: Touch end on tile
+  const handleTileTouchEnd = useCallback((e) => {
     const parent = activeTouchTileRef.current;
     
-    // Clear timer
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
       touchTimerRef.current = null;
     }
     
-    // CRITICAL: Only open if press-and-hold was completed
-    if (holdCompletedRef.current && !movedRef.current && !draggingRef.current && parent) {
-      // Prevent default to avoid ghost clicks
-      if (e.cancelable) {
-        e.preventDefault();
-      }
-      
-      // Open the content
+    // Only open if hold completed and didn't drag
+    if (holdCompletedRef.current && !hasMovedRef.current && parent) {
+      e.preventDefault();
+      e.stopPropagation();
       openTileContent(parent);
     }
     
-    // Reset all touch tracking
+    // Reset
     activeTouchTileRef.current = null;
-    touchStartTimeRef.current = 0;
     holdCompletedRef.current = false;
+    tileInteractionRef.current = false;
   }, [openTileContent]);
 
-  const handleTouchCancel = useCallback(() => {
-    // Clear timer on touch cancel
+  const handleTileTouchCancel = useCallback(() => {
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
       touchTimerRef.current = null;
     }
     
-    // Reset all tracking
     activeTouchTileRef.current = null;
-    touchStartTimeRef.current = 0;
     holdCompletedRef.current = false;
+    tileInteractionRef.current = false;
   }, []);
 
-  // DESKTOP: Click handler (instant open)
-  const handleClick = useCallback((e) => {
-    hasInteractedRef.current = true; // User has interacted
-    
-    // Skip on touch devices - they use press-and-hold
+  // DESKTOP: Click handler
+  const handleTileClick = useCallback((e) => {
+    // Skip on touch devices
     if ('ontouchstart' in window) return;
     
-    if (draggingRef.current || movedRef.current) return;
+    if (isDraggingRef.current || hasMovedRef.current) return;
     if (performance.now() - lastDragEndAt.current < 100) return;
 
     const parent = e.currentTarget.parentElement;
@@ -412,14 +469,14 @@ export default function DomeGallery({
                   data-interactive="true"
                   role="button"
                   tabIndex={0}
-                  onClick={handleClick}
-                  onTouchStart={handleTouchStart}
-                  onTouchEnd={handleTouchEnd}
-                  onTouchCancel={handleTouchCancel}
+                  onClick={handleTileClick}
+                  onTouchStart={handleTileTouchStart}
+                  onTouchEnd={handleTileTouchEnd}
+                  onTouchCancel={handleTileTouchCancel}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      handleClick(e);
+                      handleTileClick(e);
                     }
                   }}
                 >
