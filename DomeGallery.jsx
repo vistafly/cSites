@@ -74,11 +74,34 @@ export default function DomeGallery({
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
+  // Update z-index based on rotation (NO LOGGING)
+  const updateTileZIndex = useCallback((currentRotY) => {
+    if (!sphereRef.current) return;
+    
+    const tiles = sphereRef.current.querySelectorAll('.item');
+    
+    tiles.forEach((tile) => {
+      const styleAttr = tile.getAttribute('style') || '';
+      const offsetXMatch = styleAttr.match(/--offset-x:\s*(-?\d+(?:\.\d+)?)/);
+      const offsetX = offsetXMatch ? parseFloat(offsetXMatch[1]) : 0;
+      
+      const tileRotY = (360 / segments) * (offsetX + 0.5);
+      let relativeRot = tileRotY - currentRotY;
+      
+      while (relativeRot > 180) relativeRot -= 360;
+      while (relativeRot < -180) relativeRot += 360;
+      
+      const zIndex = Math.round(500 + 499 * Math.cos((relativeRot * Math.PI) / 180));
+      tile.style.zIndex = Math.max(1, zIndex);
+    });
+  }, [segments]);
+
   const applyTransform = useCallback((xDeg, yDeg) => {
     if (sphereRef.current) {
       sphereRef.current.style.transform = `translateZ(calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
+      updateTileZIndex(yDeg);
     }
-  }, []);
+  }, [updateTileZIndex]);
 
   // Set CSS variables and size
   useEffect(() => {
@@ -105,14 +128,21 @@ export default function DomeGallery({
       applyTransform(rotationRef.current.x, rotationRef.current.y);
     };
 
-    // Initial update
     updateSize();
-
     const observer = new ResizeObserver(updateSize);
     observer.observe(root);
 
     return () => observer.disconnect();
   }, [fit, minRadius, maxRadius, segments, imageBorderRadius, openedImageBorderRadius, overlayBlurColor, grayscale, applyTransform]);
+
+  // Initial z-index setup
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      updateTileZIndex(0);
+    }, 100);
+    
+    return () => clearTimeout(timer);
+  }, [updateTileZIndex]);
 
   // Drag handlers
   useGesture(
@@ -126,7 +156,6 @@ export default function DomeGallery({
       onDrag: ({ event, last }) => {
         if (!draggingRef.current || !startPosRef.current) return;
         
-        // ✅ FIX: Prevent iOS scroll/bounce during drag
         if (event.cancelable) {
           event.preventDefault();
         }
@@ -157,9 +186,9 @@ export default function DomeGallery({
     },
     { 
       target: mainRef, 
-      eventOptions: { passive: false }, // ✅ FIX: Allow preventDefault
+      eventOptions: { passive: false },
       drag: {
-        preventScrollAxis: 'xy' // ✅ FIX: Block scroll on both axes
+        preventScrollAxis: 'xy'
       }
     }
   );
@@ -257,6 +286,7 @@ export default function DomeGallery({
               >
                 <div
                   className="item__image"
+                  data-interactive="true"
                   role="button"
                   tabIndex={0}
                   onClick={handleTileClick}

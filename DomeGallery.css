@@ -55,6 +55,7 @@ main.sphere-main {
   will-change: transform;
 }
 
+/* OPACITY APPROACH: visible backface, opacity controlled by JS */
 .item {
   width: calc(var(--item-width) * var(--item-size-x));
   height: calc(var(--item-height) * var(--item-size-y));
@@ -65,13 +66,18 @@ main.sphere-main {
   right: -999px;
   margin: auto;
   transform-origin: 50% 50%;
-  backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
+  /* Visible so JS can control opacity */
+  backface-visibility: visible;
+  -webkit-backface-visibility: visible;
   transform-style: preserve-3d;
-  transition: transform 200ms ease-out;
+  /* Smooth opacity transitions */
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
   transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2))))
     rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2))))
     translateZ(var(--radius));
+  pointer-events: auto;
+  z-index: 500;
+  opacity: 1; /* Controlled by JS */
 }
 
 .item__image {
@@ -81,6 +87,7 @@ main.sphere-main {
   border-radius: var(--tile-radius, 12px);
   background: #0a0a0a;
   overflow: hidden;
+  /* Hidden for image itself to prevent visual duplication */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -162,7 +169,7 @@ main.sphere-main {
   pointer-events: all !important;
 }
 
-/* Minimal mobile adjustments - just slight spacing tweaks */
+/* Mobile adjustments */
 @media (max-width: 768px) {
   .item__image {
     inset: 10px;
@@ -186,7 +193,7 @@ main.sphere-main {
   }
 }
 
-/* Touch device optimization - disable hover effects on mobile */
+/* Touch optimization */
 @media (hover: none) and (pointer: coarse) {
   .item__image:hover {
     transform: translateZ(0) scale(1);
@@ -201,22 +208,13 @@ main.sphere-main {
   }
 }
 
-/* GPU acceleration */
-.sphere,
-.item,
-.item__image {
-  -webkit-backface-visibility: hidden;
-  backface-visibility: hidden;
-}
-
-/* Hide custom cursor when viewing embeddings */
+/* Hide custom cursor in overlays */
 .sphere-root[data-enlarging='true'] ~ * .custom-cursor,
 body:has(.sphere-root[data-enlarging='true']) .custom-cursor {
     opacity: 0 !important;
     pointer-events: none !important;
 }
 
-/* Re-enable normal cursor in overlays */
 .viewer .enlarge,
 .viewer .enlarge * {
     cursor: auto !important;
