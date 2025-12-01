@@ -56,7 +56,8 @@ export default function DomeGallery({
   openedImageBorderRadius = '20px',
   overlayBlurColor = '#0a0a0a',
   grayscale = false,
-  pressHoldDuration = 500
+  pressHoldDuration = 500,
+  movementThreshold = 10 // Pixels of movement before canceling press-and-hold
 }) {
   const rootRef = useRef(null);
   const mainRef = useRef(null);
@@ -72,23 +73,23 @@ export default function DomeGallery({
   const lastDragEndAt = useRef(0);
   const openingRef = useRef(false);
   
-  // Mobile press-and-hold refs
+  // Tile interaction refs
   const touchTimerRef = useRef(null);
   const activeTouchTileRef = useRef(null);
   const holdCompletedRef = useRef(false);
-  const tileInteractionRef = useRef(false); // Track if touch started on tile
+  const tileTouchStartPosRef = useRef(null); // Track initial touch position
+  const tileHasMovedRef = useRef(false); // Track if touch has moved
   const rafRef = useRef(null);
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
-  // iOS Haptic Feedback (uses Taptic Engine via AudioContext workaround)
+  // iOS Haptic Feedback
   const triggerHaptic = useCallback(() => {
     try {
-      // iOS doesn't support navigator.vibrate, but we can try alternative methods
       if (window.navigator && window.navigator.vibrate) {
         window.navigator.vibrate(10);
       }
-      // Taptic Engine feedback for iOS (requires user gesture)
+      // iOS audio feedback workaround
       if (window.AudioContext || window.webkitAudioContext) {
         const context = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = context.createOscillator();
@@ -104,7 +105,7 @@ export default function DomeGallery({
         oscillator.stop(context.currentTime + 0.01);
       }
     } catch (err) {
-      // Silently fail - haptics are optional
+      // Silently fail
     }
   }, []);
 
@@ -184,29 +185,17 @@ export default function DomeGallery({
     return () => clearTimeout(timer);
   }, [updateTileZIndex]);
 
-  // ===== NATIVE TOUCH/MOUSE HANDLERS FOR SPHERE ROTATION =====
+  // ===== SPHERE ROTATION HANDLERS =====
   
-  const handleDragStart = useCallback((e) => {
-    // Skip if touch started on a tile
-    if (tileInteractionRef.current) return;
-    
+  const handleDragStart = useCallback((clientX, clientY) => {
     isDraggingRef.current = true;
     hasMovedRef.current = false;
     startRotRef.current = { ...rotationRef.current };
-    
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     dragStartPosRef.current = { x: clientX, y: clientY };
   }, []);
 
-  const handleDragMove = useCallback((e) => {
+  const handleDragMove = useCallback((clientX, clientY) => {
     if (!isDraggingRef.current || !dragStartPosRef.current) return;
-    if (tileInteractionRef.current) return;
-    
-    e.preventDefault();
-    
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     
     const dx = clientX - dragStartPosRef.current.x;
     const dy = clientY - dragStartPosRef.current.y;
@@ -243,28 +232,36 @@ export default function DomeGallery({
 
     // Mouse events
     const onMouseDown = (e) => {
-      if (e.button !== 0) return; // Only left click
-      handleDragStart(e);
+      if (e.button !== 0) return;
+      handleDragStart(e.clientX, e.clientY);
     };
     
     const onMouseMove = (e) => {
-      handleDragMove(e);
+      if (isDraggingRef.current) {
+        e.preventDefault();
+        handleDragMove(e.clientX, e.clientY);
+      }
     };
     
     const onMouseUp = () => {
       handleDragEnd();
     };
 
-    // Touch events
+    // Touch events on main sphere (not on tiles)
     const onTouchStart = (e) => {
-      // Only handle if not touching a tile
+      // Only handle if not touching a tile directly
       if (!e.target.closest('.item__image')) {
-        handleDragStart(e);
+        const touch = e.touches[0];
+        handleDragStart(touch.clientX, touch.clientY);
       }
     };
     
     const onTouchMove = (e) => {
-      handleDragMove(e);
+      if (isDraggingRef.current && e.touches[0]) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        handleDragMove(touch.clientX, touch.clientY);
+      }
     };
     
     const onTouchEnd = () => {
@@ -275,7 +272,7 @@ export default function DomeGallery({
     window.addEventListener('mousemove', onMouseMove);
     window.addEventListener('mouseup', onMouseUp);
     
-    main.addEventListener('touchstart', onTouchStart, { passive: false });
+    main.addEventListener('touchstart', onTouchStart, { passive: true });
     window.addEventListener('touchmove', onTouchMove, { passive: false });
     window.addEventListener('touchend', onTouchEnd);
     window.addEventListener('touchcancel', onTouchEnd);
@@ -292,7 +289,7 @@ export default function DomeGallery({
     };
   }, [handleDragStart, handleDragMove, handleDragEnd]);
 
-  // ===== TILE INTERACTION HANDLERS =====
+  // ===== TILE PRESS-AND-HOLD HANDLERS =====
 
   const openTileContent = useCallback((parent) => {
     if (openingRef.current) return;
@@ -340,61 +337,95 @@ export default function DomeGallery({
     triggerHaptic();
   }, [openedImageWidth, openedImageHeight, openedImageBorderRadius, triggerHaptic]);
 
-  // MOBILE: Touch start on tile - Press and hold
-  const handleTileTouchStart = useCallback((e) => {
-    tileInteractionRef.current = true; // Mark that touch started on tile
-    
-    const tile = e.currentTarget.parentElement;
-    activeTouchTileRef.current = tile;
-    holdCompletedRef.current = false;
-    
-    triggerHaptic();
-    
+  // Clear press-and-hold timer
+  const clearPressAndHold = useCallback(() => {
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
     }
+    holdCompletedRef.current = false;
+  }, []);
+
+  // MOBILE: Touch start on tile
+  const handleTileTouchStart = useCallback((e) => {
+    const touch = e.touches[0];
+    const tile = e.currentTarget.parentElement;
     
-    // Set timer for press-and-hold
+    // Store initial touch position
+    tileTouchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    activeTouchTileRef.current = tile;
+    tileHasMovedRef.current = false;
+    holdCompletedRef.current = false;
+    
+    // Initial haptic feedback
+    triggerHaptic();
+    
+    clearPressAndHold();
+    
+    // Start press-and-hold timer
     touchTimerRef.current = setTimeout(() => {
-      if (!hasMovedRef.current && activeTouchTileRef.current) {
+      // Only complete if hasn't moved
+      if (!tileHasMovedRef.current && activeTouchTileRef.current) {
         holdCompletedRef.current = true;
         triggerHaptic(); // Strong feedback
       }
     }, pressHoldDuration);
-  }, [triggerHaptic, pressHoldDuration]);
+  }, [triggerHaptic, pressHoldDuration, clearPressAndHold]);
+
+  // MOBILE: Touch move on tile - Check for movement
+  const handleTileTouchMove = useCallback((e) => {
+    if (!tileTouchStartPosRef.current || !activeTouchTileRef.current) return;
+    
+    const touch = e.touches[0];
+    const dx = touch.clientX - tileTouchStartPosRef.current.x;
+    const dy = touch.clientY - tileTouchStartPosRef.current.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // If moved more than threshold, cancel press-and-hold
+    if (distance > movementThreshold) {
+      tileHasMovedRef.current = true;
+      clearPressAndHold();
+      
+      // Start sphere drag if not already dragging
+      if (!isDraggingRef.current) {
+        handleDragStart(tileTouchStartPosRef.current.x, tileTouchStartPosRef.current.y);
+      }
+      
+      // Continue with drag movement
+      handleDragMove(touch.clientX, touch.clientY);
+    }
+  }, [movementThreshold, clearPressAndHold, handleDragStart, handleDragMove]);
 
   // MOBILE: Touch end on tile
   const handleTileTouchEnd = useCallback((e) => {
     const parent = activeTouchTileRef.current;
     
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-      touchTimerRef.current = null;
-    }
+    clearPressAndHold();
     
-    // Only open if hold completed and didn't drag
-    if (holdCompletedRef.current && !hasMovedRef.current && parent) {
+    // Only open if hold completed and didn't move
+    if (holdCompletedRef.current && !tileHasMovedRef.current && parent) {
       e.preventDefault();
       e.stopPropagation();
       openTileContent(parent);
+    } else if (tileHasMovedRef.current) {
+      // If moved, end the drag
+      handleDragEnd();
     }
     
-    // Reset
+    // Reset all tile tracking
     activeTouchTileRef.current = null;
-    holdCompletedRef.current = false;
-    tileInteractionRef.current = false;
-  }, [openTileContent]);
+    tileTouchStartPosRef.current = null;
+    tileHasMovedRef.current = false;
+  }, [clearPressAndHold, openTileContent, handleDragEnd]);
 
   const handleTileTouchCancel = useCallback(() => {
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-      touchTimerRef.current = null;
-    }
+    clearPressAndHold();
+    handleDragEnd();
     
     activeTouchTileRef.current = null;
-    holdCompletedRef.current = false;
-    tileInteractionRef.current = false;
-  }, []);
+    tileTouchStartPosRef.current = null;
+    tileHasMovedRef.current = false;
+  }, [clearPressAndHold, handleDragEnd]);
 
   // DESKTOP: Click handler
   const handleTileClick = useCallback((e) => {
@@ -471,6 +502,7 @@ export default function DomeGallery({
                   tabIndex={0}
                   onClick={handleTileClick}
                   onTouchStart={handleTileTouchStart}
+                  onTouchMove={handleTileTouchMove}
                   onTouchEnd={handleTileTouchEnd}
                   onTouchCancel={handleTileTouchCancel}
                   onKeyDown={(e) => {
