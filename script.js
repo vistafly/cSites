@@ -1338,22 +1338,23 @@ this.fetchAllContracts();
         dashboard.insertAdjacentHTML('beforeend', html);
     }
     
-    $$('.btn-resolve-help').forEach(function(btn) {
+$$('.btn-resolve-help').forEach(function(btn) {
         btn.addEventListener('click', function(e) {
             e.preventDefault();
             var requestId = this.getAttribute('data-request-id');
             self.resolveHelpRequest(requestId);
         });
     });
+    
+    // Add Resolve All button listener
+    var resolveAllBtn = $('.btn-resolve-all');
+    if (resolveAllBtn) {
+        resolveAllBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            self.resolveAllHelpRequests(helpRequests);
+        });
+    }
 };
-// Add Resolve All button listener
-var resolveAllBtn = $('.btn-resolve-all');
-if (resolveAllBtn) {
-    resolveAllBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        self.resolveAllHelpRequests(helpRequests);
-    });
-}
     ContractFormHandler.prototype.fetchAllContracts = function() {
         var self = this;
         

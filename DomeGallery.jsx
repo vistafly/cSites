@@ -57,7 +57,7 @@ export default function DomeGallery({
   overlayBlurColor = '#0a0a0a',
   grayscale = false,
   pressHoldDuration = 500,
-  scrollThreshold = 20 // Higher threshold before considering it a scroll
+  moveThreshold = 15 // Lower threshold for better responsiveness
 }) {
   const rootRef = useRef(null);
   const mainRef = useRef(null);
@@ -65,72 +65,67 @@ export default function DomeGallery({
   const viewerRef = useRef(null);
   const scrimRef = useRef(null);
 
+  // Rotation and momentum
   const rotationRef = useRef({ x: 0, y: 0 });
+  const velocityRef = useRef({ x: 0, y: 0 });
   const startRotRef = useRef({ x: 0, y: 0 });
   const dragStartPosRef = useRef(null);
+  const lastDragPosRef = useRef(null);
+  const lastDragTimeRef = useRef(0);
   const isDraggingRef = useRef(false);
-  const hasMovedRef = useRef(false);
-  const lastDragEndAt = useRef(0);
+  const momentumRafRef = useRef(null);
   const openingRef = useRef(false);
   
-  // Tile interaction refs - simplified
+  // Tile interaction - simplified
   const touchTimerRef = useRef(null);
   const activeTouchTileRef = useRef(null);
-  const holdCompletedRef = useRef(false);
-  const tileTouchStartPosRef = useRef(null);
-  const tileTouchStartTimeRef = useRef(0);
-  const isScrollingRef = useRef(false);
+  const touchStartPosRef = useRef(null);
+  const touchStartTimeRef = useRef(0);
+  const touchMoveDistanceRef = useRef(0);
+  
+  // Performance optimization
   const rafRef = useRef(null);
+  const lastZIndexUpdateRef = useRef(0);
+  const tilesCache = useRef(null);
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
-  // iOS Haptic Feedback
+  // iOS Haptic Feedback - optimized
   const triggerHaptic = useCallback(() => {
-    try {
-      if (window.navigator && window.navigator.vibrate) {
-        window.navigator.vibrate(10);
-      }
-      // iOS audio feedback
-      if (window.AudioContext || window.webkitAudioContext) {
-        const context = new (window.AudioContext || window.webkitAudioContext)();
-        const oscillator = context.createOscillator();
-        const gainNode = context.createGain();
-        
-        oscillator.connect(gainNode);
-        gainNode.connect(context.destination);
-        
-        oscillator.frequency.value = 200;
-        gainNode.gain.value = 0.1;
-        
-        oscillator.start(context.currentTime);
-        oscillator.stop(context.currentTime + 0.01);
-      }
-    } catch (err) {
-      // Silently fail
+    if (window.navigator?.vibrate) {
+      window.navigator.vibrate(10);
     }
   }, []);
 
-  // Throttled z-index update
+  // Optimized z-index update with caching and throttling
   const updateTileZIndex = useCallback((currentRotY) => {
+    const now = performance.now();
+    // Throttle to max 60fps
+    if (now - lastZIndexUpdateRef.current < 16) return;
+    
     if (rafRef.current) return;
     
     rafRef.current = requestAnimationFrame(() => {
       rafRef.current = null;
+      lastZIndexUpdateRef.current = now;
       
       if (!sphereRef.current) return;
       
-      const tiles = sphereRef.current.querySelectorAll('.item');
+      // Cache tiles array
+      if (!tilesCache.current) {
+        tilesCache.current = Array.from(sphereRef.current.querySelectorAll('.item'));
+      }
+      
+      const tiles = tilesCache.current;
+      const segmentAngle = 360 / segments;
       
       tiles.forEach((tile) => {
-        const styleAttr = tile.getAttribute('style') || '';
-        const offsetXMatch = styleAttr.match(/--offset-x:\s*(-?\d+(?:\.\d+)?)/);
-        const offsetX = offsetXMatch ? parseFloat(offsetXMatch[1]) : 0;
-        
-        const tileRotY = (360 / segments) * (offsetX + 0.5);
+        const offsetX = parseFloat(tile.style.getPropertyValue('--offset-x') || 0);
+        const tileRotY = segmentAngle * (offsetX + 0.5);
         let relativeRot = tileRotY - currentRotY;
         
-        while (relativeRot > 180) relativeRot -= 360;
-        while (relativeRot < -180) relativeRot += 360;
+        // Normalize angle to -180 to 180
+        relativeRot = ((relativeRot + 180) % 360) - 180;
         
         const zIndex = Math.round(500 + 499 * Math.cos((relativeRot * Math.PI) / 180));
         tile.style.zIndex = Math.max(1, zIndex);
@@ -138,12 +133,59 @@ export default function DomeGallery({
     });
   }, [segments]);
 
-  const applyTransform = useCallback((xDeg, yDeg) => {
-    if (sphereRef.current) {
-      sphereRef.current.style.transform = `translateZ(calc(var(--radius) * -1)) rotateX(${xDeg}deg) rotateY(${yDeg}deg)`;
-      updateTileZIndex(yDeg);
+  // Optimized transform with hardware acceleration hint
+  const applyTransform = useCallback((xDeg, yDeg, immediate = false) => {
+    if (!sphereRef.current) return;
+    
+    const transform = `translateZ(calc(var(--radius) * -1)) rotateX(${xDeg.toFixed(2)}deg) rotateY(${yDeg.toFixed(2)}deg)`;
+    
+    if (immediate) {
+      sphereRef.current.style.transition = 'none';
     }
+    
+    sphereRef.current.style.transform = transform;
+    
+    if (immediate) {
+      // Force reflow and restore transition
+      void sphereRef.current.offsetHeight;
+      sphereRef.current.style.transition = '';
+    }
+    
+    updateTileZIndex(yDeg);
   }, [updateTileZIndex]);
+
+  // Momentum animation with easing
+  const animateMomentum = useCallback(() => {
+    const friction = 0.92; // Smooth deceleration
+    const minVelocity = 0.1;
+    
+    const vx = velocityRef.current.x * friction;
+    const vy = velocityRef.current.y * friction;
+    
+    // Stop if velocity is too small
+    if (Math.abs(vx) < minVelocity && Math.abs(vy) < minVelocity) {
+      velocityRef.current = { x: 0, y: 0 };
+      if (momentumRafRef.current) {
+        cancelAnimationFrame(momentumRafRef.current);
+        momentumRafRef.current = null;
+      }
+      return;
+    }
+    
+    velocityRef.current = { x: vx, y: vy };
+    
+    const nextX = clamp(
+      rotationRef.current.x + vx,
+      -maxVerticalRotationDeg,
+      maxVerticalRotationDeg
+    );
+    const nextY = wrapAngleSigned(rotationRef.current.y + vy);
+    
+    rotationRef.current = { x: nextX, y: nextY };
+    applyTransform(nextX, nextY);
+    
+    momentumRafRef.current = requestAnimationFrame(animateMomentum);
+  }, [maxVerticalRotationDeg, applyTransform]);
 
   // Set CSS variables and size
   useEffect(() => {
@@ -167,7 +209,10 @@ export default function DomeGallery({
       root.style.setProperty('--overlay-blur-color', overlayBlurColor);
       root.style.setProperty('--image-filter', grayscale ? 'grayscale(1)' : 'none');
       
-      applyTransform(rotationRef.current.x, rotationRef.current.y);
+      // Invalidate tiles cache on resize
+      tilesCache.current = null;
+      
+      applyTransform(rotationRef.current.x, rotationRef.current.y, true);
     };
 
     updateSize();
@@ -180,31 +225,48 @@ export default function DomeGallery({
   // Initial z-index setup
   useEffect(() => {
     const timer = setTimeout(() => {
+      tilesCache.current = null; // Force cache refresh
       updateTileZIndex(0);
     }, 100);
     
     return () => clearTimeout(timer);
   }, [updateTileZIndex]);
 
-  // ===== SPHERE ROTATION =====
+  // ===== SPHERE ROTATION - SIMPLIFIED =====
   
   const startDrag = useCallback((clientX, clientY) => {
+    // Stop any momentum
+    if (momentumRafRef.current) {
+      cancelAnimationFrame(momentumRafRef.current);
+      momentumRafRef.current = null;
+    }
+    
     isDraggingRef.current = true;
-    hasMovedRef.current = false;
-    isScrollingRef.current = true; // Mark as scrolling
     startRotRef.current = { ...rotationRef.current };
     dragStartPosRef.current = { x: clientX, y: clientY };
+    lastDragPosRef.current = { x: clientX, y: clientY };
+    lastDragTimeRef.current = performance.now();
+    velocityRef.current = { x: 0, y: 0 };
   }, []);
 
   const updateDrag = useCallback((clientX, clientY) => {
     if (!isDraggingRef.current || !dragStartPosRef.current) return;
     
+    const now = performance.now();
+    const dt = Math.max(1, now - lastDragTimeRef.current);
+    
     const dx = clientX - dragStartPosRef.current.x;
     const dy = clientY - dragStartPosRef.current.y;
     
-    if (!hasMovedRef.current && (dx * dx + dy * dy) > 25) {
-      hasMovedRef.current = true;
+    // Calculate velocity for momentum
+    if (lastDragPosRef.current) {
+      const vx = (clientY - lastDragPosRef.current.y) / dt * 16; // Normalize to ~60fps
+      const vy = (clientX - lastDragPosRef.current.x) / dt * 16;
+      velocityRef.current = { x: -vx / dragSensitivity, y: vy / dragSensitivity };
     }
+    
+    lastDragPosRef.current = { x: clientX, y: clientY };
+    lastDragTimeRef.current = now;
     
     const nextX = clamp(
       startRotRef.current.x - dy / dragSensitivity,
@@ -214,90 +276,38 @@ export default function DomeGallery({
     const nextY = wrapAngleSigned(startRotRef.current.y + dx / dragSensitivity);
     
     rotationRef.current = { x: nextX, y: nextY };
-    applyTransform(nextX, nextY);
+    applyTransform(nextX, nextY, true);
   }, [dragSensitivity, maxVerticalRotationDeg, applyTransform]);
 
   const endDrag = useCallback(() => {
-    if (isDraggingRef.current && hasMovedRef.current) {
-      lastDragEndAt.current = performance.now();
-    }
+    if (!isDraggingRef.current) return;
     
     isDraggingRef.current = false;
-    hasMovedRef.current = false;
     dragStartPosRef.current = null;
+    lastDragPosRef.current = null;
     
-    // Reset scrolling flag after a delay
-    setTimeout(() => {
-      isScrollingRef.current = false;
-    }, 100);
+    // Start momentum if velocity is significant
+    const speed = Math.sqrt(
+      velocityRef.current.x ** 2 + velocityRef.current.y ** 2
+    );
+    
+    if (speed > 0.5) {
+      animateMomentum();
+    }
+  }, [animateMomentum]);
+
+  // ===== TILE INTERACTION - SIMPLIFIED =====
+
+  const cancelTileInteraction = useCallback(() => {
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+    activeTouchTileRef.current = null;
+    touchStartPosRef.current = null;
+    touchStartTimeRef.current = 0;
+    touchMoveDistanceRef.current = 0;
   }, []);
-
-  // Global touch/mouse handlers for sphere
-  useEffect(() => {
-    const onTouchMove = (e) => {
-      if (isDraggingRef.current && e.touches[0]) {
-        const touch = e.touches[0];
-        updateDrag(touch.clientX, touch.clientY);
-      }
-    };
-    
-    const onTouchEnd = () => {
-      endDrag();
-    };
-
-    const onMouseMove = (e) => {
-      if (isDraggingRef.current) {
-        updateDrag(e.clientX, e.clientY);
-      }
-    };
-    
-    const onMouseUp = () => {
-      endDrag();
-    };
-
-    window.addEventListener('touchmove', onTouchMove, { passive: true });
-    window.addEventListener('touchend', onTouchEnd);
-    window.addEventListener('touchcancel', onTouchEnd);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
-
-    return () => {
-      window.removeEventListener('touchmove', onTouchMove);
-      window.removeEventListener('touchend', onTouchEnd);
-      window.removeEventListener('touchcancel', onTouchEnd);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-    };
-  }, [updateDrag, endDrag]);
-
-  // Main area handlers
-  useEffect(() => {
-    const main = mainRef.current;
-    if (!main) return;
-
-    const onMouseDown = (e) => {
-      if (e.button !== 0) return;
-      startDrag(e.clientX, e.clientY);
-    };
-
-    const onTouchStart = (e) => {
-      // Only handle if not touching a tile
-      if (!e.target.closest('.item__image')) {
-        const touch = e.touches[0];
-        startDrag(touch.clientX, touch.clientY);
-      }
-    };
-
-    main.addEventListener('mousedown', onMouseDown);
-    main.addEventListener('touchstart', onTouchStart, { passive: true });
-
-    return () => {
-      main.removeEventListener('mousedown', onMouseDown);
-      main.removeEventListener('touchstart', onTouchStart);
-    };
-  }, [startDrag]);
-
-  // ===== TILE PRESS-AND-HOLD =====
 
   const openTileContent = useCallback((parent) => {
     if (openingRef.current) return;
@@ -345,128 +355,139 @@ export default function DomeGallery({
     triggerHaptic();
   }, [openedImageWidth, openedImageHeight, openedImageBorderRadius, triggerHaptic]);
 
-  // TILE: Touch Start
+  // Unified touch start for tiles
   const handleTileTouchStart = useCallback((e) => {
     const touch = e.touches[0];
     const tile = e.currentTarget.parentElement;
     
-    tileTouchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-    tileTouchStartTimeRef.current = performance.now();
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    touchStartTimeRef.current = performance.now();
     activeTouchTileRef.current = tile;
-    holdCompletedRef.current = false;
-    isScrollingRef.current = false;
+    touchMoveDistanceRef.current = 0;
     
-    // Light haptic on touch
     triggerHaptic();
     
-    // Clear any existing timer
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-    }
-    
-    // Start press-and-hold timer
+    // Start hold timer
     touchTimerRef.current = setTimeout(() => {
-      // Check if still valid for opening
-      if (activeTouchTileRef.current && !isScrollingRef.current) {
-        holdCompletedRef.current = true;
-        // Strong haptic for hold completion
-        triggerHaptic();
-        console.log('✅ Press-and-hold completed!');
+      // Check if still valid (hasn't moved much)
+      if (activeTouchTileRef.current && touchMoveDistanceRef.current < moveThreshold) {
+        openTileContent(tile);
+        cancelTileInteraction();
       }
     }, pressHoldDuration);
-  }, [triggerHaptic, pressHoldDuration]);
+  }, [triggerHaptic, pressHoldDuration, moveThreshold, openTileContent, cancelTileInteraction]);
 
-  // TILE: Touch Move - Detect scrolling
+  // Simplified touch move detection
   const handleTileTouchMove = useCallback((e) => {
-    if (!tileTouchStartPosRef.current) return;
+    if (!touchStartPosRef.current) return;
     
     const touch = e.touches[0];
-    const dx = touch.clientX - tileTouchStartPosRef.current.x;
-    const dy = touch.clientY - tileTouchStartPosRef.current.y;
+    const dx = touch.clientX - touchStartPosRef.current.x;
+    const dy = touch.clientY - touchStartPosRef.current.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // If moved beyond threshold, it's a scroll
-    if (distance > scrollThreshold) {
-      isScrollingRef.current = true;
+    touchMoveDistanceRef.current = distance;
+    
+    // If moved beyond threshold, cancel tile interaction and start sphere drag
+    if (distance > moveThreshold) {
+      // Store position before canceling (since cancel sets it to null)
+      const startPos = { ...touchStartPosRef.current };
       
-      // Cancel press-and-hold
-      if (touchTimerRef.current) {
-        clearTimeout(touchTimerRef.current);
-        touchTimerRef.current = null;
-      }
-      holdCompletedRef.current = false;
+      cancelTileInteraction();
       
-      // Start sphere drag
-      if (!isDraggingRef.current && tileTouchStartPosRef.current) {
-        startDrag(tileTouchStartPosRef.current.x, tileTouchStartPosRef.current.y);
+      if (!isDraggingRef.current) {
+        startDrag(startPos.x, startPos.y);
+        // Update with current position
+        updateDrag(touch.clientX, touch.clientY);
       }
     }
-  }, [scrollThreshold, startDrag]);
+  }, [moveThreshold, cancelTileInteraction, startDrag, updateDrag]);
 
-  // TILE: Touch End
-  const handleTileTouchEnd = useCallback((e) => {
-    const parent = activeTouchTileRef.current;
-    const touchDuration = performance.now() - tileTouchStartTimeRef.current;
-    
-    // Clear timer
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-      touchTimerRef.current = null;
-    }
-    
-    console.log('Touch end:', {
-      holdCompleted: holdCompletedRef.current,
-      isScrolling: isScrollingRef.current,
-      duration: touchDuration,
-      hasParent: !!parent
-    });
-    
-    // CRITICAL: Only open if hold was completed and not scrolling
-    if (holdCompletedRef.current && !isScrollingRef.current && parent) {
-      e.preventDefault();
-      e.stopPropagation();
-      console.log('🎉 Opening tile!');
-      openTileContent(parent);
-    }
-    
-    // Reset all tracking
-    activeTouchTileRef.current = null;
-    tileTouchStartPosRef.current = null;
-    tileTouchStartTimeRef.current = 0;
-    holdCompletedRef.current = false;
-    isScrollingRef.current = false;
-  }, [openTileContent]);
+  const handleTileTouchEnd = useCallback(() => {
+    cancelTileInteraction();
+  }, [cancelTileInteraction]);
 
-  const handleTileTouchCancel = useCallback(() => {
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-      touchTimerRef.current = null;
-    }
-    
-    activeTouchTileRef.current = null;
-    tileTouchStartPosRef.current = null;
-    tileTouchStartTimeRef.current = 0;
-    holdCompletedRef.current = false;
-    isScrollingRef.current = false;
-  }, []);
-
-  // DESKTOP: Click handler
+  // Desktop click handler
   const handleTileClick = useCallback((e) => {
-    // Skip on touch devices
     if ('ontouchstart' in window) return;
-    
-    if (isDraggingRef.current || hasMovedRef.current) return;
-    if (performance.now() - lastDragEndAt.current < 100) return;
+    if (isDraggingRef.current) return;
 
     const parent = e.currentTarget.parentElement;
     openTileContent(parent);
   }, [openTileContent]);
+
+  // Global touch/mouse handlers - optimized for iOS
+  useEffect(() => {
+    const onTouchMove = (e) => {
+      if (isDraggingRef.current && e.touches[0]) {
+        const touch = e.touches[0];
+        updateDrag(touch.clientX, touch.clientY);
+      }
+    };
+    
+    const onTouchEnd = () => {
+      endDrag();
+    };
+
+    const onMouseMove = (e) => {
+      if (isDraggingRef.current) {
+        updateDrag(e.clientX, e.clientY);
+      }
+    };
+    
+    const onMouseUp = () => {
+      endDrag();
+    };
+
+    // Use passive listeners for better scroll performance on iOS
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
+    window.addEventListener('touchend', onTouchEnd, { passive: true });
+    window.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
+
+    return () => {
+      window.removeEventListener('touchmove', onTouchMove);
+      window.removeEventListener('touchend', onTouchEnd);
+      window.removeEventListener('touchcancel', onTouchEnd);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
+    };
+  }, [updateDrag, endDrag]);
+
+  // Main area handlers
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return;
+      startDrag(e.clientX, e.clientY);
+    };
+
+    const onTouchStart = (e) => {
+      // Only start drag if not touching a tile
+      if (!e.target.closest('.item__image')) {
+        const touch = e.touches[0];
+        startDrag(touch.clientX, touch.clientY);
+      }
+    };
+
+    main.addEventListener('mousedown', onMouseDown);
+    main.addEventListener('touchstart', onTouchStart, { passive: true });
+
+    return () => {
+      main.removeEventListener('mousedown', onMouseDown);
+      main.removeEventListener('touchstart', onTouchStart);
+    };
+  }, [startDrag]);
 
   // Cleanup
   useEffect(() => {
     return () => {
       if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (momentumRafRef.current) cancelAnimationFrame(momentumRafRef.current);
     };
   }, []);
 
@@ -482,7 +503,7 @@ export default function DomeGallery({
     const scrim = scrimRef.current;
     if (scrim) {
       scrim.addEventListener('click', handleClose);
-      scrim.addEventListener('touchend', handleClose);
+      scrim.addEventListener('touchend', handleClose, { passive: true });
     }
 
     const handleKeydown = (e) => {
@@ -527,7 +548,7 @@ export default function DomeGallery({
                   onTouchStart={handleTileTouchStart}
                   onTouchMove={handleTileTouchMove}
                   onTouchEnd={handleTileTouchEnd}
-                  onTouchCancel={handleTileTouchCancel}
+                  onTouchCancel={handleTileTouchEnd}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
