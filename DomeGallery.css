@@ -33,15 +33,12 @@ main.sphere-main {
   display: grid;
   place-items: center;
   overflow: visible !important;
-  /* Optimized for iOS touch */
+  /* FIXED: Changed from 'none' to allow drag on mobile */
   touch-action: pan-x pan-y;
-  -webkit-touch-callout: none;
-  -webkit-user-select: none;
   user-select: none;
+  -webkit-user-select: none;
   background: transparent;
   padding-top: 20px;
-  /* iOS scroll optimization */
-  -webkit-overflow-scrolling: touch;
 }
 
 .stage {
@@ -56,10 +53,10 @@ main.sphere-main {
 
 .sphere {
   transform: translateZ(calc(var(--radius) * -1));
-  /* Hardware acceleration without will-change */
-  transform: translateZ(0) translateZ(calc(var(--radius) * -1));
+  /* REMOVED: will-change for better mobile performance */
 }
 
+/* OPACITY APPROACH: visible backface, opacity controlled by JS */
 .item {
   width: calc(var(--item-width) * var(--item-size-x));
   height: calc(var(--item-height) * var(--item-size-y));
@@ -70,19 +67,18 @@ main.sphere-main {
   right: -999px;
   margin: auto;
   transform-origin: 50% 50%;
+  /* Visible so JS can control opacity */
   backface-visibility: visible;
   -webkit-backface-visibility: visible;
   transform-style: preserve-3d;
-  /* Smooth transitions optimized for 60fps */
-  transition: transform 150ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  /* Smooth opacity transitions */
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
   transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2))))
     rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2))))
     translateZ(var(--radius));
   pointer-events: auto;
   z-index: 500;
-  opacity: 1;
-  /* Hardware acceleration */
-  will-change: transform, z-index;
+  opacity: 1; /* Controlled by JS */
 }
 
 .item__image {
@@ -92,25 +88,23 @@ main.sphere-main {
   border-radius: var(--tile-radius, 12px);
   background: #0a0a0a;
   overflow: hidden;
+  /* Hidden for image itself to prevent visual duplication */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
-  /* Optimized easing for iOS */
-  transition: transform 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              box-shadow 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94),
-              border-color 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: none !important;
   touch-action: manipulation;
   pointer-events: auto !important;
   transform: translateZ(0) scale(1);
   transform-style: preserve-3d;
+  /* REMOVED: will-change for better mobile performance */
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.03);
-  /* Force hardware acceleration */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
 }
 
-/* Desktop hover effects */
+/* FIXED: Only apply hover on desktop devices with mouse */
 @media (hover: hover) and (pointer: fine) {
   .item__image:hover {
     transform: translateZ(20px) scale(1.08);
@@ -130,12 +124,8 @@ main.sphere-main {
   object-fit: cover;
   pointer-events: none;
   backface-visibility: hidden;
-  -webkit-backface-visibility: hidden;
   filter: var(--image-filter, none);
   display: block;
-  /* Smooth image rendering on iOS */
-  -webkit-transform: translateZ(0);
-  transform: translateZ(0);
 }
 
 .viewer {
@@ -156,7 +146,7 @@ main.sphere-main {
   background: rgba(0, 0, 0, 0.95);
   pointer-events: none;
   opacity: 0;
-  transition: opacity 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: opacity 0.3s ease;
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
 }
@@ -172,19 +162,6 @@ main.sphere-main {
   z-index: 9999;
   pointer-events: all !important;
   cursor: auto !important;
-  /* Smooth entrance */
-  animation: enlarge-in 250ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
-}
-
-@keyframes enlarge-in {
-  from {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1);
-  }
 }
 
 .viewer .enlarge iframe,
@@ -201,33 +178,15 @@ main.sphere-main {
   .item__image {
     inset: 10px;
   }
-  
-  /* Reduce transition duration on mobile for snappier feel */
-  .item {
-    transition-duration: 100ms;
-  }
-  
-  .item__image {
-    transition-duration: 150ms;
-  }
 }
 
 @media (max-width: 480px) {
   .item__image {
     inset: 8px;
   }
-  
-  /* Even faster on small screens */
-  .item {
-    transition-duration: 80ms;
-  }
-  
-  .item__image {
-    transition-duration: 120ms;
-  }
 }
 
-/* Performance optimizations for reduced motion */
+/* Performance */
 @media (prefers-reduced-motion: reduce) {
   .item,
   .item__image,
@@ -238,42 +197,21 @@ main.sphere-main {
   }
 }
 
-/* Touch-specific optimizations */
+/* Touch optimization - Better active state for mobile */
 @media (hover: none) and (pointer: coarse) {
-  /* Remove will-change on touch to save resources */
-  .item {
-    will-change: auto;
-  }
-  
-  /* Remove hover effects */
+  /* Remove hover effects on touch devices */
   .item__image:hover {
     transform: translateZ(0) scale(1);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
     border-color: rgba(255, 255, 255, 0.03);
   }
   
-  /* Subtle touch feedback */
+  /* Subtle active feedback on touch */
   .item__image:active {
-    transform: translateZ(3px) scale(1.01);
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
-    border-color: rgba(255, 255, 255, 0.08);
-    transition-duration: 50ms;
-  }
-}
-
-/* iOS-specific optimizations */
-@supports (-webkit-touch-callout: none) {
-  .sphere-main {
-    /* Better scroll performance on iOS */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
-  }
-  
-  .item,
-  .item__image {
-    /* Force hardware acceleration on iOS */
-    -webkit-transform: translateZ(0);
-    transform: translateZ(0);
+    transform: translateZ(5px) scale(1.02);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
+    border-color: rgba(255, 255, 255, 0.1);
+    transition-duration: 0.1s;
   }
 }
 
