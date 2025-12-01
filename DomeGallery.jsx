@@ -56,7 +56,8 @@ export default function DomeGallery({
   imageBorderRadius = '12px',
   openedImageBorderRadius = '20px',
   overlayBlurColor = '#0a0a0a',
-  grayscale = false
+  grayscale = false,
+  pressHoldDuration = 500
 }) {
   const rootRef = useRef(null);
   const mainRef = useRef(null);
@@ -66,33 +67,60 @@ export default function DomeGallery({
 
   const rotationRef = useRef({ x: 0, y: 0 });
   const startRotRef = useRef({ x: 0, y: 0 });
-  const startPosRef = useRef(null);
   const draggingRef = useRef(false);
   const movedRef = useRef(false);
   const lastDragEndAt = useRef(0);
   const openingRef = useRef(false);
+  
+  // Mobile touch refs
+  const touchTimerRef = useRef(null);
+  const touchStartTimeRef = useRef(0);
+  const activeTouchTileRef = useRef(null);
+  const holdCompletedRef = useRef(false);
+  const rafRef = useRef(null);
+  const hasInteractedRef = useRef(false); // Track if user has interacted
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
 
-  // Update z-index based on rotation (NO LOGGING)
+  // Safe haptic feedback with error handling
+  const triggerHaptic = useCallback((duration = 10) => {
+    if (!hasInteractedRef.current) return; // Don't vibrate until user has interacted
+    
+    try {
+      if ('vibrate' in navigator && navigator.vibrate) {
+        navigator.vibrate(duration);
+      }
+    } catch (err) {
+      // Silently fail - vibration is not critical
+      console.log('Vibration not available');
+    }
+  }, []);
+
+  // Throttled z-index update with RAF
   const updateTileZIndex = useCallback((currentRotY) => {
-    if (!sphereRef.current) return;
+    if (rafRef.current) return;
     
-    const tiles = sphereRef.current.querySelectorAll('.item');
-    
-    tiles.forEach((tile) => {
-      const styleAttr = tile.getAttribute('style') || '';
-      const offsetXMatch = styleAttr.match(/--offset-x:\s*(-?\d+(?:\.\d+)?)/);
-      const offsetX = offsetXMatch ? parseFloat(offsetXMatch[1]) : 0;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
       
-      const tileRotY = (360 / segments) * (offsetX + 0.5);
-      let relativeRot = tileRotY - currentRotY;
+      if (!sphereRef.current) return;
       
-      while (relativeRot > 180) relativeRot -= 360;
-      while (relativeRot < -180) relativeRot += 360;
+      const tiles = sphereRef.current.querySelectorAll('.item');
       
-      const zIndex = Math.round(500 + 499 * Math.cos((relativeRot * Math.PI) / 180));
-      tile.style.zIndex = Math.max(1, zIndex);
+      tiles.forEach((tile) => {
+        const styleAttr = tile.getAttribute('style') || '';
+        const offsetXMatch = styleAttr.match(/--offset-x:\s*(-?\d+(?:\.\d+)?)/);
+        const offsetX = offsetXMatch ? parseFloat(offsetXMatch[1]) : 0;
+        
+        const tileRotY = (360 / segments) * (offsetX + 0.5);
+        let relativeRot = tileRotY - currentRotY;
+        
+        while (relativeRot > 180) relativeRot -= 360;
+        while (relativeRot < -180) relativeRot += 360;
+        
+        const zIndex = Math.round(500 + 499 * Math.cos((relativeRot * Math.PI) / 180));
+        tile.style.zIndex = Math.max(1, zIndex);
+      });
     });
   }, [segments]);
 
@@ -144,35 +172,35 @@ export default function DomeGallery({
     return () => clearTimeout(timer);
   }, [updateTileZIndex]);
 
-  // Drag handlers
+  // FIXED: Drag handlers using useGesture's movement instead of clientX/Y
   useGesture(
     {
-      onDragStart: ({ event }) => {
+      onDragStart: () => {
+        hasInteractedRef.current = true; // User has interacted
         draggingRef.current = true;
         movedRef.current = false;
         startRotRef.current = { ...rotationRef.current };
-        startPosRef.current = { x: event.clientX, y: event.clientY };
       },
-      onDrag: ({ event, last }) => {
-        if (!draggingRef.current || !startPosRef.current) return;
+      onDrag: ({ movement: [mx, my], last }) => {
+        if (!draggingRef.current) return;
         
-        if (event.cancelable) {
-          event.preventDefault();
-        }
-        
-        const dxTotal = event.clientX - startPosRef.current.x;
-        const dyTotal = event.clientY - startPosRef.current.y;
-        
-        if (!movedRef.current && (dxTotal * dxTotal + dyTotal * dyTotal) > 16) {
+        // Check if moved enough to be considered a drag
+        if (!movedRef.current && (mx * mx + my * my) > 25) {
           movedRef.current = true;
+          // Cancel press-and-hold if user starts dragging
+          if (touchTimerRef.current) {
+            clearTimeout(touchTimerRef.current);
+            touchTimerRef.current = null;
+            holdCompletedRef.current = false;
+          }
         }
         
         const nextX = clamp(
-          startRotRef.current.x - dyTotal / dragSensitivity,
+          startRotRef.current.x - my / dragSensitivity,
           -maxVerticalRotationDeg,
           maxVerticalRotationDeg
         );
-        const nextY = wrapAngleSigned(startRotRef.current.y + dxTotal / dragSensitivity);
+        const nextY = wrapAngleSigned(startRotRef.current.y + mx / dragSensitivity);
         
         rotationRef.current = { x: nextX, y: nextY };
         applyTransform(nextX, nextY);
@@ -185,22 +213,18 @@ export default function DomeGallery({
       }
     },
     { 
-      target: mainRef, 
-      eventOptions: { passive: false },
+      target: mainRef,
       drag: {
-        preventScrollAxis: 'xy'
+        filterTaps: true,
+        pointer: { touch: true }
       }
     }
   );
 
-  // Click handler for tiles
-  const handleTileClick = useCallback((e) => {
-    if (draggingRef.current || movedRef.current) return;
-    if (performance.now() - lastDragEndAt.current < 100) return;
+  // Open content utility
+  const openTileContent = useCallback((parent) => {
     if (openingRef.current) return;
 
-    const tile = e.currentTarget;
-    const parent = tile.parentElement;
     const url = parent.dataset.url;
     const type = parent.dataset.type;
     const preview = parent.dataset.preview;
@@ -240,7 +264,100 @@ export default function DomeGallery({
 
     viewerRef.current.appendChild(overlay);
     rootRef.current?.setAttribute('data-enlarging', 'true');
-  }, [openedImageWidth, openedImageHeight, openedImageBorderRadius]);
+    
+    // Success haptic on open
+    triggerHaptic(20);
+  }, [openedImageWidth, openedImageHeight, openedImageBorderRadius, triggerHaptic]);
+
+  // MOBILE: Touch start handler - Press and hold starts here
+  const handleTouchStart = useCallback((e) => {
+    hasInteractedRef.current = true; // User has interacted
+    
+    const tile = e.currentTarget.parentElement;
+    
+    touchStartTimeRef.current = performance.now();
+    activeTouchTileRef.current = tile;
+    holdCompletedRef.current = false;
+    
+    // Immediate light haptic feedback on press down
+    triggerHaptic(10);
+    
+    // Clear existing timer
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+    }
+    
+    // Set timer for press-and-hold
+    touchTimerRef.current = setTimeout(() => {
+      if (!movedRef.current && activeTouchTileRef.current && !draggingRef.current) {
+        holdCompletedRef.current = true;
+        // STRONG haptic feedback to confirm press-and-hold completion
+        triggerHaptic(50);
+      }
+    }, pressHoldDuration);
+  }, [triggerHaptic, pressHoldDuration]);
+
+  // MOBILE: Touch end handler - Only opens if hold was completed
+  const handleTouchEnd = useCallback((e) => {
+    const parent = activeTouchTileRef.current;
+    
+    // Clear timer
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+    
+    // CRITICAL: Only open if press-and-hold was completed
+    if (holdCompletedRef.current && !movedRef.current && !draggingRef.current && parent) {
+      // Prevent default to avoid ghost clicks
+      if (e.cancelable) {
+        e.preventDefault();
+      }
+      
+      // Open the content
+      openTileContent(parent);
+    }
+    
+    // Reset all touch tracking
+    activeTouchTileRef.current = null;
+    touchStartTimeRef.current = 0;
+    holdCompletedRef.current = false;
+  }, [openTileContent]);
+
+  const handleTouchCancel = useCallback(() => {
+    // Clear timer on touch cancel
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
+    
+    // Reset all tracking
+    activeTouchTileRef.current = null;
+    touchStartTimeRef.current = 0;
+    holdCompletedRef.current = false;
+  }, []);
+
+  // DESKTOP: Click handler (instant open)
+  const handleClick = useCallback((e) => {
+    hasInteractedRef.current = true; // User has interacted
+    
+    // Skip on touch devices - they use press-and-hold
+    if ('ontouchstart' in window) return;
+    
+    if (draggingRef.current || movedRef.current) return;
+    if (performance.now() - lastDragEndAt.current < 100) return;
+
+    const parent = e.currentTarget.parentElement;
+    openTileContent(parent);
+  }, [openTileContent]);
+
+  // Cleanup
+  useEffect(() => {
+    return () => {
+      if (touchTimerRef.current) clearTimeout(touchTimerRef.current);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
+  }, []);
 
   // Close handler
   useEffect(() => {
@@ -252,7 +369,10 @@ export default function DomeGallery({
     };
 
     const scrim = scrimRef.current;
-    if (scrim) scrim.addEventListener('click', handleClose);
+    if (scrim) {
+      scrim.addEventListener('click', handleClose);
+      scrim.addEventListener('touchend', handleClose);
+    }
 
     const handleKeydown = (e) => {
       if (e.key === 'Escape') handleClose();
@@ -260,7 +380,10 @@ export default function DomeGallery({
     window.addEventListener('keydown', handleKeydown);
 
     return () => {
-      if (scrim) scrim.removeEventListener('click', handleClose);
+      if (scrim) {
+        scrim.removeEventListener('click', handleClose);
+        scrim.removeEventListener('touchend', handleClose);
+      }
       window.removeEventListener('keydown', handleKeydown);
     };
   }, []);
@@ -289,11 +412,14 @@ export default function DomeGallery({
                   data-interactive="true"
                   role="button"
                   tabIndex={0}
-                  onClick={handleTileClick}
+                  onClick={handleClick}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
+                  onTouchCancel={handleTouchCancel}
                   onKeyDown={(e) => {
                     if (e.key === 'Enter' || e.key === ' ') {
                       e.preventDefault();
-                      handleTileClick(e);
+                      handleClick(e);
                     }
                   }}
                 >
