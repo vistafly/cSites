@@ -57,7 +57,7 @@ export default function DomeGallery({
   overlayBlurColor = '#0a0a0a',
   grayscale = false,
   pressHoldDuration = 500,
-  movementThreshold = 10 // Pixels of movement before canceling press-and-hold
+  scrollThreshold = 20 // Higher threshold before considering it a scroll
 }) {
   const rootRef = useRef(null);
   const mainRef = useRef(null);
@@ -73,12 +73,13 @@ export default function DomeGallery({
   const lastDragEndAt = useRef(0);
   const openingRef = useRef(false);
   
-  // Tile interaction refs
+  // Tile interaction refs - simplified
   const touchTimerRef = useRef(null);
   const activeTouchTileRef = useRef(null);
   const holdCompletedRef = useRef(false);
-  const tileTouchStartPosRef = useRef(null); // Track initial touch position
-  const tileHasMovedRef = useRef(false); // Track if touch has moved
+  const tileTouchStartPosRef = useRef(null);
+  const tileTouchStartTimeRef = useRef(0);
+  const isScrollingRef = useRef(false);
   const rafRef = useRef(null);
 
   const items = useMemo(() => buildItems(images, segments), [images, segments]);
@@ -89,7 +90,7 @@ export default function DomeGallery({
       if (window.navigator && window.navigator.vibrate) {
         window.navigator.vibrate(10);
       }
-      // iOS audio feedback workaround
+      // iOS audio feedback
       if (window.AudioContext || window.webkitAudioContext) {
         const context = new (window.AudioContext || window.webkitAudioContext)();
         const oscillator = context.createOscillator();
@@ -185,16 +186,17 @@ export default function DomeGallery({
     return () => clearTimeout(timer);
   }, [updateTileZIndex]);
 
-  // ===== SPHERE ROTATION HANDLERS =====
+  // ===== SPHERE ROTATION =====
   
-  const handleDragStart = useCallback((clientX, clientY) => {
+  const startDrag = useCallback((clientX, clientY) => {
     isDraggingRef.current = true;
     hasMovedRef.current = false;
+    isScrollingRef.current = true; // Mark as scrolling
     startRotRef.current = { ...rotationRef.current };
     dragStartPosRef.current = { x: clientX, y: clientY };
   }, []);
 
-  const handleDragMove = useCallback((clientX, clientY) => {
+  const updateDrag = useCallback((clientX, clientY) => {
     if (!isDraggingRef.current || !dragStartPosRef.current) return;
     
     const dx = clientX - dragStartPosRef.current.x;
@@ -215,7 +217,7 @@ export default function DomeGallery({
     applyTransform(nextX, nextY);
   }, [dragSensitivity, maxVerticalRotationDeg, applyTransform]);
 
-  const handleDragEnd = useCallback(() => {
+  const endDrag = useCallback(() => {
     if (isDraggingRef.current && hasMovedRef.current) {
       lastDragEndAt.current = performance.now();
     }
@@ -223,73 +225,79 @@ export default function DomeGallery({
     isDraggingRef.current = false;
     hasMovedRef.current = false;
     dragStartPosRef.current = null;
+    
+    // Reset scrolling flag after a delay
+    setTimeout(() => {
+      isScrollingRef.current = false;
+    }, 100);
   }, []);
 
-  // Attach sphere rotation handlers
+  // Global touch/mouse handlers for sphere
   useEffect(() => {
-    const main = mainRef.current;
-    if (!main) return;
-
-    // Mouse events
-    const onMouseDown = (e) => {
-      if (e.button !== 0) return;
-      handleDragStart(e.clientX, e.clientY);
-    };
-    
-    const onMouseMove = (e) => {
-      if (isDraggingRef.current) {
-        e.preventDefault();
-        handleDragMove(e.clientX, e.clientY);
-      }
-    };
-    
-    const onMouseUp = () => {
-      handleDragEnd();
-    };
-
-    // Touch events on main sphere (not on tiles)
-    const onTouchStart = (e) => {
-      // Only handle if not touching a tile directly
-      if (!e.target.closest('.item__image')) {
-        const touch = e.touches[0];
-        handleDragStart(touch.clientX, touch.clientY);
-      }
-    };
-    
     const onTouchMove = (e) => {
       if (isDraggingRef.current && e.touches[0]) {
-        e.preventDefault();
         const touch = e.touches[0];
-        handleDragMove(touch.clientX, touch.clientY);
+        updateDrag(touch.clientX, touch.clientY);
       }
     };
     
     const onTouchEnd = () => {
-      handleDragEnd();
+      endDrag();
     };
 
-    main.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mousemove', onMouseMove);
-    window.addEventListener('mouseup', onMouseUp);
+    const onMouseMove = (e) => {
+      if (isDraggingRef.current) {
+        updateDrag(e.clientX, e.clientY);
+      }
+    };
     
-    main.addEventListener('touchstart', onTouchStart, { passive: true });
-    window.addEventListener('touchmove', onTouchMove, { passive: false });
+    const onMouseUp = () => {
+      endDrag();
+    };
+
+    window.addEventListener('touchmove', onTouchMove, { passive: true });
     window.addEventListener('touchend', onTouchEnd);
     window.addEventListener('touchcancel', onTouchEnd);
+    window.addEventListener('mousemove', onMouseMove);
+    window.addEventListener('mouseup', onMouseUp);
 
     return () => {
-      main.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('mouseup', onMouseUp);
-      
-      main.removeEventListener('touchstart', onTouchStart);
       window.removeEventListener('touchmove', onTouchMove);
       window.removeEventListener('touchend', onTouchEnd);
       window.removeEventListener('touchcancel', onTouchEnd);
+      window.removeEventListener('mousemove', onMouseMove);
+      window.removeEventListener('mouseup', onMouseUp);
     };
-  }, [handleDragStart, handleDragMove, handleDragEnd]);
+  }, [updateDrag, endDrag]);
 
-  // ===== TILE PRESS-AND-HOLD HANDLERS =====
+  // Main area handlers
+  useEffect(() => {
+    const main = mainRef.current;
+    if (!main) return;
+
+    const onMouseDown = (e) => {
+      if (e.button !== 0) return;
+      startDrag(e.clientX, e.clientY);
+    };
+
+    const onTouchStart = (e) => {
+      // Only handle if not touching a tile
+      if (!e.target.closest('.item__image')) {
+        const touch = e.touches[0];
+        startDrag(touch.clientX, touch.clientY);
+      }
+    };
+
+    main.addEventListener('mousedown', onMouseDown);
+    main.addEventListener('touchstart', onTouchStart, { passive: true });
+
+    return () => {
+      main.removeEventListener('mousedown', onMouseDown);
+      main.removeEventListener('touchstart', onTouchStart);
+    };
+  }, [startDrag]);
+
+  // ===== TILE PRESS-AND-HOLD =====
 
   const openTileContent = useCallback((parent) => {
     if (openingRef.current) return;
@@ -337,95 +345,110 @@ export default function DomeGallery({
     triggerHaptic();
   }, [openedImageWidth, openedImageHeight, openedImageBorderRadius, triggerHaptic]);
 
-  // Clear press-and-hold timer
-  const clearPressAndHold = useCallback(() => {
-    if (touchTimerRef.current) {
-      clearTimeout(touchTimerRef.current);
-      touchTimerRef.current = null;
-    }
-    holdCompletedRef.current = false;
-  }, []);
-
-  // MOBILE: Touch start on tile
+  // TILE: Touch Start
   const handleTileTouchStart = useCallback((e) => {
     const touch = e.touches[0];
     const tile = e.currentTarget.parentElement;
     
-    // Store initial touch position
     tileTouchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+    tileTouchStartTimeRef.current = performance.now();
     activeTouchTileRef.current = tile;
-    tileHasMovedRef.current = false;
     holdCompletedRef.current = false;
+    isScrollingRef.current = false;
     
-    // Initial haptic feedback
+    // Light haptic on touch
     triggerHaptic();
     
-    clearPressAndHold();
+    // Clear any existing timer
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+    }
     
     // Start press-and-hold timer
     touchTimerRef.current = setTimeout(() => {
-      // Only complete if hasn't moved
-      if (!tileHasMovedRef.current && activeTouchTileRef.current) {
+      // Check if still valid for opening
+      if (activeTouchTileRef.current && !isScrollingRef.current) {
         holdCompletedRef.current = true;
-        triggerHaptic(); // Strong feedback
+        // Strong haptic for hold completion
+        triggerHaptic();
+        console.log('✅ Press-and-hold completed!');
       }
     }, pressHoldDuration);
-  }, [triggerHaptic, pressHoldDuration, clearPressAndHold]);
+  }, [triggerHaptic, pressHoldDuration]);
 
-  // MOBILE: Touch move on tile - Check for movement
+  // TILE: Touch Move - Detect scrolling
   const handleTileTouchMove = useCallback((e) => {
-    if (!tileTouchStartPosRef.current || !activeTouchTileRef.current) return;
+    if (!tileTouchStartPosRef.current) return;
     
     const touch = e.touches[0];
     const dx = touch.clientX - tileTouchStartPosRef.current.x;
     const dy = touch.clientY - tileTouchStartPosRef.current.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     
-    // If moved more than threshold, cancel press-and-hold
-    if (distance > movementThreshold) {
-      tileHasMovedRef.current = true;
-      clearPressAndHold();
+    // If moved beyond threshold, it's a scroll
+    if (distance > scrollThreshold) {
+      isScrollingRef.current = true;
       
-      // Start sphere drag if not already dragging
-      if (!isDraggingRef.current) {
-        handleDragStart(tileTouchStartPosRef.current.x, tileTouchStartPosRef.current.y);
+      // Cancel press-and-hold
+      if (touchTimerRef.current) {
+        clearTimeout(touchTimerRef.current);
+        touchTimerRef.current = null;
       }
+      holdCompletedRef.current = false;
       
-      // Continue with drag movement
-      handleDragMove(touch.clientX, touch.clientY);
+      // Start sphere drag
+      if (!isDraggingRef.current && tileTouchStartPosRef.current) {
+        startDrag(tileTouchStartPosRef.current.x, tileTouchStartPosRef.current.y);
+      }
     }
-  }, [movementThreshold, clearPressAndHold, handleDragStart, handleDragMove]);
+  }, [scrollThreshold, startDrag]);
 
-  // MOBILE: Touch end on tile
+  // TILE: Touch End
   const handleTileTouchEnd = useCallback((e) => {
     const parent = activeTouchTileRef.current;
+    const touchDuration = performance.now() - tileTouchStartTimeRef.current;
     
-    clearPressAndHold();
-    
-    // Only open if hold completed and didn't move
-    if (holdCompletedRef.current && !tileHasMovedRef.current && parent) {
-      e.preventDefault();
-      e.stopPropagation();
-      openTileContent(parent);
-    } else if (tileHasMovedRef.current) {
-      // If moved, end the drag
-      handleDragEnd();
+    // Clear timer
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
     }
     
-    // Reset all tile tracking
+    console.log('Touch end:', {
+      holdCompleted: holdCompletedRef.current,
+      isScrolling: isScrollingRef.current,
+      duration: touchDuration,
+      hasParent: !!parent
+    });
+    
+    // CRITICAL: Only open if hold was completed and not scrolling
+    if (holdCompletedRef.current && !isScrollingRef.current && parent) {
+      e.preventDefault();
+      e.stopPropagation();
+      console.log('🎉 Opening tile!');
+      openTileContent(parent);
+    }
+    
+    // Reset all tracking
     activeTouchTileRef.current = null;
     tileTouchStartPosRef.current = null;
-    tileHasMovedRef.current = false;
-  }, [clearPressAndHold, openTileContent, handleDragEnd]);
+    tileTouchStartTimeRef.current = 0;
+    holdCompletedRef.current = false;
+    isScrollingRef.current = false;
+  }, [openTileContent]);
 
   const handleTileTouchCancel = useCallback(() => {
-    clearPressAndHold();
-    handleDragEnd();
+    if (touchTimerRef.current) {
+      clearTimeout(touchTimerRef.current);
+      touchTimerRef.current = null;
+    }
     
     activeTouchTileRef.current = null;
     tileTouchStartPosRef.current = null;
-    tileHasMovedRef.current = false;
-  }, [clearPressAndHold, handleDragEnd]);
+    tileTouchStartTimeRef.current = 0;
+    holdCompletedRef.current = false;
+    isScrollingRef.current = false;
+  }, []);
 
   // DESKTOP: Click handler
   const handleTileClick = useCallback((e) => {
