@@ -126,6 +126,11 @@ export default function DomeGallery({
       onDrag: ({ event, last }) => {
         if (!draggingRef.current || !startPosRef.current) return;
         
+        // ✅ FIX: Prevent iOS scroll/bounce during drag
+        if (event.cancelable) {
+          event.preventDefault();
+        }
+        
         const dxTotal = event.clientX - startPosRef.current.x;
         const dyTotal = event.clientY - startPosRef.current.y;
         
@@ -150,7 +155,13 @@ export default function DomeGallery({
         }
       }
     },
-    { target: mainRef, eventOptions: { passive: true } }
+    { 
+      target: mainRef, 
+      eventOptions: { passive: false }, // ✅ FIX: Allow preventDefault
+      drag: {
+        preventScrollAxis: 'xy' // ✅ FIX: Block scroll on both axes
+      }
+    }
   );
 
   // Click handler for tiles
