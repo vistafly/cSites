@@ -61,9 +61,16 @@
         <div class="hero-content">
             <div class="hero-badge">Crafted with precision</div>
             <h1 class="hero-title">
-                <span class="title-line">Design that</span>
-                <span class="title-line gradient-text">transcends pixels</span>
-            </h1>
+    <span class="title-line">Design that</span>
+    <span class="title-line gradient-text">
+        <span class="rotating-text-wrapper">
+            <span class="rotating-text active">transcends pixels</span>
+            <span class="rotating-text">defies expectations</span>
+            <span class="rotating-text">drives results</span>
+            <span class="rotating-text">inspires action</span>
+        </span>
+    </span>
+</h1>
             <p class="hero-description">
                 We architect digital experiences with obsessive attention to detail,<br>
                 where every interaction feels effortless and intentional.
@@ -145,12 +152,13 @@
                         <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
                     </svg>
                 </button>
-                <button id="downloadTemplateBtn" class="btn-contract-secondary">
-                    <span>Download Template</span>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M8 2V12M8 12L12 8M8 12L4 8M2 14H14" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
+                <button id="requestHelpBtn" class="btn-contract-secondary">
+    <span>Request Help</span>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15Z" stroke="currentColor" stroke-width="1.5"/>
+        <path d="M8 11V11.01M8 8.5V8.5C8 7.5 9 7 9 6C9 5.44772 8.55228 5 8 5C7.44772 5 7 5.44772 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+</button>
             </div>
 
             <div class="contract-features">
@@ -554,16 +562,17 @@
 
     <!-- Auth Modal (Login/Signup) -->
 
-    <!-- Contact Section -->
-    <section id="contact" class="contact">
-        <div class="container">
-            <div class="contact-wrapper">
-                <div class="contact-content">
-                    <div class="section-eyebrow">Get in Touch</div>
-                    <h2 class="section-title">Let's convert<br> your vision<br>into reality...</h2>
-                    <p class="contact-tagline">Ready to elevate your digital presence? Let's talk.</p>
-                </div>
-                
+   <section id="contact" class="contact">
+    <div class="container">
+        <div class="contact-wrapper">
+            <div class="contact-content">
+                <div class="section-eyebrow">Get in Touch</div>
+                <h2 class="section-title">Let's convert<br> your vision<br>into reality...</h2>
+                <p class="contact-tagline">Ready to elevate your digital presence? Let's talk.</p>
+            </div>
+            
+            <!-- ADD THIS WRAPPER DIV -->
+            <div class="form-wrapper">
                 <form class="contact-form">
                     <div class="form-row">
                         <div class="form-field">
@@ -585,10 +594,10 @@
                     </div>
                     
                     <div class="form-field">
-                        <textarea id="message" rows="4" required></textarea>
-                        <label for="message">Message</label>
-                        <div class="field-line"></div>
-                    </div>
+    <textarea id="message" rows="2" required></textarea>
+    <label for="message">Message</label>
+    <div class="field-line"></div>
+</div>
                     
                     <button type="submit" class="btn-submit">
                         <span class="btn-text">Send message</span>
@@ -600,8 +609,10 @@
                     </button>
                 </form>
             </div>
+            <!-- END WRAPPER -->
         </div>
-    </section>
+    </div>
+</section>
 
     <!-- Footer -->
     <footer class="footer">
@@ -631,7 +642,64 @@
             </div>
         </div>
     </footer>
+<!-- Help Request Modal -->
+<div id="helpModal" class="help-modal">
+    <div class="modal-overlay"></div>
+    <div class="modal-content help-modal-content">
+        <button class="modal-close" id="closeHelpBtn">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"></line>
+                <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+        </button>
 
+        <div class="modal-header">
+            <h1>Request Help</h1>
+            <p class="modal-subtitle">Having trouble with the contract? Let us know!</p>
+        </div>
+
+        <form id="helpRequestForm" class="help-form">
+            <div class="form-group">
+                <label for="helpEmail">Your Email *</label>
+                <input type="email" id="helpEmail" name="helpEmail" required placeholder="your@email.com">
+                <small class="field-hint">We'll use this to contact you about your request</small>
+            </div>
+
+            <div class="form-group">
+                <label for="helpIssue">What do you need help with? *</label>
+                <select id="helpIssue" name="helpIssue" required>
+                    <option value="">Select an issue...</option>
+                    <option value="contract_not_showing">Contract not showing</option>
+                    <option value="problems_submitting">Problems submitting contract</option>
+                    <option value="signature_issues">Signature issues</option>
+                    <option value="account_access">Account access problems</option>
+                    <option value="other">Other issues</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="helpDetails">Please provide details *</label>
+                <textarea id="helpDetails" name="helpDetails" required placeholder="Describe the issue you're experiencing..." rows="4"></textarea>
+            </div>
+
+            <div class="help-form-footer">
+                <button type="button" class="btn btn-secondary" id="cancelHelpBtn">Cancel</button>
+                <button type="submit" class="btn btn-primary">
+                    <span id="helpSubmitText">Send Help Request</span>
+                </button>
+            </div>
+
+            <div class="help-success-message" id="helpSuccessMessage">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <p><strong>Help request sent!</strong></p>
+                <p>We've received your request and will get back to you shortly at your email address.</p>
+            </div>
+        </form>
+    </div>
+</div>
     <!-- Firebase Configuration -->
     <script type="module" src="./firebase-config.js"></script>
     

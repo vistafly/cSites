@@ -175,36 +175,55 @@
         updateActiveLink();
     };
 
-    // === PARALLAX (Desktop Only) ===
-    var ParallaxController = function() {
-        if (DeviceDetector.isMobile()) return;
-        this.hero = $('.hero');
-        this.heroContent = $('.hero-content');
-        this.layers = $$('.layer');
-        if (this.hero && this.heroContent) this.init();
-    };
+// === ROTATING TEXT ANIMATION - ENHANCED ===
+var RotatingText = function() {
+    this.wrapper = $('.rotating-text-wrapper');
+    if (!this.wrapper) return;
+    
+    this.texts = $$('.rotating-text');
+    this.currentIndex = 0;
+    this.init();
+};
 
-    ParallaxController.prototype.init = function() {
-        var self = this;
-        var handleParallax = throttle(function() {
-            var scrollY = window.pageYOffset;
-            var heroHeight = self.hero.offsetHeight;
-
-            if (scrollY < heroHeight) {
-                var translateY = scrollY * 0.5;
-                var opacity = 1 - (scrollY / heroHeight) * 1.5;
-                self.heroContent.style.transform = 'translateY(' + translateY + 'px)';
-                self.heroContent.style.opacity = Math.max(0, opacity);
-
-                self.layers.forEach(function(layer, index) {
-                    var speed = 0.3 + (index * 0.1);
-                    layer.style.transform = 'translateY(' + (scrollY * speed) + 'px)';
-                });
+RotatingText.prototype.init = function() {
+    var self = this;
+    
+    // Wrap each text in character spans
+    this.texts.forEach(function(textEl) {
+        var originalText = textEl.textContent;
+        var html = '';
+        
+        Array.from(originalText).forEach(function(char) {
+            if (char === ' ') {
+                html += '<span class="char-space"> </span>';
+            } else {
+                html += '<span class="char">' + char + '</span>';
             }
-        }, 32);
+        });
+        
+        textEl.innerHTML = html;
+    });
+    
+    // Start rotation after 3 seconds
+    setTimeout(function() {
+        self.rotate();
+    }, 3000);
+};
 
-        window.addEventListener('scroll', handleParallax, { passive: true });
-    };
+RotatingText.prototype.rotate = function() {
+    var self = this;
+    
+    setInterval(function() {
+        // Remove active class from current
+        self.texts[self.currentIndex].classList.remove('active');
+        
+        // Move to next index
+        self.currentIndex = (self.currentIndex + 1) % self.texts.length;
+        
+        // Add active class to next
+        self.texts[self.currentIndex].classList.add('active');
+    }, 5000);
+};
 
     // === SCROLL ANIMATIONS ===
     var ScrollAnimations = function() {
@@ -710,7 +729,93 @@
             console.log('Contract form not found');
             return;
         }
-        
+        ContractFormHandler.prototype.fetchHelpRequests = function(callback) {
+    firebase.firestore().collection('help_requests')
+        .where('status', '==', 'open')
+        .orderBy('timestamp', 'desc')
+        .get()
+        .then(function(snapshot) {
+            var helpRequests = [];
+            snapshot.forEach(function(doc) {
+                var data = doc.data();
+                data.id = doc.id;
+                helpRequests.push(data);
+            });
+            if (callback) callback(helpRequests);
+        })
+        .catch(function(error) {
+            console.error('Error fetching help requests:', error);
+            if (callback) callback([]);
+        });
+};
+
+ContractFormHandler.prototype.getIssueTypeLabel = function(issueType) {
+    var labels = {
+        'contract_not_showing': 'Contract Not Showing',
+        'problems_submitting': 'Problems Submitting',
+        'signature_issues': 'Signature Issues',
+        'account_access': 'Account Access',
+        'other': 'Other Issues'
+    };
+    return labels[issueType] || issueType;
+};
+
+ContractFormHandler.prototype.resolveHelpRequest = function(requestId) {
+    var self = this;
+    
+    if (!confirm('Mark this help request as resolved?')) {
+        return;
+    }
+    
+    firebase.firestore().collection('help_requests')
+        .doc(requestId)
+        .update({
+            status: 'resolved',
+            resolved: true,
+            resolvedTimestamp: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .then(function() {
+            console.log('Help request marked as resolved');
+            self.showDeveloperDashboard();
+        })
+        .catch(function(error) {
+            console.error('Error resolving help request:', error);
+            alert('Error marking request as resolved: ' + error.message);
+        });
+};
+ContractFormHandler.prototype.resolveAllHelpRequests = function(helpRequests) {
+    var self = this;
+    
+    if (helpRequests.length === 0) {
+        return;
+    }
+    
+    if (!confirm('Mark all ' + helpRequests.length + ' help request(s) as resolved?')) {
+        return;
+    }
+    
+    var batch = firebase.firestore().batch();
+    var resolvedTimestamp = firebase.firestore.FieldValue.serverTimestamp();
+    
+    helpRequests.forEach(function(request) {
+        var docRef = firebase.firestore().collection('help_requests').doc(request.id);
+        batch.update(docRef, {
+            status: 'resolved',
+            resolved: true,
+            resolvedTimestamp: resolvedTimestamp
+        });
+    });
+    
+    batch.commit()
+        .then(function() {
+            console.log('All help requests marked as resolved');
+            self.showDeveloperDashboard();
+        })
+        .catch(function(error) {
+            console.error('Error resolving all help requests:', error);
+            alert('Error marking requests as resolved: ' + error.message);
+        });
+};
         this.devSignaturePad = null;
         this.clientSignaturePad = null;
         this.isDeveloper = false;
@@ -725,11 +830,188 @@
         this.formSetup = false;
         
         console.log('ContractFormHandler created');
-        console.log('Developer email from env:', this.DEVELOPER_EMAIL || '(not set)');
         
         this.init();
     };
+var HelpRequestHandler = function() {
+    this.helpModal = $('#helpModal');
+    this.helpForm = $('#helpRequestForm');
+    this.currentUser = null;
+    
+    if (!this.helpModal || !this.helpForm) {
+        console.log('Help modal elements not found');
+        return;
+    }
+    
+    this.init();
+};
 
+HelpRequestHandler.prototype.init = function() {
+    var self = this;
+    
+    if (typeof firebase !== 'undefined' && firebase.auth) {
+        firebase.auth().onAuthStateChanged(function(user) {
+            self.currentUser = user;
+            if (user) {
+                var emailField = $('#helpEmail');
+                if (emailField && self.helpModal.classList.contains('show')) {
+                    emailField.value = user.email;
+                }
+            }
+        });
+    }
+    
+    var requestHelpBtn = $('#requestHelpBtn');
+    if (requestHelpBtn) {
+        requestHelpBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            self.showHelpModal();
+        });
+    }
+    
+    var closeHelpBtn = $('#closeHelpBtn');
+    if (closeHelpBtn) {
+        closeHelpBtn.addEventListener('click', function() {
+            self.closeHelpModal();
+        });
+    }
+    
+    var cancelHelpBtn = $('#cancelHelpBtn');
+    if (cancelHelpBtn) {
+        cancelHelpBtn.addEventListener('click', function() {
+            self.closeHelpModal();
+        });
+    }
+    
+    var overlay = $('.modal-overlay', this.helpModal);
+    if (overlay) {
+        overlay.addEventListener('click', function() {
+            self.closeHelpModal();
+        });
+    }
+    
+    if (this.helpForm) {
+        this.helpForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            self.submitHelpRequest();
+        });
+    }
+};
+
+HelpRequestHandler.prototype.showHelpModal = function() {
+    if (this.helpModal) {
+        this.helpModal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        document.body.classList.add('modal-open');
+        
+        var successMessage = $('#helpSuccessMessage');
+        if (successMessage) successMessage.classList.remove('show');
+        
+        var formFields = $('.help-form');
+        if (formFields) formFields.style.display = 'block';
+        
+        if (this.helpForm) this.helpForm.reset();
+        
+        var emailField = $('#helpEmail');
+        if (emailField && this.currentUser) {
+            emailField.value = this.currentUser.email;
+            emailField.setAttribute('readonly', 'readonly');
+            emailField.style.opacity = '0.7';
+        } else if (emailField) {
+            emailField.removeAttribute('readonly');
+            emailField.style.opacity = '1';
+            emailField.placeholder = 'your@email.com';
+        }
+    }
+};
+
+HelpRequestHandler.prototype.closeHelpModal = function() {
+    if (this.helpModal) {
+        this.helpModal.classList.remove('show');
+        document.body.style.overflow = '';
+        document.body.classList.remove('modal-open');
+    }
+};
+
+HelpRequestHandler.prototype.submitHelpRequest = function() {
+    var self = this;
+    
+    var submitBtn = this.helpForm.querySelector('button[type="submit"]');
+    var submitText = $('#helpSubmitText');
+    var originalText = submitText ? submitText.textContent : 'Send Help Request';
+    
+    if (submitBtn) submitBtn.disabled = true;
+    if (submitText) submitText.textContent = 'Sending...';
+    
+    var helpEmail = $('#helpEmail').value.trim();
+    var helpIssue = $('#helpIssue').value;
+    var helpDetails = $('#helpDetails').value.trim();
+    
+    if (!helpEmail || !helpIssue || !helpDetails) {
+        alert('Please fill in all required fields');
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitText) submitText.textContent = originalText;
+        return;
+    }
+    
+    var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(helpEmail)) {
+        alert('Please enter a valid email address');
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitText) submitText.textContent = originalText;
+        return;
+    }
+    
+    var helpRequestData = {
+        userEmail: helpEmail,
+        issueType: helpIssue,
+        issueDetails: helpDetails,
+        timestamp: firebase.firestore.FieldValue.serverTimestamp(),
+        status: 'open',
+        resolved: false,
+        isAuthenticated: !!this.currentUser
+    };
+    
+    if (this.currentUser) {
+        helpRequestData.userId = this.currentUser.uid;
+    }
+    
+    console.log('Submitting help request:', helpRequestData);
+    
+    firebase.firestore().collection('help_requests').add(helpRequestData)
+        .then(function(docRef) {
+            console.log('Help request submitted with ID:', docRef.id);
+            self.showSuccessMessage();
+            
+            setTimeout(function() {
+                self.closeHelpModal();
+            }, 3000);
+        })
+        .catch(function(error) {
+            console.error('Error submitting help request:', error);
+            alert('Error submitting help request: ' + error.message + '\n\nPlease try again or contact support directly.');
+            
+            if (submitBtn) submitBtn.disabled = false;
+            if (submitText) submitText.textContent = originalText;
+        });
+};
+
+HelpRequestHandler.prototype.showSuccessMessage = function() {
+    // Hide individual form groups instead of entire form
+    var formGroups = $$('.form-group');
+    formGroups.forEach(function(group) {
+        group.style.display = 'none';
+    });
+    
+    var footer = $('.help-form-footer');
+    if (footer) footer.style.display = 'none';
+    
+    var successMessage = $('#helpSuccessMessage');
+    if (successMessage) {
+        successMessage.classList.add('show');
+        successMessage.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+};
     ContractFormHandler.prototype.init = function() {
         var self = this;
         
@@ -745,13 +1027,7 @@
                 self.currentUserEmail = user.email.trim().toLowerCase();
                 self.isDeveloper = self.currentUserEmail === self.DEVELOPER_EMAIL;
                 
-                console.log('=== ROLE CHECK ===');
-                console.log('Current user email:', self.currentUserEmail);
-                console.log('Developer email:', self.DEVELOPER_EMAIL);
-                console.log('Emails match:', self.currentUserEmail === self.DEVELOPER_EMAIL);
-                console.log('isDeveloper:', self.isDeveloper);
-                console.log('==================');
-                
+               
                 // Setup the correct view based on role
                 if (self.isDeveloper) {
                     self.setupDeveloperView();
@@ -998,9 +1274,86 @@
         dashboard.style.display = 'block';
         
         // Fetch all contracts
-        this.fetchAllContracts();
+this.fetchAllContracts();
     };
+    ContractFormHandler.prototype.renderHelpRequestsSection = function(helpRequests) {
+    var self = this;
+    var dashboard = $('#developerDashboard');
     
+    if (!dashboard) return;
+    
+    var html = '<div class="dashboard-section help-section">' +
+    '<div class="section-header">' +
+    '<h3>🆘 Help Requests</h3>' +
+    '<div style="display: flex; align-items: center; gap: 10px;">' +
+    '<span class="section-badge" style="background: rgba(245, 158, 11, 0.15); color: #f59e0b;">' + helpRequests.length + ' open</span>' +
+    (helpRequests.length > 0 ? '<button class="btn-resolve-all" style="padding: 6px 12px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); color: white; border: none; border-radius: 6px; font-size: 12px; cursor: pointer; font-weight: 600;">✓ Resolve All</button>' : '') +
+    '</div>' +
+    '</div>';
+
+    if (helpRequests.length === 0) {
+        html += '<div class="empty-state">' +
+            '<div class="empty-icon">✅</div>' +
+            '<p>No pending help requests</p>' +
+            '</div>';
+    } else {
+        html += '<div class="help-list">';
+        helpRequests.forEach(function(request) {
+            var requestDate = request.timestamp ? 
+                (request.timestamp.toDate ? request.timestamp.toDate().toLocaleDateString() : new Date(request.timestamp).toLocaleDateString()) 
+                : 'N/A';
+            
+            var authBadge = request.isAuthenticated 
+                ? '<span class="auth-badge verified">✓ Verified User</span>' 
+                : '<span class="auth-badge anonymous">◎ Anonymous</span>';
+            
+            html += '<div class="help-item" data-request-id="' + request.id + '">' +
+                '<div class="help-icon">❓</div>' +
+                '<div class="help-details">' +
+                '<div class="help-header">' +
+                '<h4>' + (request.userEmail || 'Unknown User') + '</h4>' +
+                authBadge +
+                '<span class="help-badge">' + self.getIssueTypeLabel(request.issueType) + '</span>' +
+                '</div>' +
+                '<p class="help-message">' + (request.issueDetails || 'No details provided') + '</p>' +
+                '<div class="help-meta">' +
+                '<span class="meta-item">📅 ' + requestDate + '</span>' +
+                '</div>' +
+                '</div>' +
+                '<div class="help-actions">' +
+                '<button class="btn-resolve-help" data-request-id="' + request.id + '" title="Mark as resolved">' +
+                '✓ Resolve' +
+                '</button>' +
+                '</div>' +
+                '</div>';
+        });
+        html += '</div>';
+    }
+    html += '</div>';
+    
+    var footer = dashboard.querySelector('.dashboard-footer');
+    if (footer) {
+        footer.insertAdjacentHTML('beforebegin', html);
+    } else {
+        dashboard.insertAdjacentHTML('beforeend', html);
+    }
+    
+    $$('.btn-resolve-help').forEach(function(btn) {
+        btn.addEventListener('click', function(e) {
+            e.preventDefault();
+            var requestId = this.getAttribute('data-request-id');
+            self.resolveHelpRequest(requestId);
+        });
+    });
+};
+// Add Resolve All button listener
+var resolveAllBtn = $('.btn-resolve-all');
+if (resolveAllBtn) {
+    resolveAllBtn.addEventListener('click', function(e) {
+        e.preventDefault();
+        self.resolveAllHelpRequests(helpRequests);
+    });
+}
     ContractFormHandler.prototype.fetchAllContracts = function() {
         var self = this;
         
@@ -1045,7 +1398,13 @@
                 });
                 
                 // Render the dashboard
-                self.renderDeveloperDashboard(pendingContracts, completedContracts);
+                // Render the dashboard
+self.renderDeveloperDashboard(pendingContracts, completedContracts);
+
+// Fetch and render help requests
+self.fetchHelpRequests(function(helpRequests) {
+    self.renderHelpRequestsSection(helpRequests);
+});
             })
             .catch(function(error) {
                 console.error('Error fetching contracts:', error);
@@ -1487,7 +1846,7 @@
     };
     
     ContractFormHandler.prototype.showCompletedContract = function(contractId, data) {
-        console.log('Showing completed contract:', contractId);
+        console.log('Showing completed contract');
         
         var self = this;
         
@@ -1550,85 +1909,95 @@
     };
     
     ContractFormHandler.prototype.displayBothSignatures = function(data) {
-        var self = this;
+    var self = this;
+    
+    console.log('Displaying both signatures...');
+    console.log('Client signature exists:', !!data.clientSignature);
+    console.log('Dev signature exists:', !!data.devSignature);
+    
+    // Show client signature block (LOCKED)
+    var clientBlock = $('#clientSignatureBlock');
+    if (clientBlock) {
+        clientBlock.style.display = 'block';
+        clientBlock.style.opacity = '1';
         
-        console.log('Displaying both signatures...');
-        console.log('Client signature exists:', !!data.clientSignature);
-        console.log('Dev signature exists:', !!data.devSignature);
-        
-        // Show client signature block (read-only)
-        var clientBlock = $('#clientSignatureBlock');
-        if (clientBlock) {
-            clientBlock.style.display = 'block';
-            clientBlock.style.opacity = '1';
-            clientBlock.style.pointerEvents = 'none';
-            
-            // Update client signer name and date
-            var clientSignerName = $('#clientSignerName');
-            if (clientSignerName) {
-                clientSignerName.value = data.clientSignerName || '';
-                clientSignerName.setAttribute('readonly', 'readonly');
-            }
-            
-            var clientDateField = $('#clientDate');
-            if (clientDateField) {
-                clientDateField.value = data.clientDate || '';
-                clientDateField.setAttribute('readonly', 'readonly');
-            }
-            
-            // Hide clear button
-            var clearBtn = document.querySelector('.clear-btn[data-canvas="clientSignaturePad"]');
-            if (clearBtn) clearBtn.style.display = 'none';
+        // CRITICAL: Clone canvas to remove ALL event listeners
+        var oldClientCanvas = document.getElementById('clientSignaturePad');
+        if (oldClientCanvas) {
+            var newClientCanvas = oldClientCanvas.cloneNode(true);
+            oldClientCanvas.parentNode.replaceChild(newClientCanvas, oldClientCanvas);
         }
         
-        // Show developer signature block (read-only)
-        var devBlock = $('#devSignatureBlock');
-        if (devBlock) {
-            devBlock.style.display = 'block';
-            devBlock.style.opacity = '1';
-            devBlock.style.pointerEvents = 'none';
-            
-            // Update dev name and date
-            var devName = $('#devName');
-            if (devName) {
-                devName.value = data.devName || 'Carlos Martin';
-                devName.setAttribute('readonly', 'readonly');
-            }
-            
-            var devDateField = $('#devDate');
-            if (devDateField) {
-                devDateField.value = data.devDate || '';
-                devDateField.setAttribute('readonly', 'readonly');
-            }
-            
-            // Hide clear button
-            var devClearBtn = document.querySelector('.clear-btn[data-canvas="devSignaturePad"]');
-            if (devClearBtn) devClearBtn.style.display = 'none';
+        // Lock the block
+        clientBlock.style.pointerEvents = 'none';
+        clientBlock.classList.add('signature-locked');
+        
+        // Update fields
+        var clientSignerName = $('#clientSignerName');
+        if (clientSignerName) {
+            clientSignerName.value = data.clientSignerName || '';
+            clientSignerName.setAttribute('readonly', 'readonly');
         }
         
-        // Draw signatures after a delay to ensure canvases are visible and have dimensions
-        setTimeout(function() {
-            // Draw client signature
-            if (data.clientSignature) {
-                var clientCanvas = document.getElementById('clientSignaturePad');
-                if (clientCanvas) {
-                    self.drawSignatureOnCanvas(clientCanvas, data.clientSignature);
-                }
-            }
-            
-            // Draw developer signature
-            if (data.devSignature) {
-                var devCanvas = document.getElementById('devSignaturePad');
-                if (devCanvas) {
-                    self.drawSignatureOnCanvas(devCanvas, data.devSignature);
-                }
-            }
-        }, 300);
+        var clientDateField = $('#clientDate');
+        if (clientDateField) {
+            clientDateField.value = data.clientDate || '';
+            clientDateField.setAttribute('readonly', 'readonly');
+        }
+    }
+    
+    // Show developer signature block (LOCKED)
+    var devBlock = $('#devSignatureBlock');
+    if (devBlock) {
+        devBlock.style.display = 'block';
+        devBlock.style.opacity = '1';
         
-        // Hide the pending block
-        var devPending = $('#devPendingBlock');
-        if (devPending) devPending.style.display = 'none';
-    };
+        // CRITICAL: Clone canvas to remove ALL event listeners
+        var oldDevCanvas = document.getElementById('devSignaturePad');
+        if (oldDevCanvas) {
+            var newDevCanvas = oldDevCanvas.cloneNode(true);
+            oldDevCanvas.parentNode.replaceChild(newDevCanvas, oldDevCanvas);
+        }
+        
+        // Lock the block
+        devBlock.style.pointerEvents = 'none';
+        devBlock.classList.add('signature-locked');
+        
+        // Update fields
+        var devName = $('#devName');
+        if (devName) {
+            devName.value = data.devName || 'Carlos Martin';
+            devName.setAttribute('readonly', 'readonly');
+        }
+        
+        var devDateField = $('#devDate');
+        if (devDateField) {
+            devDateField.value = data.devDate || '';
+            devDateField.setAttribute('readonly', 'readonly');
+        }
+    }
+    
+    // Draw signatures after canvases are replaced and visible
+    setTimeout(function() {
+        if (data.clientSignature) {
+            var clientCanvas = document.getElementById('clientSignaturePad');
+            if (clientCanvas) {
+                self.drawSignatureOnCanvas(clientCanvas, data.clientSignature);
+            }
+        }
+        
+        if (data.devSignature) {
+            var devCanvas = document.getElementById('devSignaturePad');
+            if (devCanvas) {
+                self.drawSignatureOnCanvas(devCanvas, data.devSignature);
+            }
+        }
+    }, 300);
+    
+    // Hide pending block
+    var devPending = $('#devPendingBlock');
+    if (devPending) devPending.style.display = 'none';
+};
     
     ContractFormHandler.prototype.drawSignatureOnCanvas = function(canvas, signatureData) {
         if (!canvas || !signatureData) {
@@ -2045,7 +2414,6 @@
             return;
         }
         
-        console.log('Generating PDF with data:', contractData);
         
         // Create a new window with the formatted contract
         var printWindow = window.open('', '_blank');
@@ -2084,7 +2452,7 @@
         '.signature-page { page-break-before: always; margin-top: 50px; }' +
         '.signature-block { display: inline-block; width: 45%; vertical-align: top; margin: 20px 2%; }' +
         '.signature-line { border-bottom: 1px solid #000; height: 80px; margin: 10px 0; display: flex; align-items: flex-end; justify-content: center; }' +
-        '.signature-line img { max-height: 70px; max-width: 100%; }' +
+        '.signature-line img { max-height: 70px; max-width: 100%; filter: invert(1) grayscale(1); }' +
         '.signature-label { font-size: 10pt; color: #666; margin-top: 5px; }' +
         '.signature-name { font-weight: bold; margin-top: 10px; }' +
         '.signature-date { margin-top: 5px; }' +
@@ -2267,140 +2635,206 @@
         });
     };
 
-    // === CUSTOM CURSOR ===
-    var CustomCursor = function() {
-        if (!DeviceDetector.isLaptopOrLarger()) {
-            console.log('Custom cursor disabled - screen too small');
+  // === ULTRA-RESPONSIVE CUSTOM CURSOR (FIXED) ===
+var CustomCursor = function() {
+    if (!DeviceDetector.isLaptopOrLarger()) {
+        console.log('Custom cursor disabled - screen too small');
+        return;
+    }
+
+    console.log('Custom cursor enabled - OPTIMIZED & FIXED');
+
+    // Create cursor element with GPU-accelerated styles
+    this.cursor = document.createElement('div');
+    this.cursor.className = 'custom-cursor';
+    this.cursor.style.cssText = 'position:fixed;' +
+        'left:0;top:0;' +
+        'width:10px;height:10px;' +
+        'background:rgba(255,255,255,0.9);' +
+        'border-radius:50%;' +
+        'pointer-events:none;' +
+        'z-index:99999;' +
+        'opacity:0;' +
+        'mix-blend-mode:difference;' +
+        'transition:width 0.2s cubic-bezier(0.4,0,0.2,1),height 0.2s cubic-bezier(0.4,0,0.2,1),opacity 0.15s ease-out;' +
+        'will-change:transform;' +
+        'backface-visibility:hidden;' +
+        'transform:translate3d(0,0,0);';
+    
+    document.body.appendChild(this.cursor);
+
+    // Position tracking
+    this.position = { x: 0, y: 0 };
+    this.target = { x: 0, y: 0 };
+    this.currentSize = 10; // Track current cursor size
+    this.isVisible = false;
+    this.isHovering = false;
+    this.isAnimating = false;
+    
+    // Performance optimization
+    this.hoverCheckFrame = 0;
+    this.interactiveSelectors = 'a, button, input, textarea, select, canvas, .clear-btn, .modal-close, .auth-close, .nav-link, .btn, .hamburger, .item, .item__image, .enlarge';
+
+    this.init();
+    this.handleResize();
+};
+
+CustomCursor.prototype.init = function() {
+    var self = this;
+    
+    // Inject cursor disable/enable styles
+    var style = document.createElement('style');
+    style.id = 'custom-cursor-style';
+    style.textContent = 
+        '@media (min-width: 1024px) {' +
+        '  body:not(.modal-open) * { cursor: none !important; }' +
+        '  body.modal-open, body.modal-open * { cursor: auto !important; }' +
+        '  body.modal-open .signature-pad { cursor: crosshair !important; }' +
+        '}';
+    document.head.appendChild(style);
+
+    var wasModalOpen = false;
+
+    // Use pointermove for better performance than mousemove
+    document.addEventListener('pointermove', function(e) {
+        var isModalOpen = document.body.classList.contains('modal-open');
+        
+        // Check if modal just closed
+        if (wasModalOpen && !isModalOpen) {
+            self.isVisible = true;
+            self.cursor.style.opacity = '1';
+        }
+        
+        wasModalOpen = isModalOpen;
+        
+        // Hide cursor when modal is open
+        if (isModalOpen) {
+            self.cursor.style.opacity = '0';
+            self.isAnimating = false;
             return;
         }
-
-        console.log('Custom cursor enabled');
-
-        this.cursor = document.createElement('div');
-        this.cursor.className = 'custom-cursor';
-        this.cursor.style.cssText = 'position:fixed;width:10px;height:10px;background:rgba(255,255,255,0.9);border-radius:50%;pointer-events:none;z-index:99999;opacity:0;mix-blend-mode:difference;transition:width 0.3s,height 0.3s,opacity 0.3s,transform 0.3s;transform:translate(-50%, -50%);';
-        document.body.appendChild(this.cursor);
-
-        this.position = { x: 0, y: 0 };
-        this.target = { x: 0, y: 0 };
-        this.isVisible = false;
-        this.isHovering = false;
-
-        this.init();
-        this.handleResize();
-    };
-
-    CustomCursor.prototype.init = function() {
-        var self = this;
         
-        // CSS: disable custom cursor when modal is open
-        var style = document.createElement('style');
-        style.id = 'custom-cursor-style';
-        style.textContent = 
-            '@media (min-width: 1024px) {' +
-            '  body:not(.modal-open) * { cursor: none !important; }' +
-            '  body.modal-open, body.modal-open * { cursor: auto !important; }' +
-            '  body.modal-open .signature-pad { cursor: crosshair !important; }' +
-            '}';
-        document.head.appendChild(style);
-
-        document.addEventListener('mousemove', function(e) {
-            // Hide cursor when modal is open
-            if (document.body.classList.contains('modal-open')) {
-                self.cursor.style.opacity = '0';
-                return;
-            }
-            
-            self.target.x = e.clientX;
-            self.target.y = e.clientY;
-            if (!self.isVisible) {
-                self.isVisible = true;
-                self.cursor.style.opacity = '1';
-            }
-            
+        // ⚡ INSTANT UPDATE - Set target position immediately
+        self.target.x = e.clientX;
+        self.target.y = e.clientY;
+        
+        // On first move, position cursor directly (no lerp lag)
+        if (!self.isVisible) {
+            self.position.x = e.clientX;
+            self.position.y = e.clientY;
+            self.updateCursorPosition();
+            self.isVisible = true;
+            self.cursor.style.opacity = '1';
+        }
+        
+        // Start animation loop if not running
+        if (!self.isAnimating) {
+            self.isAnimating = true;
+            self.animate();
+        }
+        
+        // 🎯 THROTTLED HOVER CHECK - Every 3rd frame (~50ms at 60fps)
+        self.hoverCheckFrame++;
+        if (self.hoverCheckFrame % 3 === 0) {
             var element = document.elementFromPoint(e.clientX, e.clientY);
             self.checkHoverState(element);
-        }, { passive: true });
-
-        document.addEventListener('mouseleave', function() {
-            self.isVisible = false;
-            self.cursor.style.opacity = '0';
-        });
-
-        this.animate();
-    };
-
-    CustomCursor.prototype.handleResize = function() {
-        var self = this;
-        window.addEventListener('resize', function() {
-            if (!DeviceDetector.isLaptopOrLarger()) {
-                if (self.cursor) {
-                    self.cursor.style.display = 'none';
-                }
-            } else {
-                if (self.cursor) {
-                    self.cursor.style.display = 'block';
-                }
-            }
-        });
-    };
-
-    CustomCursor.prototype.checkHoverState = function(element) {
-        if (!element) return;
-        if (document.body.classList.contains('modal-open')) return;
-        
-        var isInteractive = false;
-        var current = element;
-        
-        while (current && current !== document.body) {
-            var tag = current.tagName.toLowerCase();
-            var isClickable = tag === 'a' || tag === 'button' || tag === 'input' || 
-                            tag === 'textarea' || tag === 'select' || tag === 'canvas' ||
-                            current.hasAttribute('onclick') || 
-                            current.classList.contains('clear-btn') ||
-                            current.classList.contains('modal-close') ||
-                            current.classList.contains('auth-close') ||
-                            current.classList.contains('nav-link') ||
-                            current.classList.contains('btn') ||
-                            current.classList.contains('hamburger') ||
-                            current.classList.contains('item') ||
-                            current.classList.contains('item__image') ||
-                            current.classList.contains('enlarge');
-            
-            if (isClickable) {
-                isInteractive = true;
-                break;
-            }
-            current = current.parentElement;
         }
+    }, { passive: true });
+
+    document.addEventListener('pointerleave', function() {
+        self.isVisible = false;
+        self.isAnimating = false;
+        self.cursor.style.opacity = '0';
+    });
+};
+
+CustomCursor.prototype.handleResize = function() {
+    var self = this;
+    window.addEventListener('resize', throttle(function() {
+        if (!DeviceDetector.isLaptopOrLarger()) {
+            if (self.cursor) {
+                self.cursor.style.display = 'none';
+                self.isAnimating = false;
+            }
+        } else {
+            if (self.cursor) {
+                self.cursor.style.display = 'block';
+            }
+        }
+    }, 250));
+};
+
+CustomCursor.prototype.checkHoverState = function(element) {
+    if (!element || document.body.classList.contains('modal-open')) return;
+    
+    // 🚀 OPTIMIZED: Use native closest() for fast parent traversal
+    var isInteractive = !!element.closest(this.interactiveSelectors);
+    
+    // Only update if state actually changed
+    if (isInteractive !== this.isHovering) {
+        this.isHovering = isInteractive;
         
-        if (isInteractive && !this.isHovering) {
-            this.isHovering = true;
+        if (isInteractive) {
             this.cursor.style.width = '40px';
             this.cursor.style.height = '40px';
-        } else if (!isInteractive && this.isHovering) {
-            this.isHovering = false;
+            this.currentSize = 40; // Update current size
+        } else {
             this.cursor.style.width = '10px';
             this.cursor.style.height = '10px';
+            this.currentSize = 10; // Update current size
         }
-    };
-
-    CustomCursor.prototype.animate = function() {
-        var self = this;
-        var lerp = function(start, end, factor) {
-            return start + (end - start) * factor;
-        };
         
-        this.position.x = lerp(this.position.x, this.target.x, 0.15);
-        this.position.y = lerp(this.position.y, this.target.y, 0.15);
+        // Immediately update position with new offset
+        this.updateCursorPosition();
+    }
+};
 
-        this.cursor.style.left = this.position.x + 'px';
-        this.cursor.style.top = this.position.y + 'px';
+// 🎨 GPU-ACCELERATED POSITION UPDATE - NOW CENTERS PROPERLY
+CustomCursor.prototype.updateCursorPosition = function() {
+    // Calculate offset based on current size to keep cursor centered
+    var offset = this.currentSize / 2;
+    
+    // Use translate3d for hardware acceleration
+    this.cursor.style.transform = 'translate3d(' + 
+        (this.position.x - offset) + 'px, ' + 
+        (this.position.y - offset) + 'px, 0)';
+};
 
-        requestAnimationFrame(function() {
-            self.animate();
-        });
-    };
+CustomCursor.prototype.animate = function() {
+    if (!this.isAnimating) return;
+    
+    var self = this;
+    
+    // ⚡ FAST LERP - 0.3 factor for 2x faster response
+    var lerpFactor = 0.3;
+    var snapThreshold = 0.5;  // Stop animating if within 0.5px
+    
+    // Calculate distance to target
+    var dx = this.target.x - this.position.x;
+    var dy = this.target.y - this.position.y;
+    var distance = Math.sqrt(dx * dx + dy * dy);
+    
+    // If very close, snap to target and stop animation loop
+    if (distance < snapThreshold) {
+        this.position.x = this.target.x;
+        this.position.y = this.target.y;
+        this.updateCursorPosition();
+        this.isAnimating = false;  // 🔋 SAVE CPU
+        return;
+    }
+    
+    // Smooth interpolation with fast factor
+    this.position.x += dx * lerpFactor;
+    this.position.y += dy * lerpFactor;
+    
+    // Update position using GPU transform
+    this.updateCursorPosition();
+
+    // Continue animation loop
+    requestAnimationFrame(function() {
+        self.animate();
+    });
+};
 
     // === VIEWPORT FIX ===
     var ViewportFix = function() {
@@ -2439,9 +2873,11 @@
         console.log('VistaFly - Crafted with precision');
         console.log('Device: ' + (DeviceDetector.isMobile() ? 'Mobile' : 'Desktop'));
         console.log('Screen width:', window.innerWidth);
+        new HelpRequestHandler();
+
 
         new Navigation();
-        new ParallaxController();
+        new RotatingText();
         new ScrollAnimations();
         new PortfolioHandler();
         new FormHandler();
@@ -2460,3 +2896,15 @@
     }
 
 })();
+// Auto-resize textarea
+const messageTextarea = document.getElementById('message');
+if (messageTextarea) {
+    messageTextarea.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 400) + 'px';
+    });
+    
+    // Also trigger on page load in case there's pre-filled content
+    messageTextarea.style.height = 'auto';
+    messageTextarea.style.height = Math.min(messageTextarea.scrollHeight, 400) + 'px';
+}
