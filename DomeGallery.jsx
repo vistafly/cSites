@@ -40,74 +40,77 @@ function buildItems(pool, segments) {
     return Math.sqrt(wrappedDx * wrappedDx + dy * dy);
   };
 
-  // Track which positions have been filled and with what
-  const usedImages = new Array(coords.length).fill(null);
-  const availablePositions = new Set([...Array(coords.length).keys()]);
-
-  // Calculate how many times each image needs to appear
   const numImages = normalizedImages.length;
-  const copiesPerImage = Math.ceil(coords.length / numImages);
+  const totalPositions = coords.length;
+  const usedImages = new Array(totalPositions).fill(null);
   
-  // Create placement queue - each image appears multiple times
-  const placementQueue = [];
-  for (let i = 0; i < copiesPerImage; i++) {
-    normalizedImages.forEach(img => {
-      placementQueue.push(img);
-    });
-  }
-  
-  // Trim to exact number needed
-  placementQueue.splice(coords.length);
-  
-  // Shuffle the queue for variety in placement order
-  for (let i = placementQueue.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [placementQueue[i], placementQueue[j]] = [placementQueue[j], placementQueue[i]];
-  }
+  // Track how many times each image has been placed
+  const imageCounts = new Array(numImages).fill(0);
+  const targetCount = Math.ceil(totalPositions / numImages);
 
-  // Place each item strategically
-  placementQueue.forEach(imageToPlace => {
-    if (availablePositions.size === 0) return;
+  // Place images in rounds to ensure even distribution
+  for (let position = 0; position < totalPositions; position++) {
+    let bestImageIdx = -1;
+    let bestScore = -Infinity;
     
-    let bestPosition = null;
-    let bestScore = -1;
-    
-    // Evaluate each available position
-    for (const posIdx of availablePositions) {
-      // Find all existing instances of this same image
+    // Try each image and score it
+    for (let imgIdx = 0; imgIdx < numImages; imgIdx++) {
+      // Skip if this image has reached its quota
+      if (imageCounts[imgIdx] >= targetCount) continue;
+      
+      const currentImage = normalizedImages[imgIdx];
+      
+      // Find all existing positions of this image
       const existingPositions = [];
-      for (let i = 0; i < usedImages.length; i++) {
-        if (usedImages[i] && usedImages[i].url === imageToPlace.url) {
+      for (let i = 0; i < position; i++) {
+        if (usedImages[i] && usedImages[i].url === currentImage.url) {
           existingPositions.push(i);
         }
       }
       
+      // Calculate score based on distance to existing instances
+      let score;
       if (existingPositions.length === 0) {
-        // First instance - place randomly (or pick first available)
-        bestPosition = posIdx;
-        break;
+        // First instance - give it a base score
+        score = 1000;
+      } else {
+        // Find minimum distance to any existing instance
+        let minDistance = Infinity;
+        existingPositions.forEach(existingIdx => {
+          const dist = getDistance(coords[position], coords[existingIdx]);
+          minDistance = Math.min(minDistance, dist);
+        });
+        score = minDistance;
       }
       
-      // Calculate minimum distance to any existing instance
-      let minDistance = Infinity;
-      existingPositions.forEach(existingIdx => {
-        const dist = getDistance(coords[posIdx], coords[existingIdx]);
-        minDistance = Math.min(minDistance, dist);
-      });
+      // Prefer images that haven't been used as much
+      const usageBonus = (targetCount - imageCounts[imgIdx]) * 0.5;
+      score += usageBonus;
       
-      // We want to MAXIMIZE the minimum distance (spread out)
-      if (minDistance > bestScore) {
-        bestScore = minDistance;
-        bestPosition = posIdx;
+      if (score > bestScore) {
+        bestScore = score;
+        bestImageIdx = imgIdx;
       }
     }
     
-    // Place the image at the best position
-    if (bestPosition !== null) {
-      usedImages[bestPosition] = imageToPlace;
-      availablePositions.delete(bestPosition);
+    // Fallback: if no image found (all at quota), use round-robin
+    if (bestImageIdx === -1) {
+      bestImageIdx = position % numImages;
     }
-  });
+    
+    // Place the image
+    usedImages[position] = normalizedImages[bestImageIdx];
+    imageCounts[bestImageIdx]++;
+  }
+
+  // CRITICAL: Verify all positions are filled
+  for (let i = 0; i < usedImages.length; i++) {
+    if (!usedImages[i]) {
+      console.error('Empty position found at index:', i);
+      // Fallback to round-robin
+      usedImages[i] = normalizedImages[i % numImages];
+    }
+  }
 
   return coords.map((c, i) => ({
     ...c,
