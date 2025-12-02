@@ -49,56 +49,115 @@ const portfolioProjects = [
     alt: 'Sprouts Clothing - Sustainable Fashion',
     type: 'iframe'
   },
+  {
+    preview: `${BASE_URL}images/logo8.png`,
+    url: 'https://agstounding.com/',
+    alt: 'Agstounding - Professional Services',
+    type: 'iframe'
+  },
 ];
 
-// Responsive wrapper - ONLY changes radius to scale dome size
+// Responsive wrapper with full parameter control per device type
 function ResponsiveDomeGallery() {
-  const [radius, setRadius] = useState({ min: 1300, max: 1500 });
+  const [config, setConfig] = useState({
+    minRadius: 1100,
+    maxRadius: 1300,
+    fit: 1,
+    maxVerticalRotationDeg: 2,
+    dragSensitivity: 18,
+    segments: 30,
+    openedImageWidth: "70vw",
+    openedImageHeight: "70vh",
+    imageBorderRadius: "40px",
+    openedImageBorderRadius: "20px"
+  });
 
   useEffect(() => {
-    const updateRadius = () => {
+    const updateConfig = () => {
       const width = window.innerWidth;
       
       if (width <= 430) {
-        // Small phones - much smaller dome
-        setRadius({ min: 500, max: 650 });
+        // Mobile phones - optimized for small screens
+        setConfig({
+          minRadius: 500,
+          maxRadius: 650,
+          fit: 0.9,
+          maxVerticalRotationDeg: 1.5,
+          dragSensitivity: 22,
+          segments: 20,
+          openedImageWidth: "90vw",
+          openedImageHeight: "60vh",
+          imageBorderRadius: "20px",
+          openedImageBorderRadius: "12px"
+        });
       } else if (width <= 768) {
-        // Tablets - medium dome  
-        setRadius({ min: 750, max: 900 });
+        // Tablets (portrait) - medium settings
+        setConfig({
+          minRadius: 700,
+          maxRadius: 700,
+          fit: 0.95,
+          maxVerticalRotationDeg: 1.8,
+          dragSensitivity: 20,
+          segments: 25,
+          openedImageWidth: "85vw",
+          openedImageHeight: "65vh",
+          imageBorderRadius: "30px",
+          openedImageBorderRadius: "15px"
+        });
       } else if (width <= 1024) {
-        // Large tablets - slightly smaller
-        setRadius({ min: 1000, max: 1200 });
+        // Tablets (landscape) / Small laptops
+        setConfig({
+          minRadius: 1000,
+          maxRadius: 1200,
+          fit: 0.98,
+          maxVerticalRotationDeg: 2,
+          dragSensitivity: 19,
+          segments: 28,
+          openedImageWidth: "75vw",
+          openedImageHeight: "70vh",
+          imageBorderRadius: "35px",
+          openedImageBorderRadius: "18px"
+        });
       } else {
-        // Desktop - your perfect settings
-        setRadius({ min: 1300, max: 1500 });
+        // Desktop / Large laptops - your perfect settings
+        setConfig({
+          minRadius: 1000,
+          maxRadius: 1200,
+          fit: 1,
+          maxVerticalRotationDeg: 2,
+          dragSensitivity: 18,
+          segments: 30,
+          openedImageWidth: "70vw",
+          openedImageHeight: "70vh",
+          imageBorderRadius: "40px",
+          openedImageBorderRadius: "20px"
+        });
       }
     };
 
-    updateRadius();
-    window.addEventListener('resize', updateRadius);
-    return () => window.removeEventListener('resize', updateRadius);
+    updateConfig();
+    window.addEventListener('resize', updateConfig);
+    return () => window.removeEventListener('resize', updateConfig);
   }, []);
 
-  // Keep all your perfect desktop settings, only change radius
   return (
     <DomeGallery
       images={portfolioProjects}
-      fit={1}
-      minRadius={radius.min}
-      maxRadius={radius.max}
-      maxVerticalRotationDeg={2}
-      dragSensitivity={18}
-      segments={30}
-      openedImageWidth="70vw"
-      openedImageHeight="70vh"
-      imageBorderRadius="40px"
-      openedImageBorderRadius="20px"
+      minRadius={config.minRadius}
+      maxRadius={config.maxRadius}
+      fit={config.fit}
+      maxVerticalRotationDeg={config.maxVerticalRotationDeg}
+      dragSensitivity={config.dragSensitivity}
+      segments={config.segments}
+      openedImageWidth={config.openedImageWidth}
+      openedImageHeight={config.openedImageHeight}
+      imageBorderRadius={config.imageBorderRadius}
+      openedImageBorderRadius={config.openedImageBorderRadius}
       overlayBlurColor="#0a0a0a"
       grayscale={false}
     />
   );
 }
-
 const root = ReactDOM.createRoot(document.getElementById('portfolio-dome-root'));
 root.render(
   <React.StrictMode>

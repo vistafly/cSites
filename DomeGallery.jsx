@@ -28,10 +28,86 @@ function buildItems(pool, segments) {
     type: image.type || 'image'
   }));
 
-  const usedImages = Array.from(
-    { length: coords.length },
-    (_, i) => normalizedImages[i % normalizedImages.length]
-  );
+  // Calculate distance between two coordinates (considering dome wrapping)
+  const getDistance = (coord1, coord2) => {
+    const dx = coord1.x - coord2.x;
+    const dy = coord1.y - coord2.y;
+    
+    // Consider horizontal wrapping (dome is circular)
+    const xRange = 56; // -28 to +28
+    const wrappedDx = Math.min(Math.abs(dx), xRange - Math.abs(dx));
+    
+    return Math.sqrt(wrappedDx * wrappedDx + dy * dy);
+  };
+
+  // Track which positions have been filled and with what
+  const usedImages = new Array(coords.length).fill(null);
+  const availablePositions = new Set([...Array(coords.length).keys()]);
+
+  // Calculate how many times each image needs to appear
+  const numImages = normalizedImages.length;
+  const copiesPerImage = Math.ceil(coords.length / numImages);
+  
+  // Create placement queue - each image appears multiple times
+  const placementQueue = [];
+  for (let i = 0; i < copiesPerImage; i++) {
+    normalizedImages.forEach(img => {
+      placementQueue.push(img);
+    });
+  }
+  
+  // Trim to exact number needed
+  placementQueue.splice(coords.length);
+  
+  // Shuffle the queue for variety in placement order
+  for (let i = placementQueue.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [placementQueue[i], placementQueue[j]] = [placementQueue[j], placementQueue[i]];
+  }
+
+  // Place each item strategically
+  placementQueue.forEach(imageToPlace => {
+    if (availablePositions.size === 0) return;
+    
+    let bestPosition = null;
+    let bestScore = -1;
+    
+    // Evaluate each available position
+    for (const posIdx of availablePositions) {
+      // Find all existing instances of this same image
+      const existingPositions = [];
+      for (let i = 0; i < usedImages.length; i++) {
+        if (usedImages[i] && usedImages[i].url === imageToPlace.url) {
+          existingPositions.push(i);
+        }
+      }
+      
+      if (existingPositions.length === 0) {
+        // First instance - place randomly (or pick first available)
+        bestPosition = posIdx;
+        break;
+      }
+      
+      // Calculate minimum distance to any existing instance
+      let minDistance = Infinity;
+      existingPositions.forEach(existingIdx => {
+        const dist = getDistance(coords[posIdx], coords[existingIdx]);
+        minDistance = Math.min(minDistance, dist);
+      });
+      
+      // We want to MAXIMIZE the minimum distance (spread out)
+      if (minDistance > bestScore) {
+        bestScore = minDistance;
+        bestPosition = posIdx;
+      }
+    }
+    
+    // Place the image at the best position
+    if (bestPosition !== null) {
+      usedImages[bestPosition] = imageToPlace;
+      availablePositions.delete(bestPosition);
+    }
+  });
 
   return coords.map((c, i) => ({
     ...c,
