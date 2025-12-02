@@ -14,14 +14,6 @@
   --rot-x: calc((360deg / var(--segments-y)) / 2);
   --item-width: calc(var(--circ) / var(--segments-x));
   --item-height: calc(var(--circ) / var(--segments-y));
-  
-  /* NEW: Image sizing controls */
-  --image-scale: 1; /* Global scale multiplier for all images */
-  --image-padding: 12px; /* Space around image within item */
-  --image-aspect-ratio: auto; /* Can be set to 1/1, 16/9, 4/3, etc. */
-  --image-fit: cover; /* cover, contain, fill, scale-down, none */
-  --image-border-radius: 50px;
-  
   overflow: visible !important;
 }
 
@@ -41,6 +33,7 @@ main.sphere-main {
   display: grid;
   place-items: center;
   overflow: visible !important;
+  /* FIXED: Changed from 'none' to allow drag on mobile */
   touch-action: pan-x pan-y;
   user-select: none;
   -webkit-user-select: none;
@@ -60,15 +53,13 @@ main.sphere-main {
 
 .sphere {
   transform: translateZ(calc(var(--radius) * -1));
+  /* REMOVED: will-change for better mobile performance */
 }
 
-/* ENHANCED: Size can now be scaled per-item or globally */
+/* OPACITY APPROACH: visible backface, opacity controlled by JS */
 .item {
-  /* Use custom --item-scale if provided, otherwise use global --image-scale */
-  --effective-scale: var(--item-scale, var(--image-scale, 1));
-  
-  width: calc(var(--item-width) * var(--item-size-x) * var(--effective-scale));
-  height: calc(var(--item-height) * var(--item-size-y) * var(--effective-scale));
+  width: calc(var(--item-width) * var(--item-size-x));
+  height: calc(var(--item-height) * var(--item-size-y));
   position: absolute;
   top: -999px;
   bottom: -999px;
@@ -76,26 +67,28 @@ main.sphere-main {
   right: -999px;
   margin: auto;
   transform-origin: 50% 50%;
+  /* Visible so JS can control opacity */
   backface-visibility: visible;
   -webkit-backface-visibility: visible;
   transform-style: preserve-3d;
+  /* Smooth opacity transitions */
   transition: transform 200ms ease-out, opacity 200ms ease-out;
   transform: rotateY(calc(var(--rot-y) * (var(--offset-x) + ((var(--item-size-x) - 1) / 2))))
     rotateX(calc(var(--rot-x) * (var(--offset-y) - ((var(--item-size-y) - 1) / 2))))
     translateZ(var(--radius));
   pointer-events: auto;
   z-index: 500;
-  opacity: 1;
+  opacity: 1; /* Controlled by JS */
 }
 
 .item__image {
   position: absolute;
   display: block;
-  /* Use custom --item-padding if provided, otherwise use global --image-padding */
-  inset: var(--item-padding, var(--image-padding, 12px));
-  border-radius: var(--item-border-radius, var(--image-border-radius, 12px));
+  inset: 12px;
+  border-radius:  60px;
   background: #0a0a0a;
   overflow: hidden;
+  /* Hidden for image itself to prevent visual duplication */
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
@@ -106,13 +99,12 @@ main.sphere-main {
   pointer-events: auto !important;
   transform: translateZ(0) scale(1);
   transform-style: preserve-3d;
+  /* REMOVED: will-change for better mobile performance */
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
   border: 1px solid rgba(255, 255, 255, 0.03);
-  
-  /* Support aspect ratio if specified */
-  aspect-ratio: var(--item-aspect-ratio, var(--image-aspect-ratio, auto));
 }
 
+/* FIXED: Only apply hover on desktop devices with mouse */
 @media (hover: hover) and (pointer: fine) {
   .item__image:hover {
     transform: translateZ(20px) scale(1.08);
@@ -129,76 +121,11 @@ main.sphere-main {
 .item__image img {
   width: 100%;
   height: 100%;
-  /* Use custom --item-fit if provided, otherwise use global --image-fit */
-  object-fit: var(--item-fit, var(--image-fit, cover));
+  object-fit: cover;
   pointer-events: none;
   backface-visibility: hidden;
   filter: var(--image-filter, none);
   display: block;
-}
-
-/* NEW: Size preset classes for easy control */
-.item.size-small {
-  --item-scale: 0.7;
-}
-
-.item.size-medium {
-  --item-scale: 1;
-}
-
-.item.size-large {
-  --item-scale: 1.3;
-}
-
-.item.size-xlarge {
-  --item-scale: 1.6;
-}
-
-/* NEW: Padding preset classes */
-.item.padding-none {
-  --item-padding: 0px;
-}
-
-.item.padding-small {
-  --item-padding: 6px;
-}
-
-.item.padding-medium {
-  --item-padding: 12px;
-}
-
-.item.padding-large {
-  --item-padding: 20px;
-}
-
-/* NEW: Aspect ratio preset classes */
-.item.aspect-square {
-  --item-aspect-ratio: 1 / 1;
-}
-
-.item.aspect-portrait {
-  --item-aspect-ratio: 3 / 4;
-}
-
-.item.aspect-landscape {
-  --item-aspect-ratio: 16 / 9;
-}
-
-.item.aspect-wide {
-  --item-aspect-ratio: 21 / 9;
-}
-
-/* NEW: Object-fit preset classes */
-.item.fit-contain img {
-  object-fit: contain;
-}
-
-.item.fit-cover img {
-  object-fit: cover;
-}
-
-.item.fit-fill img {
-  object-fit: fill;
 }
 
 .viewer {
@@ -248,22 +175,12 @@ main.sphere-main {
 
 /* Mobile adjustments */
 @media (max-width: 768px) {
-  .sphere-root {
-    /* Adjust global image scale on tablets */
-    --image-scale: 0.9;
-  }
-  
   .item__image {
     inset: 13px;
   }
 }
 
 @media (max-width: 480px) {
-  .sphere-root {
-    /* Adjust global image scale on mobile */
-    --image-scale: 0.8;
-  }
-  
   .item__image {
     inset: 12px;
   }
@@ -280,14 +197,16 @@ main.sphere-main {
   }
 }
 
-/* Touch optimization */
+/* Touch optimization - Better active state for mobile */
 @media (hover: none) and (pointer: coarse) {
+  /* Remove hover effects on touch devices */
   .item__image:hover {
     transform: translateZ(0) scale(1);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
     border-color: rgba(255, 255, 255, 0.03);
   }
   
+  /* Subtle active feedback on touch */
   .item__image:active {
     transform: translateZ(5px) scale(1.02);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
