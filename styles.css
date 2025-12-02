@@ -112,7 +112,7 @@ body {
     margin: 0 auto;
     padding: 0 clamp(1.5rem, 5vw, 3rem);
     position: relative;
-    z-index: 2;
+    z-index: 1;
 }
 
 .container-wide {

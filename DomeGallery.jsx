@@ -401,8 +401,9 @@ export default function DomeGallery({
       z-index: 9999;
       border-radius: ${openedImageBorderRadius};
       overflow: hidden;
-      box-shadow: 0 25px 80px rgba(0, 0, 0, 0.8);
-      background: #000;
+      box-shadow: 0 25px 80px rgba(92, 92, 92, 0.24);
+      background: #000000;
+      pointer-events: auto;
     `;
 
     if (type === 'iframe' && url) {
@@ -417,6 +418,11 @@ export default function DomeGallery({
       img.style.cssText = 'width:100%;height:100%;object-fit:cover;';
       overlay.appendChild(img);
     }
+
+    // Prevent wheel events inside the enlarge element from propagating to scrim
+    overlay.addEventListener('wheel', (e) => {
+      e.stopPropagation();
+    }, { passive: false });
 
     viewerRef.current.appendChild(overlay);
     rootRef.current?.setAttribute('data-enlarging', 'true');
@@ -562,6 +568,24 @@ export default function DomeGallery({
     if (scrim) {
       scrim.addEventListener('click', handleClose);
       scrim.addEventListener('touchend', handleClose);
+      
+      // Desktop only: Close on scroll outside enlarged content
+      if (!('ontouchstart' in window)) {
+        const handleWheel = (e) => {
+          // If the event reached the scrim, it means the user scrolled outside the content
+          // (because the overlay stops propagation of wheel events)
+          e.preventDefault();
+          handleClose();
+        };
+        scrim.addEventListener('wheel', handleWheel, { passive: false });
+        
+        // Cleanup wheel listener
+        return () => {
+          scrim.removeEventListener('click', handleClose);
+          scrim.removeEventListener('touchend', handleClose);
+          scrim.removeEventListener('wheel', handleWheel);
+        };
+      }
     }
 
     const handleKeydown = (e) => {

@@ -85,8 +85,8 @@ function ResponsiveDomeGallery() {
           maxVerticalRotationDeg: 1.5,
           dragSensitivity: 22,
           segments: 20,
-          openedImageWidth: "90vw",
-          openedImageHeight: "60vh",
+          openedImageWidth: "85vw",
+          openedImageHeight: "78vh",
           imageBorderRadius: "20px",
           openedImageBorderRadius: "12px"
         });
@@ -99,8 +99,8 @@ function ResponsiveDomeGallery() {
           maxVerticalRotationDeg: 1.8,
           dragSensitivity: 20,
           segments: 25,
-          openedImageWidth: "85vw",
-          openedImageHeight: "65vh",
+          openedImageWidth: "90vw",
+          openedImageHeight: "80vh",
           imageBorderRadius: "30px",
           openedImageBorderRadius: "15px"
         });
@@ -113,8 +113,8 @@ function ResponsiveDomeGallery() {
           maxVerticalRotationDeg: 2,
           dragSensitivity: 19,
           segments: 28,
-          openedImageWidth: "75vw",
-          openedImageHeight: "70vh",
+          openedImageWidth: "90vw",
+          openedImageHeight: "80vh",
           imageBorderRadius: "35px",
           openedImageBorderRadius: "18px"
         });
@@ -127,8 +127,8 @@ function ResponsiveDomeGallery() {
           maxVerticalRotationDeg: 2,
           dragSensitivity: 18,
           segments: 30,
-          openedImageWidth: "70vw",
-          openedImageHeight: "70vh",
+          openedImageWidth: "85vw",
+          openedImageHeight: "80vh",
           imageBorderRadius: "40px",
           openedImageBorderRadius: "20px"
         });
