@@ -1,0 +1,433 @@
+/* ============================================
+   STAGGERED MENU - VISTAFLY INTEGRATION
+   ============================================ */
+
+.staggered-menu-wrapper {
+  --sm-accent: #ffffff;
+  position: relative;
+  z-index: 1000;
+}
+
+/* Toggle Button - Positioned in navbar */
+.sm-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #fff;
+  font-weight: 500;
+  font-size: 0.9rem;
+  line-height: 1;
+  overflow: visible;
+  padding: 0.5rem;
+  z-index: 1001;
+  font-family: var(--font-text, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif);
+  transition: opacity 0.3s ease;
+}
+
+.sm-toggle:hover {
+  opacity: 0.8;
+}
+
+.sm-toggle:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* Text animation wrapper */
+.sm-toggle-textWrap {
+  position: relative;
+  display: inline-block;
+  height: 1em;
+  overflow: hidden;
+  white-space: nowrap;
+  width: 3.2em;
+  min-width: 3.2em;
+}
+
+.sm-toggle-textInner {
+  display: flex;
+  flex-direction: column;
+  line-height: 1;
+}
+
+.sm-toggle-line {
+  display: block;
+  height: 1em;
+  line-height: 1;
+}
+
+/* Plus/X Icon */
+.sm-icon {
+  position: relative;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  will-change: transform;
+}
+
+.sm-icon-line {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 100%;
+  height: 2px;
+  background: currentColor;
+  border-radius: 2px;
+  transform: translate(-50%, -50%);
+  will-change: transform;
+}
+
+/* Pre-layers (animated backgrounds) */
+.sm-prelayers {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: clamp(320px, 55vw, 650px);
+  pointer-events: none;
+  z-index: 998;
+}
+
+[data-position='left'] .sm-prelayers {
+  right: auto;
+  left: 0;
+}
+
+.sm-prelayer {
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 100%;
+  transform: translateX(0);
+}
+
+/* Menu Panel */
+.staggered-menu-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: clamp(320px, 55vw, 650px);
+  height: 100%;
+  height: 100dvh;
+  background: linear-gradient(180deg, #0a0a0f 0%, #111118 100%);
+  display: flex;
+  flex-direction: column;
+  padding: 8rem 3.5rem 3rem 3.5rem;
+  overflow-y: auto;
+  z-index: 999;
+  -webkit-overflow-scrolling: touch;
+}
+
+[data-position='left'] .staggered-menu-panel {
+  right: auto;
+  left: 0;
+}
+
+.sm-panel-inner {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Menu List */
+.sm-panel-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  margin: auto;
+}
+
+.sm-panel-itemWrap {
+  position: relative;
+  overflow: hidden;
+  line-height: 1;
+}
+
+.sm-panel-item {
+  position: relative;
+  color: #fff;
+  font-weight: 700;
+  font-size: clamp(2.5rem, 6vw, 4rem);
+  cursor: pointer;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+  text-transform: uppercase;
+  transition: color 0.3s ease;
+  display: inline-block;
+  text-decoration: none;
+  padding-right: 1.4em;
+}
+
+.sm-panel-item:hover {
+  color: var(--sm-accent, #fff);
+}
+
+.sm-panel-item:focus-visible {
+  outline: 2px solid var(--sm-accent, #fff);
+  outline-offset: 4px;
+}
+
+.sm-panel-itemLabel {
+  display: inline-block;
+  will-change: transform;
+  transform-origin: 50% 100%;
+}
+
+/* Item numbering */
+.sm-panel-list[data-numbering] {
+  counter-reset: smItem;
+}
+
+.sm-panel-list[data-numbering] .sm-panel-item::after {
+  counter-increment: smItem;
+  content: counter(smItem, decimal-leading-zero);
+  position: absolute;
+  top: 0.15em;
+  right: 0;
+  font-size: 0.35em;
+  font-weight: 400;
+  color: var(--sm-accent, #fff);
+  opacity: var(--sm-num-opacity, 0);
+  letter-spacing: 0;
+  pointer-events: none;
+  user-select: none;
+  transition: opacity 0.3s ease;
+}
+
+/* Socials Section */
+.sm-socials {
+  margin-top: auto;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.sm-socials-title {
+  margin: 0;
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.sm-socials-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.sm-socials-link {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #fff;
+  text-decoration: none;
+  position: relative;
+  padding: 4px 0;
+  display: inline-block;
+  transition: color 0.3s ease, opacity 0.3s ease;
+}
+
+.sm-socials-link::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--sm-accent, #fff);
+  transition: width 0.3s ease;
+}
+
+.sm-socials-link:hover::after {
+  width: 100%;
+}
+
+.sm-socials-list:hover .sm-socials-link {
+  opacity: 0.4;
+}
+
+.sm-socials-list:hover .sm-socials-link:hover {
+  opacity: 1;
+  color: var(--sm-accent, #fff);
+}
+
+.sm-socials-link:focus-visible {
+  outline: 2px solid var(--sm-accent, #fff);
+  outline-offset: 3px;
+}
+
+/* Click-away overlay */
+.sm-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 997;
+  cursor: pointer;
+}
+
+/* ============================================
+   RESPONSIVE STYLES
+   ============================================ */
+
+/* Tablets and smaller laptops */
+@media (max-width: 1024px) {
+  .sm-prelayers,
+  .staggered-menu-panel {
+    width: 100%;
+  }
+
+  .staggered-menu-panel {
+    padding: 7rem 2.5rem 2rem 2.5rem;
+  }
+
+  .sm-panel-item {
+    font-size: clamp(2.5rem, 10vw, 4rem);
+  }
+}
+
+/* Mobile */
+@media (max-width: 640px) {
+  .sm-toggle-textWrap {
+    display: none;
+  }
+
+  .sm-icon {
+    width: 18px;
+    height: 18px;
+    flex: 0 0 18px;
+  }
+
+  .sm-icon-line {
+    height: 2.5px;
+  }
+
+  .staggered-menu-panel {
+    padding: 6rem 2rem 2rem 2rem;
+  }
+
+  .sm-panel-item {
+    font-size: clamp(2rem, 12vw, 3rem);
+    padding-right: 1.8em;
+  }
+
+  .sm-panel-list[data-numbering] .sm-panel-item::after {
+    font-size: 0.4em;
+  }
+
+  .sm-socials-title {
+    font-size: 0.75rem;
+  }
+
+  .sm-socials-link {
+    font-size: 0.9rem;
+  }
+
+  .sm-socials-list {
+    gap: 1rem;
+  }
+}
+
+/* Very small screens */
+@media (max-width: 380px) {
+  .sm-panel-item {
+    font-size: 1.5rem;
+  }
+}
+
+/* ============================================
+   ANIMATION ENHANCEMENTS
+   ============================================ */
+
+/* Smooth hover effects on menu items */
+.sm-panel-item {
+  position: relative;
+}
+
+.sm-panel-item::before {
+  content: '';
+  position: absolute;
+  left: -1rem;
+  top: 50%;
+  transform: translateY(-50%) scaleX(0);
+  width: 4px;
+  height: 60%;
+  background: var(--sm-accent, #fff);
+  border-radius: 2px;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: left center;
+}
+
+.sm-panel-item:hover::before {
+  transform: translateY(-50%) scaleX(1);
+}
+
+/* Reduce motion for accessibility */
+@media (prefers-reduced-motion: reduce) {
+  .sm-toggle,
+  .sm-panel-item,
+  .sm-socials-link,
+  .sm-icon,
+  .sm-icon-line {
+    transition: none !important;
+  }
+
+  .sm-panel-item::before,
+  .sm-socials-link::after {
+    transition: none !important;
+  }
+}
+
+/* ============================================
+   DARK/LIGHT MODE COMPATIBILITY
+   ============================================ */
+
+/* The menu is designed for dark backgrounds */
+/* Panel always stays dark for contrast */
+
+.staggered-menu-panel {
+  color-scheme: dark;
+}
+
+/* Scrollbar styling for the panel */
+.staggered-menu-panel::-webkit-scrollbar {
+  width: 4px;
+}
+
+.staggered-menu-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.staggered-menu-panel::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 2px;
+}
+
+.staggered-menu-panel::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

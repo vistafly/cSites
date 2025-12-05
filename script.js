@@ -61,36 +61,57 @@
     // === NAVIGATION ===
     var Navigation = function() {
         this.nav = $('.navbar');
+        if (!this.nav) {
+            console.warn('Navbar not found');
+            return;
+        }
+        
         this.hamburger = $('.hamburger');
         this.menu = $('.nav-menu');
         this.links = $$('.nav-link');
-        this.sections = $$('section[id]');
-        this.init();
+        this.sections = null;
+        this.isScrolled = false;
+        this.scrollTicking = false;
+        this.activeLinkTicking = false;
+        
+        var self = this;
+        requestAnimationFrame(function() {
+            self.init();
+        });
     };
 
     Navigation.prototype.init = function() {
         this.setupSmoothScroll();
         this.setupMobileMenu();
-        this.setupScrollEffects();
-        this.setupActiveLinks();
+        
+        var self = this;
+        setTimeout(function() {
+            self.setupScrollEffects();
+            self.setupActiveLinks();
+        }, 100);
     };
 
     Navigation.prototype.setupSmoothScroll = function() {
         var self = this;
-        $$('a[href^="#"]').forEach(function(anchor) {
-            anchor.addEventListener('click', function(e) {
-                e.preventDefault();
-                var targetId = anchor.getAttribute('href');
-                var target = $(targetId);
-
-                if (target) {
-                    var navHeight = self.nav.offsetHeight;
-                    var targetPosition = target.offsetTop - navHeight;
-                    window.scrollTo({ top: targetPosition, behavior: 'smooth' });
-                    self.closeMobileMenu();
-                }
-            });
-        });
+        var anchors = $$('a[href^="#"]');
+        
+        for (var i = 0; i < anchors.length; i++) {
+            (function(anchor) {
+                anchor.addEventListener('click', function(e) {
+                    var targetId = anchor.getAttribute('href');
+                    if (!targetId || targetId === '#') return;
+                    
+                    var target = $(targetId);
+                    if (target) {
+                        e.preventDefault();
+                        var navHeight = self.nav ? self.nav.offsetHeight : 0;
+                        var targetPosition = target.offsetTop - navHeight;
+                        window.scrollTo({ top: targetPosition, behavior: 'smooth' });
+                        self.closeMobileMenu();
+                    }
+                });
+            })(anchors[i]);
+        }
     };
 
     Navigation.prototype.setupMobileMenu = function() {
@@ -102,27 +123,29 @@
         });
 
         document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape' && self.menu.classList.contains('active')) {
+            if (e.key === 'Escape' && self.menu && self.menu.classList.contains('active')) {
                 self.closeMobileMenu();
             }
         });
 
         document.addEventListener('click', function(e) {
-            if (self.menu.classList.contains('active') && 
+            if (self.menu && self.menu.classList.contains('active') && 
                 !self.menu.contains(e.target) && 
-                !self.hamburger.contains(e.target)) {
+                self.hamburger && !self.hamburger.contains(e.target)) {
                 self.closeMobileMenu();
             }
         });
     };
 
     Navigation.prototype.toggleMobileMenu = function() {
+        if (!this.menu || !this.hamburger) return;
         this.menu.classList.toggle('active');
         this.hamburger.classList.toggle('active');
         document.body.style.overflow = this.menu.classList.contains('active') ? 'hidden' : '';
     };
 
     Navigation.prototype.closeMobileMenu = function() {
+        if (!this.menu || !this.hamburger) return;
         this.menu.classList.remove('active');
         this.hamburger.classList.remove('active');
         document.body.style.overflow = '';
@@ -130,22 +153,48 @@
 
     Navigation.prototype.setupScrollEffects = function() {
         var self = this;
-        var handleScroll = throttle(function() {
-            var scrollY = window.pageYOffset;
-            if (scrollY > 100) {
+        if (!this.nav) return;
+        
+        var scrollThreshold = 100;
+        var hysteresis = 20;
+        
+        var handleScroll = function() {
+            var scrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+            
+            if (!self.isScrolled && scrollY > scrollThreshold) {
+                self.isScrolled = true;
                 self.nav.classList.add('scrolled');
-            } else {
+            } else if (self.isScrolled && scrollY < (scrollThreshold - hysteresis)) {
+                self.isScrolled = false;
                 self.nav.classList.remove('scrolled');
             }
-        }, 100);
+            self.scrollTicking = false;
+        };
+        
+        var onScroll = function() {
+            if (!self.scrollTicking) {
+                self.scrollTicking = true;
+                requestAnimationFrame(handleScroll);
+            }
+        };
 
-        window.addEventListener('scroll', handleScroll, { passive: true });
-        handleScroll();
+        window.addEventListener('scroll', onScroll, { passive: true });
+        
+        var initialScrollY = window.pageYOffset || document.documentElement.scrollTop || 0;
+        if (initialScrollY > scrollThreshold) {
+            this.isScrolled = true;
+            this.nav.classList.add('scrolled');
+        }
     };
 
     Navigation.prototype.setupActiveLinks = function() {
         var self = this;
-        var updateActiveLink = throttle(function() {
+        if (!this.links || this.links.length === 0) return;
+        
+        this.sections = $$('section[id]');
+        if (!this.sections || this.sections.length === 0) return;
+        
+        var updateActiveLink = function() {
             var scrollPosition = window.pageYOffset + window.innerHeight / 2;
             var documentHeight = document.documentElement.scrollHeight;
             var windowHeight = window.innerHeight;
@@ -154,25 +203,37 @@
             if (window.pageYOffset + windowHeight >= documentHeight - 50) {
                 current = 'contact';
             } else {
-                self.sections.forEach(function(section) {
+                for (var i = 0; i < self.sections.length; i++) {
+                    var section = self.sections[i];
                     var sectionTop = section.offsetTop;
                     var sectionHeight = section.offsetHeight;
                     if (scrollPosition >= sectionTop && scrollPosition < sectionTop + sectionHeight) {
                         current = section.getAttribute('id');
+                        break;
                     }
-                });
+                }
             }
 
-            self.links.forEach(function(link) {
+            for (var j = 0; j < self.links.length; j++) {
+                var link = self.links[j];
                 link.classList.remove('active');
                 if (link.getAttribute('href') === '#' + current) {
                     link.classList.add('active');
                 }
-            });
-        }, 100);
+            }
+            self.activeLinkTicking = false;
+        };
+        
+        var onScrollForLinks = function() {
+            if (!self.activeLinkTicking) {
+                self.activeLinkTicking = true;
+                requestAnimationFrame(updateActiveLink);
+            }
+        };
 
-        window.addEventListener('scroll', updateActiveLink, { passive: true });
-        updateActiveLink();
+        window.addEventListener('scroll', onScrollForLinks, { passive: true });
+        
+        setTimeout(updateActiveLink, 200);
     };
 
 // === ROTATING TEXT ANIMATION - ENHANCED ===
