@@ -222,7 +222,7 @@ RotatingText.prototype.rotate = function() {
         
         // Add active class to next
         self.texts[self.currentIndex].classList.add('active');
-    }, 5000);
+    }, 7000);
 };
 
     // === SCROLL ANIMATIONS ===

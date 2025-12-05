@@ -53,41 +53,82 @@
     </nav>
 
     <!-- Hero Section -->
-    <section id="home" class="hero">
-        <div class="hero-bg-layers">
-            <div class="layer layer-1"></div>
-            <div class="layer layer-2"></div>
+<section id="home" class="hero">
+    <!-- Threads background - MUST be first -->
+    <div id="hero-threads-root"></div>
+    
+    <!-- Existing background layers -->
+    <div class="hero-bg-layers">
+        <div class="layer layer-1"></div>
+        <div class="layer layer-2"></div>
+    </div>
+    
+    <!-- Content on top -->
+    <div class="hero-content">
+        <div class="hero-badge">Crafted with precision</div>
+        <h1 class="hero-title">
+            <span class="title-line">Design that</span>
+            <span class="title-line gradient-text">
+                <span class="rotating-text-wrapper">
+                    <span class="rotating-text active">sparks your vision</span>
+<span class="rotating-text">ignites possibility</span>
+<span class="rotating-text">unlocks potential</span>
+<span class="rotating-text">dreams into reality</span>
+<span class="rotating-text">crafts experiences</span>
+<span class="rotating-text">builds your story</span>
+<span class="rotating-text">shapes your journey</span>
+<span class="rotating-text">elevates your brand</span>
+<span class="rotating-text">amplifies your voice</span>
+<span class="rotating-text">magnetizes clients</span>
+<span class="rotating-text">captivates audiences</span>
+<span class="rotating-text">drives engagement</span>
+<span class="rotating-text">fuels your growth</span>
+<span class="rotating-text">accelerates success</span>
+<span class="rotating-text">multiplies impact</span>
+<span class="rotating-text">powers your reach</span>
+<span class="rotating-text">expands your empire</span>
+<span class="rotating-text">conquers challenges</span>
+<span class="rotating-text">solves complexities</span>
+<span class="rotating-text">delivers solutions</span>
+<span class="rotating-text">exceeds benchmarks</span>
+<span class="rotating-text">shatters limits</span>
+<span class="rotating-text">redefines standards</span>
+<span class="rotating-text">pioneers innovation</span>
+<span class="rotating-text">leads industries</span>
+<span class="rotating-text">dominates markets</span>
+<span class="rotating-text">inspires movements</span>
+<span class="rotating-text">creates legacies</span>
+<span class="rotating-text">builds empires</span>
+<span class="rotating-text">generates revenue</span>
+<span class="rotating-text">maximizes returns</span>
+<span class="rotating-text">scales infinitely</span>
+<span class="rotating-text">compounds growth</span>
+<span class="rotating-text">sustains momentum</span>
+<span class="rotating-text">secures your future</span>
+<span class="rotating-text">defines tomorrow</span>
+<span class="rotating-text">architects reality</span>
+<span class="rotating-text">manifests destiny</span>
+<span class="rotating-text">transcends limits</span>
+                </span>
+            </span>
+        </h1>
+        <p class="hero-description">
+            We architect digital experiences with obsessive attention to detail,<br>
+            where every interaction feels effortless.
+        </p>
+        <div class="hero-cta">
+            <a href="#portfolio" class="btn-primary">
+                <span>Explore our work</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M8 3L8 13M8 13L13 8M8 13L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+            </a>
         </div>
-        <div class="hero-content">
-            <div class="hero-badge">Crafted with precision</div>
-            <h1 class="hero-title">
-    <span class="title-line">Design that</span>
-    <span class="title-line gradient-text">
-        <span class="rotating-text-wrapper">
-            <span class="rotating-text active">transcends pixels</span>
-            <span class="rotating-text">defies expectations</span>
-            <span class="rotating-text">drives results</span>
-            <span class="rotating-text">inspires action</span>
-        </span>
-    </span>
-</h1>
-            <p class="hero-description">
-                We architect digital experiences with obsessive attention to detail,<br>
-                where every interaction feels effortless.
-            </p>
-            <div class="hero-cta">
-                <a href="#portfolio" class="btn-primary">
-                    <span>Explore our work</span>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M8 3L8 13M8 13L13 8M8 13L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                    </svg>
-                </a>
-            </div>
-        </div>
-        <div class="scroll-prompt">
-            <div class="scroll-line"></div>
-        </div>
-    </section>
+    </div>
+    <div class="scroll-prompt">
+        <div class="scroll-line"></div>
+    </div>
+</section>
 
     <!-- Philosophy Section -->
     <section id="philosophy" class="philosophy">
@@ -701,12 +742,18 @@
     </div>
 </div>
     <!-- Firebase Configuration -->
-    <script type="module" src="./firebase-config.js"></script>
-    
-    <!-- React Portfolio Dome -->
-    <script type="module" src="./portfolio-dome.jsx"></script>
-    
-    <!-- Main Script -->
-    <script type="module" src="./script.js"></script>
+<script type="module" src="./firebase-config.js"></script>
+
+<!-- ADD THIS: Global Mouse Tracker -->
+<script type="module" src="./MouseTracker.js"></script>
+
+<!-- Hero Threads Background -->
+<script type="module" src="./HeroThreads.jsx"></script>
+
+<!-- React Portfolio Dome -->
+<script type="module" src="./portfolio-dome.jsx"></script>
+
+<!-- Main Script -->
+<script type="module" src="./script.js"></script>
 </body>
 </html>

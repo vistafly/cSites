@@ -10,13 +10,14 @@
     "deploy": "vite build && echo 'Build complete! Upload the dist folder to GitHub Pages'"
   },
   "devDependencies": {
-    "vite": "^5.0.0",
-    "@vitejs/plugin-react": "^4.2.1"
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.0.0"
   },
   "dependencies": {
+    "@use-gesture/react": "^10.3.0",
     "firebase": "^10.7.1",
+    "ogl": "^1.0.11",
     "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "@use-gesture/react": "^10.3.0"
+    "react-dom": "^18.2.0"
   }
 }
