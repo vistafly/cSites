@@ -123,44 +123,18 @@
             </a>
         </div>
     </div>
-    <div class="scroll-prompt">
-        <div class="scroll-line"></div>
-    </div>
 </section>
 
     <!-- Philosophy Section -->
-    <section id="philosophy" class="philosophy">
-        <div class="container">
-            <div class="section-eyebrow">Our Approach</div>
-            <h2 class="section-title">Precision meets creativity</h2>
-            
-            <div class="philosophy-grid">
-                <div class="philosophy-card">
-                    <div class="card-number">01</div>
-                    <div class="card-content">
-                        <h3>Minimal Interface</h3>
-                        <p>Every element serves a purpose. We remove the unnecessary to let your content breathe.</p>
-                    </div>
-                </div>
-
-                <div class="philosophy-card">
-                    <div class="card-number">02</div>
-                    <div class="card-content">
-                        <h3>Fluid Motion</h3>
-                        <p>Transitions that feel natural. Animations that guide, never distract.</p>
-                    </div>
-                </div>
-
-                <div class="philosophy-card">
-                    <div class="card-number">03</div>
-                    <div class="card-content">
-                        <h3>Performance First</h3>
-                        <p>Lightning fast, silky smooth. Optimized to feel instant on every device.</p>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+<section id="philosophy" class="philosophy">
+    <div class="container">
+        <div class="section-eyebrow">Our Approach</div>
+        <h2 class="section-title">Precision meets creativity</h2>
+        
+        <!-- React Carousel Mount Point -->
+        <div id="philosophy-carousel-root"></div>
+    </div>
+</section>
 
     <!-- Portfolio Section -->
     <!-- Portfolio Section - 3D Dome Gallery (React) -->
@@ -169,7 +143,7 @@
             <div class="portfolio-header">
                 <div class="section-eyebrow">Selected Work</div>
                 <h2 class="section-title">Personal Project Ecosystem</h2>
-                <p class="portfolio-subtitle">Drag to explore • Click to view</p>
+                <p class="portfolio-subtitle">Drag to explore • Press & Hold</p>
             </div>
 
             <!-- React Dome Gallery Mount Point -->
@@ -753,6 +727,9 @@
 
 <!-- Staggered Menu (React Component) -->
 <script type="module" src="./staggered-menu-mount.jsx"></script>
+
+<script type="module" src="./philosophy-carousel-mount.jsx"></script>
+
 
 <!-- Main Script -->
 <script type="module" src="./script.js"></script>

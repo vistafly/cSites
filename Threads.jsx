@@ -160,9 +160,41 @@ class PerformanceMonitor {
   }
 }
 
+// Get responsive scaling factors based on viewport
+function getResponsiveScaling() {
+  const width = window.innerWidth;
+  const height = window.innerHeight;
+  const aspectRatio = width / height;
+  
+  // Distance scaling - tighter spacing on smaller screens
+  let distanceScale = 1.0;
+  if (width < 480) {
+    distanceScale = 0.4; // Much tighter on mobile
+  } else if (width < 768) {
+    distanceScale = 0.55; // Tablet
+  } else if (width < 1024) {
+    distanceScale = 0.7; // Small laptop
+  } else if (width < 1440) {
+    distanceScale = 0.85; // Standard laptop
+  }
+  
+  // Amplitude scaling - reduce wave intensity on smaller screens
+  let amplitudeScale = 1.0;
+  if (width < 480) {
+    amplitudeScale = 0.6; // Less wavy on mobile
+  } else if (width < 768) {
+    amplitudeScale = 0.75;
+  } else if (width < 1024) {
+    amplitudeScale = 0.85;
+  }
+  
+  return { distanceScale, amplitudeScale };
+}
+
 // Enhanced device detection with GPU profiling
 function getDeviceProfile() {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const cores = navigator.hardwareConcurrency || 4;
   const memory = navigator.deviceMemory || 4; // GB
   
@@ -185,14 +217,18 @@ function getDeviceProfile() {
     // Ignore errors
   }
   
+  // Touch-specific smoothing (higher = smoother but slightly more lag)
+  const touchSmoothing = isTouch ? 0.12 : 0.06;
+  
   // Ultra-low end: Old laptops, budget devices
   if ((cores < 4 || memory < 4) && gpuTier === 'low') {
     console.log('🎮 Threads: Ultra-low profile (15 lines)');
     return {
       lineCount: 15,
       amplitude: 0.8,
-      smoothing: 0.08,
-      quality: 'ultra-low'
+      smoothing: touchSmoothing,
+      quality: 'ultra-low',
+      isTouch
     };
   }
   
@@ -202,8 +238,9 @@ function getDeviceProfile() {
     return {
       lineCount: 20,
       amplitude: 1.0,
-      smoothing: 0.07,
-      quality: 'low'
+      smoothing: touchSmoothing,
+      quality: 'low',
+      isTouch
     };
   }
   
@@ -213,8 +250,9 @@ function getDeviceProfile() {
     return {
       lineCount: 25,
       amplitude: 0.8,
-      smoothing: 0.08,
-      quality: 'mobile'
+      smoothing: touchSmoothing,
+      quality: 'mobile',
+      isTouch
     };
   }
   
@@ -223,8 +261,9 @@ function getDeviceProfile() {
   return {
     lineCount: 40,
     amplitude: 1.5,
-    smoothing: 0.06,
-    quality: 'desktop'
+    smoothing: touchSmoothing,
+    quality: 'desktop',
+    isTouch
   };
 }
 
@@ -243,6 +282,7 @@ const Threads = ({
   const perfMonitor = useRef(new PerformanceMonitor());
   const qualityLevel = useRef(deviceProfile.current.lineCount);
   const isVisible = useRef(true);
+  const responsiveScaling = useRef(getResponsiveScaling());
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -268,6 +308,11 @@ const Threads = ({
     container.appendChild(gl.canvas);
 
     const geometry = new Triangle(gl);
+    
+    // Apply responsive scaling
+    const scaledAmplitude = amplitude * deviceProfile.current.amplitude * responsiveScaling.current.amplitudeScale;
+    const scaledDistance = distance * responsiveScaling.current.distanceScale;
+    
     const program = new Program(gl, {
       vertex: vertexShader,
       fragment: fragmentShader,
@@ -277,8 +322,8 @@ const Threads = ({
           value: new Color(gl.canvas.width, gl.canvas.height, gl.canvas.width / gl.canvas.height)
         },
         uColor: { value: new Color(...color) },
-        uAmplitude: { value: amplitude * deviceProfile.current.amplitude },
-        uDistance: { value: distance },
+        uAmplitude: { value: scaledAmplitude },
+        uDistance: { value: scaledDistance },
         uMouse: { value: new Float32Array([0.5, 0.5]) },
         u_line_count: { value: qualityLevel.current }
       }
@@ -293,8 +338,23 @@ const Threads = ({
       program.uniforms.iResolution.value.r = clientWidth;
       program.uniforms.iResolution.value.g = clientHeight;
       program.uniforms.iResolution.value.b = clientWidth / clientHeight;
+      
+      // Update responsive scaling on resize
+      responsiveScaling.current = getResponsiveScaling();
+      const newScaledAmplitude = amplitude * deviceProfile.current.amplitude * responsiveScaling.current.amplitudeScale;
+      const newScaledDistance = distance * responsiveScaling.current.distanceScale;
+      program.uniforms.uAmplitude.value = newScaledAmplitude;
+      program.uniforms.uDistance.value = newScaledDistance;
     }
-    window.addEventListener('resize', resize);
+    
+    // Debounced resize for better performance
+    let resizeTimeout;
+    const debouncedResize = () => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(resize, 150);
+    };
+    
+    window.addEventListener('resize', debouncedResize);
     resize();
 
     // Visibility detection - pause when not visible (huge battery saver)
@@ -310,94 +370,116 @@ const Threads = ({
     );
     observer.observe(container);
 
-    // Enhanced smooth tracking with velocity damping
-    let currentMouse = [0.5, 0.5];
-    let velocity = [0, 0];
-    let lastTime = performance.now();
-    let frameCount = 0;
-    const qualityCheckInterval = 120; // Check performance every 2 seconds
+    // Enhanced smooth tracking with velocity damping and re-entry smoothing
+let currentMouse = [0.5, 0.5];
+let targetMouse = [0.5, 0.5];
+let velocity = [0, 0];
+let lastTime = performance.now();
+let frameCount = 0;
+let reEntryFrames = 0; // Track frames since re-entry
+const qualityCheckInterval = 120; // Check performance every 2 seconds
+const RE_ENTRY_SMOOTH_FRAMES = 30; // Extra smoothing for 30 frames after re-entry
 
-    function update(t) {
-      // Don't render if not visible
-      if (!isVisible.current) {
-        animationFrameId.current = null;
-        return;
-      }
+function update(t) {
+  // Don't render if not visible
+  if (!isVisible.current) {
+    animationFrameId.current = null;
+    return;
+  }
 
-      const deltaTime = Math.min((t - lastTime) / 16.67, 2); // Cap at 2x for consistency
-      lastTime = t;
-      
-      // Performance monitoring (silent, adaptive)
-      perfMonitor.current.tick();
-      frameCount++;
+  const deltaTime = Math.min((t - lastTime) / 16.67, 2); // Cap at 2x for consistency
+  lastTime = t;
+  
+  // Performance monitoring (silent, adaptive)
+  perfMonitor.current.tick();
+  frameCount++;
 
-      // Adaptive quality adjustment (keeps visual feel, just reduces line count if needed)
-      if (frameCount >= qualityCheckInterval) {
-        frameCount = 0;
-        
-        // Reduce quality if struggling
-        if (perfMonitor.current.isPerformancePoor() && qualityLevel.current > 10) {
-          qualityLevel.current = Math.max(10, qualityLevel.current - 5);
-          program.uniforms.u_line_count.value = qualityLevel.current;
-          console.log(`⚠️ Threads: Reduced to ${qualityLevel.current} lines (low FPS)`);
-        }
-        // Restore quality if performance recovers
-        else if (perfMonitor.current.isPerformanceGood() && 
-                 qualityLevel.current < deviceProfile.current.lineCount) {
-          qualityLevel.current = Math.min(deviceProfile.current.lineCount, qualityLevel.current + 3);
-          program.uniforms.u_line_count.value = qualityLevel.current;
-          console.log(`✅ Threads: Increased to ${qualityLevel.current} lines (good FPS)`);
-        }
-      }
-      
-      if (enableMouseInteraction && externalMouseRef) {
-        // Triple-stage smoothing for ultra-smooth motion
-        const targetX = externalMouseRef.current.x;
-        const targetY = externalMouseRef.current.y;
-        
-        // Calculate velocity
-        const vx = (targetX - currentMouse[0]) * deltaTime;
-        const vy = (targetY - currentMouse[1]) * deltaTime;
-        
-        // Smooth velocity (prevents jitter)
-        velocity[0] += (vx - velocity[0]) * 0.3;
-        velocity[1] += (vy - velocity[1]) * 0.3;
-        
-        // Ultra-smooth interpolation with easing
-        const smoothing = deviceProfile.current.smoothing;
-        const dx = targetX - currentMouse[0];
-        const dy = targetY - currentMouse[1];
-        
-        // Apply easing for organic motion
-        currentMouse[0] += dx * smoothing + velocity[0] * 0.1;
-        currentMouse[1] += dy * smoothing + velocity[1] * 0.1;
-        
-        // Clamp to valid range
-        currentMouse[0] = Math.max(0, Math.min(1, currentMouse[0]));
-        currentMouse[1] = Math.max(0, Math.min(1, currentMouse[1]));
-        
-        program.uniforms.uMouse.value[0] = currentMouse[0];
-        program.uniforms.uMouse.value[1] = currentMouse[1];
-      } else {
-        // Smooth return to center when not interacting
-        currentMouse[0] += (0.5 - currentMouse[0]) * 0.02;
-        currentMouse[1] += (0.5 - currentMouse[1]) * 0.02;
-        velocity = [0, 0];
-        
-        program.uniforms.uMouse.value[0] = currentMouse[0];
-        program.uniforms.uMouse.value[1] = currentMouse[1];
-      }
-      
-      program.uniforms.iTime.value = t * 0.001;
-
-      renderer.render({ scene: mesh });
-      animationFrameId.current = requestAnimationFrame(update);
+  // Adaptive quality adjustment (keeps visual feel, just reduces line count if needed)
+  if (frameCount >= qualityCheckInterval) {
+    frameCount = 0;
+    
+    // Reduce quality if struggling
+    if (perfMonitor.current.isPerformancePoor() && qualityLevel.current > 10) {
+      qualityLevel.current = Math.max(10, qualityLevel.current - 5);
+      program.uniforms.u_line_count.value = qualityLevel.current;
+      console.log(`⚠️ Threads: Reduced to ${qualityLevel.current} lines (low FPS)`);
     }
-    animationFrameId.current = requestAnimationFrame(update);
+    // Restore quality if performance recovers
+    else if (perfMonitor.current.isPerformanceGood() && 
+             qualityLevel.current < deviceProfile.current.lineCount) {
+      qualityLevel.current = Math.min(deviceProfile.current.lineCount, qualityLevel.current + 3);
+      program.uniforms.u_line_count.value = qualityLevel.current;
+      console.log(`✅ Threads: Increased to ${qualityLevel.current} lines (good FPS)`);
+    }
+  }
+  
+  if (enableMouseInteraction && externalMouseRef) {
+    // Get target position from external ref
+    const newTargetX = externalMouseRef.current.x;
+    const newTargetY = externalMouseRef.current.y;
+    
+    // Detect large jumps (re-entry detection)
+    const jumpX = Math.abs(newTargetX - targetMouse[0]);
+    const jumpY = Math.abs(newTargetY - targetMouse[1]);
+    const isLargeJump = jumpX > 0.3 || jumpY > 0.3;
+    
+    // If large jump detected, start re-entry smoothing
+    if (isLargeJump && reEntryFrames === 0) {
+      reEntryFrames = RE_ENTRY_SMOOTH_FRAMES;
+    }
+    
+    targetMouse[0] = newTargetX;
+    targetMouse[1] = newTargetY;
+    
+    // Calculate smoothing factor (extra smooth during re-entry)
+    let smoothing = deviceProfile.current.smoothing;
+    if (reEntryFrames > 0) {
+      // Gradual transition from super smooth to normal
+      const reEntryProgress = reEntryFrames / RE_ENTRY_SMOOTH_FRAMES;
+      smoothing = smoothing * (0.2 + 0.8 * (1 - reEntryProgress)); // Start at 20% speed, ramp to 100%
+      reEntryFrames--;
+    }
+    
+    // Calculate delta
+    const dx = targetMouse[0] - currentMouse[0];
+    const dy = targetMouse[1] - currentMouse[1];
+    
+    // Update velocity with damping (prevents overshooting)
+    velocity[0] += (dx * 0.3 - velocity[0]) * 0.4;
+    velocity[1] += (dy * 0.3 - velocity[1]) * 0.4;
+    
+    // Apply smoothed position with velocity
+    currentMouse[0] += dx * smoothing + velocity[0] * 0.15;
+    currentMouse[1] += dy * smoothing + velocity[1] * 0.15;
+    
+    // Clamp to valid range
+    currentMouse[0] = Math.max(0, Math.min(1, currentMouse[0]));
+    currentMouse[1] = Math.max(0, Math.min(1, currentMouse[1]));
+    
+    program.uniforms.uMouse.value[0] = currentMouse[0];
+    program.uniforms.uMouse.value[1] = currentMouse[1];
+  } else {
+    // Smooth return to center when not interacting
+    const returnSpeed = 0.02;
+    currentMouse[0] += (0.5 - currentMouse[0]) * returnSpeed;
+    currentMouse[1] += (0.5 - currentMouse[1]) * returnSpeed;
+    velocity = [0, 0];
+    reEntryFrames = 0; // Reset re-entry counter when not interacting
+    
+    program.uniforms.uMouse.value[0] = currentMouse[0];
+    program.uniforms.uMouse.value[1] = currentMouse[1];
+  }
+  
+  program.uniforms.iTime.value = t * 0.001;
+
+  renderer.render({ scene: mesh });
+  animationFrameId.current = requestAnimationFrame(update);
+}
 
     return () => {
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-      window.removeEventListener('resize', resize);
+      window.removeEventListener('resize', debouncedResize);
+      clearTimeout(resizeTimeout);
       observer.disconnect();
       if (container.contains(gl.canvas)) container.removeChild(gl.canvas);
       // Properly dispose WebGL context

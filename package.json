@@ -16,7 +16,9 @@
   "dependencies": {
     "@use-gesture/react": "^10.3.0",
     "firebase": "^10.7.1",
+    "framer-motion": "^12.23.25",
     "gsap": "^3.13.0",
+    "motion": "^12.23.25",
     "ogl": "^1.0.11",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"

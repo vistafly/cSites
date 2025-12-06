@@ -2,10 +2,57 @@
   position: relative;
   width: 100%;
   height: 100%;
+  /* Prevent touch scrolling/zooming issues */
+  touch-action: none;
+  /* Prevent text selection */
+  user-select: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  /* Prevent tap highlight on mobile */
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent pull-to-refresh on mobile browsers */
+  overscroll-behavior: none;
+  /* Smooth rendering */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 .threads-container canvas {
   display: block;
   width: 100%;
   height: 100%;
+  /* Prevent touch issues */
+  touch-action: none;
+  /* GPU acceleration */
+  will-change: transform;
+  transform: translateZ(0);
+  -webkit-transform: translateZ(0);
+  /* Prevent image drag */
+  -webkit-user-drag: none;
+  -khtml-user-drag: none;
+  -moz-user-drag: none;
+  -o-user-drag: none;
+}
+
+/* Prevent iOS bounce/overscroll when threads are in hero section */
+.threads-container,
+.threads-container * {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .threads-container canvas {
+    /* Ensure crisp rendering on mobile */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+  }
+}
+
+/* High DPI displays */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+  .threads-container canvas {
+    image-rendering: -webkit-optimize-contrast;
+  }
 }
