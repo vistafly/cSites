@@ -97,9 +97,3 @@
     min-height: 700px;
   }
 }
-
-@media (max-width: 480px) {
-  #philosophy-carousel-root {
-    min-height: 650px;
-  }
-}

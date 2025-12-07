@@ -17,12 +17,13 @@ const ZOOM_EASING = [0.19, 1, 0.22, 1];
 // ============================================
 const getResponsiveWidth = () => {
   const width = window.innerWidth;
+  const zoomFactor = ZOOM_END_SCALE; // Account for the zoom
   
-  if (width >= 1024) return 500;        // Desktop
-  if (width >= 768) return width * 0.65; // Tablet landscape
-  if (width >= 540) return width * 0.75; // Tablet portrait
-  if (width >= 430) return width * 0.85; // Large mobile
-  return width * 0.90;                   // Small mobile
+  if (width >= 1024) return 500;                      // Desktop
+  if (width >= 768) return (width * 0.65) / zoomFactor; // Tablet landscape
+  if (width >= 540) return (width * 0.75) / zoomFactor; // Tablet portrait
+  if (width >= 430) return (width * 0.85) / zoomFactor; // Large mobile
+  return (width * 0.90) / zoomFactor;                   // Small mobile
 };
 // ============================================
 

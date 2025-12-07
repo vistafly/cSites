@@ -127,6 +127,31 @@
   margin-top: 55px;
 }
 
+/* Responsive margin adjustments */
+@media (max-width: 768px) {
+  .carousel-indicators-container {
+    margin-top: 45px;
+  }
+}
+
+@media (max-width: 540px) {
+  .carousel-indicators-container {
+    margin-top: 35px;
+  }
+}
+
+@media (max-width: 430px) {
+  .carousel-indicators-container {
+    margin-top: 28px;
+  }
+}
+
+@media (max-width: 390px) {
+  .carousel-indicators-container {
+    margin-top: 24px;
+  }
+}
+
 .carousel-indicators-container.round {
   position: absolute;
   bottom: 3em;
