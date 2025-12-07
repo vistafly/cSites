@@ -2054,7 +2054,7 @@ section {
     
     .section-title {
         font-size: 2rem;
-        margin-bottom: 1rem;
+        margin-bottom: 0rem;
     }
     
     .portfolio-header {
@@ -5013,4 +5013,9 @@ body.modal-open .custom-cursor {
 .download-doc-btn {
     width: 100%;
     margin-top: 1rem;
+}
+.download-doc-btn {
+    width: auto !important;
+    margin: 1rem auto 0 auto !important;
+    display: block !important;
 }

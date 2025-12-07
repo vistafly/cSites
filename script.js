@@ -3430,14 +3430,14 @@ ContractFormHandler.prototype.showNoSOWNotification = function(errorMsg) {
         submitBtn.disabled = true;
     }
     
-    // Create subtle notification banner
+    // Create subtle notification banner with clickable Request Help link
     var notificationHTML = 
         '<div class="sow-missing-notification">' +
         '<div class="notification-icon">📋</div>' +
         '<div class="notification-content">' +
         '<h4>Statement of Work Required</h4>' +
         '<p>You need an approved SOW before signing the contract.</p>' +
-        '<p class="notification-action">Please <strong>Request Help</strong> below to request your SOW from the developer.</p>' +
+        '<p class="notification-action">Please <a href="#" class="request-help-link" style="color: #6366f1; text-decoration: underline; cursor: pointer; font-weight: 700;">Request Help</a> to request your SOW from the developer.</p>' +
         '</div>' +
         '</div>';
     
@@ -3448,9 +3448,34 @@ ContractFormHandler.prototype.showNoSOWNotification = function(errorMsg) {
         if (existingNotification) existingNotification.remove();
         
         contractForm.insertAdjacentHTML('afterbegin', notificationHTML);
+        
+        // Add click handler to the Request Help link
+        var requestHelpLink = $('.request-help-link');
+        if (requestHelpLink) {
+            requestHelpLink.addEventListener('click', function(e) {
+                e.preventDefault();
+                var helpModal = $('#helpModal');
+                if (helpModal) {
+                    helpModal.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                    document.body.classList.add('modal-open');
+                    
+                    // Pre-fill email if user is logged in
+                    var currentUser = firebase.auth().currentUser;
+                    if (currentUser) {
+                        var emailField = $('#helpEmail');
+                        if (emailField) {
+                            emailField.value = currentUser.email;
+                            emailField.setAttribute('readonly', 'readonly');
+                            emailField.style.opacity = '0.7';
+                        }
+                    }
+                }
+            });
+        }
     }
     
-    // Highlight the "Request Help" button
+    // Highlight the "Request Help" button in the contract section too
     var requestHelpBtn = $('#requestHelpBtn');
     if (requestHelpBtn) {
         requestHelpBtn.style.animation = 'pulse 2s infinite';

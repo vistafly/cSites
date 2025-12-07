@@ -50,7 +50,7 @@
   flex-shrink: 0;
   align-items: center;
   justify-content: center;
-  min-height: 440px;
+  min-height: 350px;
   padding: 0;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
@@ -97,7 +97,7 @@
 
 .carousel-item-content {
   flex: 1;
-  padding: 0 32px 40px;
+  padding: 0 5px 15px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -196,10 +196,11 @@
   .carousel-container {
     padding: 20px;
     border-radius: 20px;
+    max-height: fit-content;
   }
 
   .carousel-item {
-    min-height: 420px;
+    min-height: 320px;
     border-radius: 16px;
   }
 
@@ -208,13 +209,13 @@
   }
 
   .carousel-icon-container {
-    width: 56px;
-    height: 56px;
+    width: 87px;
+    height: 87px;
   }
 
   .carousel-icon {
-    width: 24px;
-    height: 24px;
+    width: 27px;
+    height: 27px;
   }
 
   .carousel-item-title {
