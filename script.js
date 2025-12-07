@@ -2426,7 +2426,7 @@ ContractFormHandler.prototype.renderSOWSigningModal = function(sowData) {
         '<p class="modal-subtitle">' + sowData.clientName + ' | ' + sowData.packageType.toUpperCase() + '</p>' +
         '</div>' +
         
-        '<div class="contract-form" style="padding: 2rem 3rem;">' +
+        '<div class="contract-form" ">' +
         
         // SOW Summary
         '<div class="contract-section-inner">' +
