@@ -69,44 +69,44 @@
             <span class="title-line gradient-text">
                 <span class="rotating-text-wrapper">
                     <span class="rotating-text active">sparks your vision</span>
-<span class="rotating-text">ignites possibility</span>
-<span class="rotating-text">unlocks potential</span>
-<span class="rotating-text">dreams into reality</span>
-<span class="rotating-text">crafts experiences</span>
-<span class="rotating-text">builds your story</span>
-<span class="rotating-text">shapes your journey</span>
-<span class="rotating-text">elevates your brand</span>
-<span class="rotating-text">amplifies your voice</span>
-<span class="rotating-text">magnetizes clients</span>
-<span class="rotating-text">captivates audiences</span>
-<span class="rotating-text">drives engagement</span>
-<span class="rotating-text">fuels your growth</span>
-<span class="rotating-text">accelerates success</span>
-<span class="rotating-text">multiplies impact</span>
-<span class="rotating-text">powers your reach</span>
-<span class="rotating-text">expands your empire</span>
-<span class="rotating-text">conquers challenges</span>
-<span class="rotating-text">solves complexities</span>
-<span class="rotating-text">delivers solutions</span>
-<span class="rotating-text">exceeds benchmarks</span>
-<span class="rotating-text">shatters limits</span>
-<span class="rotating-text">redefines standards</span>
-<span class="rotating-text">pioneers innovation</span>
-<span class="rotating-text">leads industries</span>
-<span class="rotating-text">dominates markets</span>
-<span class="rotating-text">inspires movements</span>
-<span class="rotating-text">creates legacies</span>
-<span class="rotating-text">builds empires</span>
-<span class="rotating-text">generates revenue</span>
-<span class="rotating-text">maximizes returns</span>
-<span class="rotating-text">scales infinitely</span>
-<span class="rotating-text">compounds growth</span>
-<span class="rotating-text">sustains momentum</span>
-<span class="rotating-text">secures your future</span>
-<span class="rotating-text">defines tomorrow</span>
-<span class="rotating-text">architects reality</span>
-<span class="rotating-text">manifests destiny</span>
-<span class="rotating-text">transcends limits</span>
+                    <span class="rotating-text">ignites possibility</span>
+                    <span class="rotating-text">unlocks potential</span>
+                    <span class="rotating-text">dreams into reality</span>
+                    <span class="rotating-text">crafts experiences</span>
+                    <span class="rotating-text">builds your story</span>
+                    <span class="rotating-text">shapes your journey</span>
+                    <span class="rotating-text">elevates your brand</span>
+                    <span class="rotating-text">amplifies your voice</span>
+                    <span class="rotating-text">magnetizes clients</span>
+                    <span class="rotating-text">captivates audiences</span>
+                    <span class="rotating-text">drives engagement</span>
+                    <span class="rotating-text">fuels your growth</span>
+                    <span class="rotating-text">accelerates success</span>
+                    <span class="rotating-text">multiplies impact</span>
+                    <span class="rotating-text">powers your reach</span>
+                    <span class="rotating-text">expands your empire</span>
+                    <span class="rotating-text">conquers challenges</span>
+                    <span class="rotating-text">solves complexities</span>
+                    <span class="rotating-text">delivers solutions</span>
+                    <span class="rotating-text">exceeds benchmarks</span>
+                    <span class="rotating-text">shatters limits</span>
+                    <span class="rotating-text">redefines standards</span>
+                    <span class="rotating-text">pioneers innovation</span>
+                    <span class="rotating-text">leads industries</span>
+                    <span class="rotating-text">dominates markets</span>
+                    <span class="rotating-text">inspires movements</span>
+                    <span class="rotating-text">creates legacies</span>
+                    <span class="rotating-text">builds empires</span>
+                    <span class="rotating-text">generates revenue</span>
+                    <span class="rotating-text">maximizes returns</span>
+                    <span class="rotating-text">scales infinitely</span>
+                    <span class="rotating-text">compounds growth</span>
+                    <span class="rotating-text">sustains momentum</span>
+                    <span class="rotating-text">secures your future</span>
+                    <span class="rotating-text">defines tomorrow</span>
+                    <span class="rotating-text">architects reality</span>
+                    <span class="rotating-text">manifests destiny</span>
+                    <span class="rotating-text">transcends limits</span>
                 </span>
             </span>
         </h1>
@@ -121,6 +121,13 @@
                     <path d="M8 3L8 13M8 13L13 8M8 13L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
             </a>
+            <button class="btn-primary btn-contract-hero view-contract-trigger">
+                <span>View & Sign Agreement</span>
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                    <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                </svg>
+            </button>
+        </div>
         </div>
     </div>
 </section>
@@ -159,12 +166,12 @@
             <p class="contract-intro">Review and sign our standard website development agreement. This contract outlines the terms, deliverables, and expectations for all VistaFly projects.</p>
             
             <div class="contract-actions">
-                <button id="viewContractBtn" class="btn-contract">
-                    <span>View & Sign Agreement</span>
-                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                        <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                    </svg>
-                </button>
+                <button id="viewContractBtn" class="btn-contract view-contract-trigger">
+    <span>View & Sign Agreement</span>
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+</button>
                 <button id="requestHelpBtn" class="btn-contract-secondary">
     <span>Request Help</span>
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
@@ -683,6 +690,7 @@
                 <select id="helpIssue" name="helpIssue" required>
                     <option value="">Select an issue...</option>
                     <option value="contract_not_showing">Contract not showing</option>
+                    <option value="contract_not_showing">SOW not showing</option>
                     <option value="problems_submitting">Problems submitting contract</option>
                     <option value="signature_issues">Signature issues</option>
                     <option value="account_access">Account access problems</option>

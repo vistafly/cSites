@@ -120,7 +120,6 @@
   right: 0;
   width: clamp(320px, 55vw, 650px);
   height: 100%;
-  height: 100dvh;
   background: linear-gradient(180deg, #0a0a0f 0%, #111118 100%);
   display: flex;
   flex-direction: column;
@@ -561,7 +560,7 @@ body {
     left: 0;
     right: 0;
     z-index: 1000;
-    padding: 1.5rem 0;
+    padding: .1rem 0;
     background: transparent;
     box-shadow: none;
     transition: padding 0.25s ease-out,
@@ -889,14 +888,65 @@ body {
     align-items: center;
     gap: 0.75rem;
     padding: 1rem 2rem;
-    background: var(--white);
-    color: var(--black);
+    
+    /* 🍎 Apple Glass Effect */
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    
+    /* Border with gradient for depth */
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    box-shadow: 
+        0 8px 32px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    
+    color: #ffffff;
     text-decoration: none;
     border-radius: 100px;
     font-weight: 500;
     font-size: 0.9375rem;
-    transition: transform 0.3s var(--ease-smooth);
+    transition: all 0.3s var(--ease-smooth);
     max-width: fit-content;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Hover state - brighter glass */
+.btn-primary:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border-color: rgba(255, 255, 255, 0.25);
+    box-shadow: 
+        0 12px 48px rgba(0, 0, 0, 0.15),
+        inset 0 1px 0 rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px);
+}
+
+/* Active/pressed state */
+.btn-primary:active {
+    transform: translateY(0);
+    box-shadow: 
+        0 4px 16px rgba(0, 0, 0, 0.1),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Contract button variant (slightly different tint) */
+.btn-contract-hero {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.btn-contract-hero:hover {
+    background: rgba(255, 255, 255, 0.10);
+    border-color: rgba(255, 255, 255, 0.22);
+}
+
+/* Icon animation */
+.btn-primary svg {
+    transition: transform 0.3s var(--ease-smooth);
+}
+
+.btn-primary:hover svg {
+    transform: translateX(3px);
 }
 
 .btn-primary:hover {
@@ -1203,7 +1253,7 @@ section {
     height: 90%;
     max-width: 2000px;
     overflow-y: auto;
-    border-radius: 1.5rem;
+    border-radius: .6rem;
     box-shadow: 
         0 25px 50px -12px rgba(0, 0, 0, 0.8),
         0 0 0 1px rgba(255, 255, 255, 0.1);
@@ -1259,14 +1309,28 @@ section {
     margin-bottom: 0.5rem;
 }
 
+@media (max-width: 768px) {
+.modal-header h1 {
+    font-size: 1.3rem;
+    margin-bottom: 0.5rem;
+    margin-top: 60px;
+}
+}
+
 .modal-subtitle {
     color: var(--silver);
     font-size: 1.125rem;
 }
 
 .contract-form {
-    padding: 2rem .5rem;
+    padding: .5rem .3rem;
     padding-bottom: 0px;
+}
+
+@media (max-width: 768px) {
+.contract-form {
+    padding: .8rem 1rem;
+}
 }
 
 .contract-section-inner {
@@ -1398,10 +1462,9 @@ section {
 }
 
 .signature-block {
-    background: rgba(255, 255, 255, 0.05);
-    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.021);
+    padding: 1rem;
     border-radius: 0.75rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .signature-block h3 {
@@ -1467,11 +1530,6 @@ section {
     cursor: pointer;
     transition: all 0.3s var(--ease-smooth);
     font-family: var(--font-text);
-}
-
-.btn-primary {
-    background: var(--white);
-    color: var(--black);
 }
 
 .btn-primary:hover {
@@ -1665,14 +1723,15 @@ section {
 /* Responsive */
 @media (max-width: 768px) {
     .modal-content {
-        width: 95%;
+        width: 92%;
         max-height: 95vh;
+        padding-bottom: 20px;
     }
 
     .modal-header,
     .contract-form,
     .modal-footer {
-        padding: 2rem 1.5rem;
+        padding: 1rem .5rem;
     }
 
     .signature-grid {
@@ -1689,7 +1748,7 @@ section {
     }
 
     .contract-section-inner {
-        padding: 1.5rem;
+        padding: .8rem;
     }
 
     .auth-content {
@@ -2354,7 +2413,7 @@ body:has(.sphere-root[data-enlarging='true']) .custom-cursor {
 .signature-pad {
     display: block;
     width: 100%;
-    height: 150px;
+    height: 270px;
     touch-action: none !important;
     -webkit-touch-callout: none !important;
     -webkit-user-select: none !important;
@@ -3156,7 +3215,7 @@ body.modal-open .custom-cursor {
 
 /* Help Form */
 .help-form {
-    padding: 2rem 3rem;
+    padding: 2rem 2rem;
 }
 
 .help-form .form-group {
@@ -3264,16 +3323,13 @@ body.modal-open .custom-cursor {
 /* Mobile Responsive */
 @media (max-width: 768px) {
     .help-modal-content {
-        width: 95%;
-        max-width: 95%;
+        width: 92%;
+        max-width: 92%;
+        max-height: fit-content;
     }
 
     .help-form {
-        padding: 2rem 1.5rem;
-    }
-
-    .help-form-footer {
-        flex-direction: column-reverse;
+        padding: 1rem .8rem;
     }
 
     .help-form-footer .btn {
@@ -4782,11 +4838,10 @@ body.modal-open .custom-cursor {
     border: 2px solid rgba(245, 158, 11, 0.4);
     border-radius: 12px;
     padding: 20px;
-    margin-bottom: 30px;
+    margin-bottom: 15px;
     display: flex;
     align-items: center;
     gap: 20px;
-    animation: slideDown 0.5s ease-out;
 }
 
 .notification-icon {
@@ -4849,22 +4904,37 @@ body.modal-open .custom-cursor {
         font-size: 36px;
     }
 }
+
 .dual-signing-completed {
     padding: 2rem;
-    max-width: 900px;
+    max-width: 80%;
     margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+.dual-signing-completed {
+    padding: 0rem;
+    max-width: 90%;
+    margin: 0 auto;
+}
 }
 
 .completion-header {
     text-align: center;
     margin-bottom: 3rem;
-    padding-bottom: 2rem;
-    border-bottom: 2px solid rgba(99, 102, 241, 0.2);
+    padding-bottom: 1rem;
+    border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+}
+
+@media (max-width: 768px) {
+.completion-header {
+    margin-bottom: 1.5rem;
+}
 }
 
 .completion-icon {
     font-size: 4rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0rem;
     animation: bounceIn 0.6s ease-out;
 }
 
@@ -4874,10 +4944,19 @@ body.modal-open .custom-cursor {
     100% { transform: scale(1); opacity: 1; }
 }
 
+
 .completion-header h2 {
-    color: #10b981;
+    color: #61b89b;
     font-size: 2rem;
     margin-bottom: 0.5rem;
+}
+
+@media (max-width: 768px) {
+.completion-header h2 {
+    color: #61b89b;
+    font-size: 1rem;
+    margin-bottom: 0.5rem;
+}
 }
 
 .completion-header p {
@@ -4900,7 +4979,6 @@ body.modal-open .custom-cursor {
 
 .completed-doc-card {
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     padding: 1.5rem;
     transition: transform 0.2s ease;
@@ -4908,7 +4986,8 @@ body.modal-open .custom-cursor {
 
 .completed-doc-card:hover {
     transform: translateY(-2px);
-    border-color: rgba(99, 102, 241, 0.3);
+    border-color: rgba(255, 255, 255, 0.404);
+    border: .1px solid rgba(255, 255, 255, 0.2);
 }
 
 .doc-card-header {
@@ -4920,11 +4999,28 @@ body.modal-open .custom-cursor {
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+@media (max-width: 768px) {
+    .doc-card-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+    }
+}
+
 .doc-card-header h3 {
     margin: 0;
     font-size: 1.3rem;
     color: #fff;
 }
+
+@media (max-width: 768px) {
+.doc-card-header h3 {
+    margin-bottom: 12px;
+}
+}
+
 
 .doc-status {
     padding: 0.4rem 1rem;
@@ -4964,9 +5060,9 @@ body.modal-open .custom-cursor {
 }
 
 .doc-signature-preview {
-    background: rgba(0, 0, 0, 0.2);
+    background: rgba(0, 0, 0, 0);
     border-radius: 8px;
-    padding: 1rem;
+    padding: 0rem;
     text-align: center;
 }
 
@@ -4977,7 +5073,8 @@ body.modal-open .custom-cursor {
 }
 
 .signature-image {
-    max-width: 300px;
+    max-width: 900px;
+    width: 700px;
     height: auto;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 6px;
@@ -4988,7 +5085,7 @@ body.modal-open .custom-cursor {
 .completion-actions {
     text-align: center;
     padding-top: 2rem;
-    border-top: 2px solid rgba(99, 102, 241, 0.2);
+    border-top: 2px solid rgba(172, 172, 172, 0.2);
 }
 
 .info-text {
@@ -5018,4 +5115,46 @@ body.modal-open .custom-cursor {
     width: auto !important;
     margin: 1rem auto 0 auto !important;
     display: block !important;
+}
+/* Hero CTA Buttons */
+.hero-cta {
+    display: flex;
+    gap: 1rem;
+    justify-content: center;
+    align-items: center;
+    flex-wrap: wrap;
+    opacity: 0;
+    animation: fadeInUp 0.6s var(--ease-smooth) 1.1s forwards;
+}
+
+.btn-contract-hero {
+    border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.btn-contract-hero:hover {
+    border-color: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+/* Mobile responsive for hero buttons */
+@media (max-width: 640px) {
+    .hero-cta {
+        flex-direction: column;
+        width: 100%;
+        padding: 0 1rem;
+    }
+    
+    .hero-cta .btn-primary,
+    .hero-cta .btn-contract-hero {
+        width: 100%;
+        justify-content: center;
+    }
+}
+
+@media (max-width: 500px) {
+.signature-block {
+    background: rgba(255, 255, 255, 0);
+    padding: 0rem;
+    border-radius: 0.75rem;
+}
 }

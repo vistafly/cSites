@@ -461,13 +461,13 @@ RotatingText.prototype.rotate = function() {
             });
         }
         
-        var viewBtn = $('#viewContractBtn');
-        if (viewBtn) {
-            viewBtn.addEventListener('click', function(e) {
+        // Handle all contract trigger buttons
+        $$('.view-contract-trigger').forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
                 e.preventDefault();
                 self.checkAuthAndShowContract();
             });
-        }
+        });
         
         var downloadBtn = $('#downloadTemplateBtn');
         if (downloadBtn) {
@@ -3478,8 +3478,8 @@ ContractFormHandler.prototype.showNoSOWNotification = function(errorMsg) {
     // Highlight the "Request Help" button in the contract section too
     var requestHelpBtn = $('#requestHelpBtn');
     if (requestHelpBtn) {
-        requestHelpBtn.style.animation = 'pulse 2s infinite';
-        requestHelpBtn.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.6)';
+        requestHelpBtn.style.animation = 'pulse 6s infinite';
+        requestHelpBtn.style.boxShadow = '0 0 20px rgba(255, 255, 255, 0.18)';
     }
 };
     
@@ -3874,7 +3874,7 @@ ContractFormHandler.prototype.switchSigningTab = function(tabName) {
                 // Force canvas to be visible and properly sized BEFORE initialization
                 sowCanvas.style.display = 'block';
                 sowCanvas.style.width = '100%';
-                sowCanvas.style.height = '150px';
+                sowCanvas.style.height = '270px';
                 
                 // Wait for layout to settle, then initialize
                 requestAnimationFrame(function() {
@@ -4669,7 +4669,7 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
         
         '<div class="completed-documents">' +
         
-        // Contract Card
+        // Contract Card with signature preview
         '<div class="completed-doc-card">' +
         '<div class="doc-card-header">' +
         '<h3>📄 Contract Agreement</h3>' +
@@ -4680,18 +4680,22 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
         '<div class="doc-field-row"><span class="field-label">Client Signed:</span><span class="field-value">' + (contractData.clientDate || 'N/A') + '</span></div>' +
         (isFullySigned ? '<div class="doc-field-row"><span class="field-label">Developer Signed:</span><span class="field-value">' + (contractData.devDate || 'N/A') + '</span></div>' : '') +
         '<div class="doc-field-row"><span class="field-label">Email:</span><span class="field-value">' + (contractData.clientEmail || 'N/A') + '</span></div>' +
+        '</div>' +
+        '<div class="doc-signature-preview">' +
+        '<p class="signature-label">Your Signature:</p>' +
+'<img src="' + contractData.clientSignature + '" alt="Your signature" class="signature-image" style="width: 100%; max-width: 100%; height: auto; background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 0.5rem; border: 1px solid rgba(255, 255, 255, 0.1);" />' +
         '</div>';
     
     // Add download button ONLY if fully signed
     if (isFullySigned) {
-        html += '<button class="btn btn-primary download-doc-btn" id="downloadContractBtn" style="width: 100%; margin-top: 1rem; ">' +
+        html += '<button class="btn btn-primary download-doc-btn" id="downloadContractBtn" style="width: 100%; margin-top: 1rem;">' +
             '<span>📄 Download Contract PDF</span>' +
             '</button>';
     }
     
     html += '</div>'; // Close contract card
     
-    // SOW Card (if exists)
+    // SOW Card (if exists) with signature preview
     if (sowData) {
         var sowFullySigned = sowData.devSignature && sowData.clientSignature;
         var sowStatusBadge = sowFullySigned
@@ -4709,6 +4713,10 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
             '<div class="doc-field-row"><span class="field-label">Timeline:</span><span class="field-value">' + (sowData.estimatedWeeks || 'TBD') + ' weeks</span></div>' +
             '<div class="doc-field-row"><span class="field-label">Client Signed:</span><span class="field-value">' + (sowData.clientSignedDate || 'N/A') + '</span></div>' +
             (sowFullySigned ? '<div class="doc-field-row"><span class="field-label">Developer Signed:</span><span class="field-value">' + (sowData.devSignedDate || 'N/A') + '</span></div>' : '') +
+            '</div>' +
+            '<div class="doc-signature-preview">' +
+            '<p class="signature-label">Your Signature:</p>' +
+            '<img src="' + sowData.clientSignature + '" alt="Your SOW signature" class="signature-image" style="width: 100%; max-width: 100%; height: auto; background: rgba(255, 255, 255, 0.05); border-radius: 6px; padding: 0.5rem; border: 1px solid rgba(255, 255, 255, 0.1);" />' +
             '</div>';
         
         // Add download button ONLY if fully signed
