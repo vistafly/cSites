@@ -10,9 +10,10 @@ node_modules/
 yarn.lock
 pnpm-lock.yaml
 
-# Build output
+# Build output - NEVER commit these!
 dist/
 build/
+assets/
 
 # Logs
 logs
@@ -42,5 +43,12 @@ lerna-debug.log*
 firebase-debug.log
 firestore-debug.log
 
-# Optional: Keep these if you want version control
-# firebase-config.js
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
