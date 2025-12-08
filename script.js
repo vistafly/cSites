@@ -1309,43 +1309,49 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
     };
     
     ContractFormHandler.prototype.showDeveloperDashboard = function() {
-        var self = this;
+    var self = this;
+    
+    console.log('Loading developer dashboard...');
+    
+    // HIDE the contract form when showing dashboard
+    var contractForm = $('#contractForm');
+    if (contractForm) {
+        contractForm.style.display = 'none';
+    }
+    
+    // HIDE the modal header for developer
+    var modalHeader = $('.modal-header');
+    if (modalHeader) {
+        modalHeader.style.display = 'none';
+    }
+    
+    // ✅ HIDE the original modal-close button
+    var modalClose = $('.modal-close');
+    if (modalClose) {
+        modalClose.style.display = 'none';
+    }
+    
+    // Create dashboard container if it doesn't exist
+    var dashboard = $('#developerDashboard');
+    if (!dashboard) {
+        dashboard = document.createElement('div');
+        dashboard.id = 'developerDashboard';
+        dashboard.className = 'developer-dashboard';
         
-        console.log('Loading developer dashboard...');
-        
-        // HIDE the contract form when showing dashboard
-        var contractForm = $('#contractForm');
-        if (contractForm) {
-            contractForm.style.display = 'none';
+        // Insert at the top of the modal content
+        var modalContent = $('.modal-content');
+        if (modalContent) {
+            modalContent.insertBefore(dashboard, modalContent.firstChild);
         }
-        
-        // HIDE the modal header for developer
-        var modalHeader = $('.modal-header');
-        if (modalHeader) {
-            modalHeader.style.display = 'none';
-        }
-        
-        // Create dashboard container if it doesn't exist
-        var dashboard = $('#developerDashboard');
-        if (!dashboard) {
-            dashboard = document.createElement('div');
-            dashboard.id = 'developerDashboard';
-            dashboard.className = 'developer-dashboard';
-            
-            // Insert at the top of the modal content
-            var modalContent = $('.modal-content');
-            if (modalContent) {
-                modalContent.insertBefore(dashboard, modalContent.firstChild);
-            }
-        }
-        
-        // Show loading state
-        dashboard.innerHTML = '<div class="dashboard-loading"><p>Loading contracts...</p></div>';
-        dashboard.style.display = 'block';
-        
-        // Fetch all contracts
-this.fetchAllContracts();
-    };
+    }
+    
+    // Show loading state
+    dashboard.innerHTML = '<div class="dashboard-loading"><p>Loading contracts...</p></div>';
+    dashboard.style.display = 'block';
+    
+    // Fetch all contracts
+    this.fetchAllContracts();
+};
     ContractFormHandler.prototype.renderHelpRequestsSection = function(helpRequests) {
     var self = this;
     var helpContent = $('#helpTabContent');
@@ -1531,6 +1537,14 @@ self.fetchHelpRequests(function(helpRequests) {
     }).length;
     
     var html = '';
+    
+    // ✅ ADD CLOSE BUTTON AT THE TOP
+    html += '<button class="dashboard-close" onclick="document.querySelector(\'.contract-modal\').classList.remove(\'show\'); document.body.classList.remove(\'modal-open\'); document.body.style.overflow = \'\';">' +
+        '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+        '<line x1="18" y1="6" x2="6" y2="18"></line>' +
+        '<line x1="6" y1="6" x2="18" y2="18"></line>' +
+        '</svg>' +
+        '</button>';
     
     // Header with greeting
     var hour = new Date().getHours();
@@ -3216,34 +3230,40 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     };
     
     ContractFormHandler.prototype.showContractSigningForm = function(contract) {
-        var self = this;
+    var self = this;
+    
+    // Make sure contract form is visible
+    var contractForm = $('#contractForm');
+    if (contractForm) {
+        contractForm.style.display = 'block';
+    }
+    
+    // ✅ SHOW modal header when signing a contract
+    var modalHeader = $('.modal-header');
+    if (modalHeader) {
+        modalHeader.style.display = 'block';
+    }
+    
+    // ✅ SHOW the original modal-close button
+    var modalClose = $('.modal-close');
+    if (modalClose) {
+        modalClose.style.display = 'flex';
+    }
+    
+    // Show developer signature block
+    var devBlock = $('#devSignatureBlock');
+    if (devBlock) {
+        devBlock.style.display = 'block';
+        var devInputs = devBlock.querySelectorAll('input');
+        devInputs.forEach(function(input) {
+            input.disabled = false;
+        });
         
-        // Make sure contract form is visible
-        var contractForm = $('#contractForm');
-        if (contractForm) {
-            contractForm.style.display = 'block';
+        var devHeader = devBlock.querySelector('h3');
+        if (devHeader) {
+            devHeader.innerHTML = 'Developer Signature — VistaFly <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
         }
-        
-        // Show modal header when signing a contract
-        var modalHeader = $('.modal-header');
-        if (modalHeader) {
-            modalHeader.style.display = 'block';
-        }
-        
-        // Show developer signature block
-        var devBlock = $('#devSignatureBlock');
-        if (devBlock) {
-            devBlock.style.display = 'block';
-            var devInputs = devBlock.querySelectorAll('input');
-            devInputs.forEach(function(input) {
-                input.disabled = false;
-            });
-            
-            var devHeader = devBlock.querySelector('h3');
-            if (devHeader) {
-                devHeader.innerHTML = 'Developer Signature — VistaFly <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
-            }
-        }
+    }
         
         // Set today's date for developer
         var today = new Date().toISOString().split('T')[0];
