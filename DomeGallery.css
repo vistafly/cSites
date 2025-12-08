@@ -85,8 +85,8 @@ main.sphere-main {
   position: absolute;
   display: block;
   inset: 12px;
-  border-radius:  60px;
-  background: #0a0a0a;
+  border-radius:  90px;
+  background: #29292993;
   overflow: hidden;
   /* Hidden for image itself to prevent visual duplication */
   backface-visibility: hidden;
@@ -100,16 +100,16 @@ main.sphere-main {
   transform: translateZ(0) scale(1);
   transform-style: preserve-3d;
   /* REMOVED: will-change for better mobile performance */
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
-  border: 1px solid rgba(255, 255, 255, 0.03);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.788);
+  border: 1px solid rgba(255, 255, 255, 0.151);
 }
 
 /* FIXED: Only apply hover on desktop devices with mouse */
 @media (hover: hover) and (pointer: fine) {
   .item__image:hover {
     transform: translateZ(20px) scale(1.08);
-    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.8);
-    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 10px 50px rgba(77, 77, 77, 0.8);
+    border-color: rgba(255, 255, 255, 0.24);
   }
   
   .item__image:active {

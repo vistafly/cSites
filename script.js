@@ -4736,17 +4736,16 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
     html += '</div>'; // Close completed-documents
     
     // Action buttons
-    html += '<div class="completion-actions">';
-    
-    // If both documents are fully signed, add a "Download Both" button
-    if (isFullySigned && sowData && sowData.devSignature && sowData.clientSignature) {
-        html += '<button class="btn btn-primary" id="downloadBothBtn" style="margin-right: 10px;">' +
-            '<span>📦 Download Both PDFs</span>' +
-            '</button>';
-    }
-    
-    html += '<button class="btn btn-secondary" onclick="document.querySelector(\'.contract-modal\').classList.remove(\'show\'); document.body.classList.remove(\'modal-open\');">Close</button>' +
-        '</div>';
+html += '<div class="completion-actions">';
+
+// If both documents are fully signed, add a "Download Both" button
+if (isFullySigned && sowData && sowData.devSignature && sowData.clientSignature) {
+    html += '<button class="btn btn-primary" id="downloadBothBtn">' +
+        '<span>📦 Download Both PDFs</span>' +
+        '</button>';
+}
+
+html += '</div>';
     
     completedContainer.innerHTML = html;
     completedContainer.style.display = 'block';
@@ -4873,11 +4872,8 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' +
         
         '<div class="completion-actions">' +
-        '<p class="info-text">📧 A confirmation email has been sent to <strong>' + contractData.clientEmail + '</strong></p>' +
-        '<button class="btn btn-secondary" onclick="document.querySelector(\'.contract-modal\').classList.remove(\'show\'); document.body.classList.remove(\'modal-open\');">' +
-        'Close' +
-        '</button>' +
-        '</div>';
+'<p class="info-text">📧 A confirmation email has been sent to <strong>' + contractData.clientEmail + '</strong></p>' +
+'</div>';
     
     // Insert completed view
     var modalHeader = $('.modal-header');
@@ -5864,27 +5860,94 @@ CustomCursor.prototype.animate = function() {
             document.body.classList.remove('keyboard-nav');
         });
     };
-
+// === SECTION SEPARATOR GLOW ON SCROLL - MOBILE OPTIMIZED ===
+var SectionSeparatorGlow = function() {
+    console.log('Initializing Section Separator Glow...');
+    
+    var sections = $$('section');
+    console.log('Found sections:', sections.length);
+    
+    if (!sections || sections.length === 0) {
+        console.error('No sections found for separators');
+        return;
+    }
+    
+    // Detect mobile for different threshold values
+    var isMobile = window.innerWidth <= 1024;
+    console.log('Section separators - Mobile mode:', isMobile);
+    
+    // Track if user has scrolled at all
+    var hasScrolled = false;
+    var scrollThreshold = isMobile ? 20 : 50; // Lower threshold for mobile
+    var homeSection = $('#home') || sections[0];
+    var homeTriggered = false;
+    
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > scrollThreshold && !hasScrolled) {
+            hasScrolled = true;
+            
+            // Immediately trigger home section on first scroll (if it exists and is in view)
+            if (homeSection && !homeTriggered) {
+                var rect = homeSection.getBoundingClientRect();
+                // Check if home section is currently visible
+                if (rect.top < window.innerHeight && rect.bottom > 0) {
+                    homeSection.classList.add('separator-visible');
+                    homeTriggered = true;
+                    console.log('Home section separator activated on first scroll');
+                }
+            }
+        }
+    }, { passive: true });
+    
+    var observer = new IntersectionObserver(function(entries) {
+        entries.forEach(function(entry) {
+            // Don't trigger ANY section until user scrolls past threshold
+            if (!hasScrolled) {
+                return;
+            }
+            
+            // Trigger when section is properly in view
+            if (entry.isIntersecting && entry.boundingClientRect.top < window.innerHeight * 0.85) {
+                console.log('Section visible (via scroll):', entry.target.id || entry.target.className);
+                entry.target.classList.add('separator-visible');
+                // Unobserve after animation triggers once
+                observer.unobserve(entry.target);
+            }
+        });
+    }, {
+        // Mobile-friendly thresholds - lower values trigger earlier
+        threshold: isMobile ? 0.3 : 0.75,  // 30% visible on mobile, 75% on desktop
+        rootMargin: isMobile ? '0px 0px -10% 0px' : '0px 0px -20% 0px'  // Trigger earlier on mobile
+    });
+    
+    sections.forEach(function(section) {
+        // Skip observing home section since we handle it manually on first scroll
+        if (section.id !== 'home') {
+            observer.observe(section);
+            console.log('Observing section:', section.id || section.className);
+        }
+    });
+};
     // === INITIALIZATION ===
     var init = function() {
-        console.log('VistaFly - Crafted with precision');
-        console.log('Device: ' + (DeviceDetector.isMobile() ? 'Mobile' : 'Desktop'));
-        console.log('Screen width:', window.innerWidth);
-        new HelpRequestHandler();
+    console.log('VistaFly - Crafted with precision');
+    console.log('Device: ' + (DeviceDetector.isMobile() ? 'Mobile' : 'Desktop'));
+    console.log('Screen width:', window.innerWidth);
+    new HelpRequestHandler();
 
-
-        new Navigation();
-        new RotatingText();
-        new ScrollAnimations();
-        new PortfolioHandler();
-        new FormHandler();
-        new FirebaseAuthHandler();
-        window.contractFormHandler = new ContractFormHandler();
-        new PageLoader();
-        new CustomCursor();
-        new ViewportFix();
-        new AccessibilityEnhancer();
-    };
+    new Navigation();
+    new RotatingText();
+    new ScrollAnimations();
+    new PortfolioHandler();
+    new FormHandler();
+    new FirebaseAuthHandler();
+    window.contractFormHandler = new ContractFormHandler();
+    new PageLoader();
+    new CustomCursor();
+    new ViewportFix();
+    new AccessibilityEnhancer();
+    new SectionSeparatorGlow();  // ✅ ADD THIS LINE
+};
 
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', init);

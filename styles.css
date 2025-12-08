@@ -531,7 +531,7 @@ body {
     top: 0;
     left: 0;
     width: 100%;
-    height: 100%;
+    height: 120vh;
     background: radial-gradient(circle at 50% 30%, rgba(99, 102, 241, 0.05) 0%, transparent 70%);
     pointer-events: none;
     z-index: 0;
@@ -989,7 +989,7 @@ section {
 
 /* === PHILOSOPHY SECTION === */
 .philosophy {
-    background: linear-gradient(180deg, var(--near-black) 0%, var(--dark-gray) 100%);
+    background: linear-gradient(180deg, rgba(10, 10, 10, 0.8) 0%, var(--near-black) 20%, var(--dark-gray) 100%);
 }
 
 /* ===================================================================
@@ -1000,7 +1000,7 @@ section {
 
 /* === PORTFOLIO SECTION === */
 .portfolio {
-    padding: 10rem 0rem 15rem;
+    padding: 10rem 0rem 20rem;
     position: relative;
     overflow: hidden;
     background: var(--near-black);
@@ -1008,7 +1008,7 @@ section {
 
 .portfolio-header {
     text-align: center;
-    margin-bottom: 15rem;
+    margin-bottom: 16rem;
     margin-top: -5rem;
 }
 
@@ -1028,7 +1028,7 @@ section {
 /* Mobile phones (360px - 430px) */
 @media (max-width: 430px) {
     .portfolio {
-        padding: 3rem 0 4rem;
+        padding: 3rem 0 7rem;
     }
     
     .portfolio-header {
@@ -1251,6 +1251,7 @@ section {
     background: linear-gradient(135deg, #0a0a0a 0%, #1a1a1a 100%);
     width: 90%;
     height: fit-content;
+    max-height: 90%;
     max-width: 2000px;
     overflow-y: auto;
     border-radius: .6rem;
@@ -1769,7 +1770,7 @@ section {
 
 /* === CONTACT SECTION === */
 .contact {
-    background: linear-gradient(180deg, var(--near-black) 0%, var(--dark-gray) 100%);
+    background: linear-gradient(180deg, var(--dark-gray) 0%, var(--near-black) 100%);
 }
 
 .contact-wrapper {
@@ -1923,9 +1924,9 @@ section {
 
 /* === FOOTER === */
 .footer {
-    background: var(--black);
+    background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
     padding: 4rem 0 2rem;
-    border-top: 1px solid rgba(255, 255, 255, 0.05);
+    position: relative;
 }
 
 .footer-content {
@@ -2117,7 +2118,7 @@ section {
     }
     
     .portfolio-header {
-        margin-bottom: 3rem;
+        margin-bottom: 4rem;
     }
     
     .portfolio-info h3 {
@@ -4907,8 +4908,6 @@ body.modal-open .custom-cursor {
 
 .dual-signing-completed {
     padding: 2rem;
-    max-width: 80%;
-    margin: 0 auto;
 }
 
 @media (max-width: 768px) {
@@ -4973,8 +4972,15 @@ body.modal-open .custom-cursor {
 
 .completed-documents {
     display: grid;
+    grid-template-columns: repeat(2, 1fr); /* Add this */
     gap: 2rem;
     margin-bottom: 2rem;
+}
+
+@media (max-width: 768px) {
+    .completed-documents {
+        grid-template-columns: 1fr;
+    }
 }
 
 .completed-doc-card {
@@ -5157,4 +5163,146 @@ body.modal-open .custom-cursor {
     padding: 0rem;
     border-radius: 0.75rem;
 }
+}
+/* === STICKY MODAL CLOSE BUTTON === */
+.modal-close {
+    position: sticky;
+    top: 1.5rem;
+    right: 1.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s var(--ease-smooth);
+    z-index: 10;
+    margin-left: auto;
+    margin-bottom: -2rem; /* Pull back up to not create extra space */
+}
+
+.modal-close:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: rotate(90deg);
+}
+
+.modal-close svg {
+    color: var(--white);
+}
+
+    .btn-submit {
+        display: flex;
+        margin: 1rem auto 0 auto;
+    }
+/* === SECTION GRADIENT FLOW - FIXED === */
+section {
+    position: relative;
+}
+
+.hero {
+    background: var(--near-black);
+    position: relative;
+}
+
+.philosophy {
+    background: linear-gradient(180deg, var(--near-black) 0%, var(--dark-gray) 100%);
+    position: relative;
+}
+
+.portfolio {
+    background: linear-gradient(180deg, var(--dark-gray) 0%, var(--near-black) 100%);
+    position: relative;
+}
+
+.contract-section {
+    background: linear-gradient(180deg, var(--near-black) 0%, var(--dark-gray) 100%);
+    position: relative;
+}
+
+.contact {
+    background: linear-gradient(180deg, var(--dark-gray) 0%, var(--near-black) 100%);
+    position: relative;
+}
+
+/* === IMMERSIVE SECTION SEPARATORS - WHITE/MONOCHROMATIC === */
+section {
+    position: relative;
+}
+
+section::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%) scaleX(0);
+    width: 80%;
+    max-width: 1200px;
+    height: 1px;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.1) 20%,
+        rgba(255, 255, 255, 0.3) 50%,
+        rgba(255, 255, 255, 0.1) 80%,
+        transparent 100%
+    );
+    box-shadow: 
+        0 0 20px rgba(255, 255, 255, 0.15),
+        0 0 40px rgba(255, 255, 255, 0.1),
+        0 0 60px rgba(255, 255, 255, 0.05);
+    opacity: 0;
+    transition: opacity 0.8s ease-out, transform 1s cubic-bezier(0.4, 0, 0.2, 1);
+    pointer-events: none;
+    z-index: 10;
+}
+
+/* Don't show separator on footer */
+.footer::after {
+    display: none;
+}
+
+/* Activate separator when section becomes visible */
+section.separator-visible::after {
+    opacity: 1;
+    transform: translateX(-50%) scaleX(1);
+    animation: pulseGlowWhite 4s ease-in-out infinite 1s;
+}
+
+/* White pulsing glow animation */
+@keyframes pulseGlowWhite {
+    0%, 100% {
+        box-shadow: 
+            0 0 20px rgba(255, 255, 255, 0.15),
+            0 0 40px rgba(255, 255, 255, 0.1),
+            0 0 60px rgba(255, 255, 255, 0.05);
+    }
+    50% {
+        box-shadow: 
+            0 0 30px rgba(255, 255, 255, 0.25),
+            0 0 60px rgba(255, 255, 255, 0.15),
+            0 0 90px rgba(255, 255, 255, 0.08);
+    }
+}
+
+/* Mobile responsive separators */
+@media (max-width: 768px) {
+    section::after {
+        width: 90%;
+    }
+}
+
+/* Accessibility - reduce motion */
+@media (prefers-reduced-motion: reduce) {
+    section::after {
+        transition: opacity 0.3s ease;
+        transform: translateX(-50%) scaleX(1) !important;
+    }
+    
+    section.separator-visible::after {
+        animation: none;
+        opacity: 1;
+    }
 }
