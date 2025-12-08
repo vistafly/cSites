@@ -5880,73 +5880,54 @@ CustomCursor.prototype.animate = function() {
             document.body.classList.remove('keyboard-nav');
         });
     };
-// === SECTION SEPARATOR GLOW ON SCROLL - MOBILE OPTIMIZED ===
+// === SECTION SEPARATOR GLOW ON SCROLL - FIXED ===
 var SectionSeparatorGlow = function() {
     console.log('Initializing Section Separator Glow...');
     
     var sections = $$('section');
-    console.log('Found sections:', sections.length);
+    if (!sections || sections.length === 0) return;
     
-    if (!sections || sections.length === 0) {
-        console.error('No sections found for separators');
-        return;
-    }
-    
-    // Detect mobile for different threshold values
     var isMobile = window.innerWidth <= 1024;
-    console.log('Section separators - Mobile mode:', isMobile);
+    var minScrollToActivate = isMobile ? 20 : 50;
     
-    // Track if user has scrolled at all
-    var hasScrolled = false;
-    var scrollThreshold = isMobile ? 20 : 50; // Lower threshold for mobile
-    var homeSection = $('#home') || sections[0];
-    var homeTriggered = false;
-    
-    window.addEventListener('scroll', function() {
-        if (window.pageYOffset > scrollThreshold && !hasScrolled) {
-            hasScrolled = true;
+    var checkSectionVisibility = function() {
+        var viewportHeight = window.innerHeight;
+        
+        sections.forEach(function(section) {
+            // Skip if already visible or is footer
+            if (section.classList.contains('separator-visible')) return;
+            if (section.classList.contains('footer')) return;
             
-            // Immediately trigger home section on first scroll (if it exists and is in view)
-            if (homeSection && !homeTriggered) {
-                var rect = homeSection.getBoundingClientRect();
-                // Check if home section is currently visible
-                if (rect.top < window.innerHeight && rect.bottom > 0) {
-                    homeSection.classList.add('separator-visible');
-                    homeTriggered = true;
-                    console.log('Home section separator activated on first scroll');
-                }
-            }
-        }
-    }, { passive: true });
-    
-    var observer = new IntersectionObserver(function(entries) {
-        entries.forEach(function(entry) {
-            // Don't trigger ANY section until user scrolls past threshold
-            if (!hasScrolled) {
-                return;
-            }
+            var rect = section.getBoundingClientRect();
             
-            // Trigger when section is properly in view
-            if (entry.isIntersecting && entry.boundingClientRect.top < window.innerHeight * 0.85) {
-                console.log('Section visible (via scroll):', entry.target.id || entry.target.className);
-                entry.target.classList.add('separator-visible');
-                // Unobserve after animation triggers once
-                observer.unobserve(entry.target);
+            // The separator is at the BOTTOM of the section
+            // Only trigger when the bottom of the section enters the viewport
+            // rect.bottom tells us where the section ends relative to viewport top
+            
+            // Trigger when section bottom is in the lower 70% of viewport
+            var bottomVisible = rect.bottom > 0 && rect.bottom < viewportHeight * 0.85;
+            
+            if (bottomVisible) {
+                section.classList.add('separator-visible');
+                console.log('Section separator triggered:', section.id || section.className);
             }
         });
-    }, {
-        // Mobile-friendly thresholds - lower values trigger earlier
-        threshold: isMobile ? 0.3 : 0.75,  // 30% visible on mobile, 75% on desktop
-        rootMargin: isMobile ? '0px 0px -10% 0px' : '0px 0px -20% 0px'  // Trigger earlier on mobile
-    });
+    };
     
-    sections.forEach(function(section) {
-        // Skip observing home section since we handle it manually on first scroll
-        if (section.id !== 'home') {
-            observer.observe(section);
-            console.log('Observing section:', section.id || section.className);
+    // Throttled scroll handler
+    var ticking = false;
+    window.addEventListener('scroll', function() {
+        // Must scroll minimum amount before any activation
+        if (window.pageYOffset < minScrollToActivate) return;
+        
+        if (!ticking) {
+            requestAnimationFrame(function() {
+                checkSectionVisibility();
+                ticking = false;
+            });
+            ticking = true;
         }
-    });
+    }, { passive: true });
 };
     // === INITIALIZATION ===
     var init = function() {

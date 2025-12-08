@@ -83,17 +83,25 @@
     0 4px 12px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
+
+@media (max-width: 2500px) {
+  #philosophy-carousel-root {
+    min-height: 600px;
+    padding: 0rem 0;
+  }
+   }
+
 /* Responsive */
 @media (max-width: 1024px) {
   #philosophy-carousel-root {
-    min-height: 750px;
-    padding: 3rem 0;
+    min-height: 670px;
+    padding: 0rem 0;
   }
 }
 
 @media (max-width: 768px) {
   #philosophy-carousel-root {
     padding: 0rem 0;
-    min-height: 700px;
+    min-height: 650px;
   }
 }

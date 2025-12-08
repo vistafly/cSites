@@ -97,7 +97,7 @@
 
 .carousel-item-content {
   flex: 1;
-  padding: 0 5px 15px;
+  padding: 0 8px 15px;
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -106,7 +106,7 @@
 
 .carousel-item-title {
   margin-bottom: 12px;
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 700;
   color: #ffffff;
   letter-spacing: -0.02em;
@@ -114,17 +114,17 @@
 }
 
 .carousel-item-description {
-  font-size: 17px;
+  font-size: 16px;
   line-height: 1.7;
   color: rgba(255, 255, 255, 0.7);
-  max-width: 90%;
+  max-width: 96%;
 }
 
 .carousel-indicators-container {
   display: flex;
   width: 100%;
   justify-content: center;
-  margin-top: 55px;
+  margin-top: 45px;
 }
 
 /* Responsive margin adjustments */
@@ -161,7 +161,7 @@
 
 .carousel-indicators {
   display: flex;
-  gap: 8px;
+  gap: 12px;
   padding: 8px 12px;
   background: rgba(255, 255, 255, 0.1);
   border-radius: 100px;

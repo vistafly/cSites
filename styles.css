@@ -560,7 +560,7 @@ body {
     left: 0;
     right: 0;
     z-index: 1000;
-    padding: .1rem 0;
+    padding: .3rem 0;
     background: transparent;
     box-shadow: none;
     transition: padding 0.25s ease-out,
@@ -570,11 +570,18 @@ body {
 }
 
 .navbar.scrolled {
-    padding: 0.5rem 0;
-    background: rgba(15, 15, 15, 0.9);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+    padding: 0.7rem 0;
+    
+    /* Premium Apple Glass */
+    background: rgb(117 117 117 / 19%);
+    backdrop-filter: blur(40px) saturate(200%) brightness(1.05);
+    -webkit-backdrop-filter: blur(40px) saturate(200%) brightness(1.05);
+    
+    /* Signature Apple hairline border */
+    border-bottom: 0.5px solid rgba(255, 255, 255, 0.1);
+    
+    /* Almost no shadow - Apple style */
+    box-shadow: 0 0.5px 0 rgba(0, 0, 0, 0.15);
 }
 
 .nav-container {
@@ -975,10 +982,31 @@ body {
     50% { opacity: 1; }
 }
 
-/* === SECTION STYLES === */
+/* === SECTION BASE === */
 section {
     padding: clamp(4rem, 10vw, 10rem) 0;
     position: relative;
+}
+
+/* === MOBILE - All phones (up to 768px) === */
+@media (max-width: 765px) {
+    section {
+        padding: 4rem 0;
+    }
+}
+
+/* === TABLET - All tablets (769px - 1024px) === */
+@media (min-width: 766px) and (max-width: 1024px) {
+    section {
+        padding: 5rem 0;
+    }
+}
+
+/* === DESKTOP - All desktop & larger (1025px+) === */
+@media (min-width: 1025px) {
+    section {
+        padding: 6rem 0;
+    }
 }
 
 .section-eyebrow {
@@ -1951,7 +1979,7 @@ section {
 /* === FOOTER === */
 .footer {
     background: linear-gradient(180deg, #0a0a0a 0%, #050505 100%);
-    padding: 4rem 0 2rem;
+    padding: 4rem 0 1rem;
     position: relative;
 }
 
@@ -1999,7 +2027,7 @@ section {
 }
 
 .footer-bottom {
-    padding-top: 2rem;
+    padding-top: 1rem;
     border-top: 1px solid rgba(255, 255, 255, 0.05);
     text-align: center;
 }
@@ -2322,7 +2350,7 @@ section {
 
 .auth-note {
     margin-top: 1.5rem;
-    padding: 1rem;
+    padding: .9rem;
     background: rgba(255, 255, 255, 0.05);
     border-left: 3px solid rgba(255, 255, 255, 0.3);
     border-radius: 0.5rem;
@@ -2411,7 +2439,7 @@ section {
 
 @media (max-width: 768px) {
     .auth-content {
-        padding: 2rem;
+        padding: 3rem 1rem 2.2rem;
         max-width: 95%;
     }
 
