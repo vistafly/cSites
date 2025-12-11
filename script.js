@@ -5695,14 +5695,15 @@ var CustomCursor = function() {
 CustomCursor.prototype.init = function() {
     var self = this;
     
-    // Inject cursor disable/enable styles
+    // Inject cursor disable/enable styles with fallback
     var style = document.createElement('style');
     style.id = 'custom-cursor-style';
-    style.textContent = 
+    style.textContent =
         '@media (min-width: 1024px) {' +
-        '  body:not(.modal-open) * { cursor: none !important; }' +
+        '  body:not(.modal-open):not(.custom-cursor-hidden) * { cursor: none !important; }' +
         '  body.modal-open, body.modal-open * { cursor: auto !important; }' +
         '  body.modal-open .signature-pad { cursor: crosshair !important; }' +
+        '  body.custom-cursor-hidden, body.custom-cursor-hidden * { cursor: auto !important; }' +
         '}';
     document.head.appendChild(style);
 
@@ -5716,14 +5717,16 @@ CustomCursor.prototype.init = function() {
         if (wasModalOpen && !isModalOpen) {
             self.isVisible = true;
             self.cursor.style.opacity = '1';
+            document.body.classList.remove('custom-cursor-hidden');
         }
-        
+
         wasModalOpen = isModalOpen;
-        
-        // Hide cursor when modal is open
+
+        // Hide cursor when modal is open and show regular cursor
         if (isModalOpen) {
             self.cursor.style.opacity = '0';
             self.isAnimating = false;
+            document.body.classList.add('custom-cursor-hidden');
             return;
         }
         
@@ -5746,9 +5749,9 @@ CustomCursor.prototype.init = function() {
             self.animate();
         }
         
-        // 🎯 THROTTLED HOVER CHECK - Every 3rd frame (~50ms at 60fps)
+        // 🎯 OPTIMIZED HOVER CHECK - Every 4th frame (~67ms at 60fps)
         self.hoverCheckFrame++;
-        if (self.hoverCheckFrame % 3 === 0) {
+        if (self.hoverCheckFrame % 4 === 0) {
             var element = document.elementFromPoint(e.clientX, e.clientY);
             self.checkHoverState(element);
         }
@@ -5758,6 +5761,13 @@ CustomCursor.prototype.init = function() {
         self.isVisible = false;
         self.isAnimating = false;
         self.cursor.style.opacity = '0';
+        // Show regular cursor when custom cursor is hidden
+        document.body.classList.add('custom-cursor-hidden');
+    });
+
+    document.addEventListener('pointerenter', function() {
+        // Hide regular cursor when custom cursor is visible
+        document.body.classList.remove('custom-cursor-hidden');
     });
 };
 
@@ -5818,9 +5828,9 @@ CustomCursor.prototype.animate = function() {
     
     var self = this;
     
-    // ⚡ FAST LERP - 0.3 factor for 2x faster response
-    var lerpFactor = 0.3;
-    var snapThreshold = 0.5;  // Stop animating if within 0.5px
+    // ⚡ ULTRA-FAST LERP - 0.4 factor for instant response
+    var lerpFactor = 0.4;
+    var snapThreshold = 0.3;  // Stop animating if within 0.3px for faster snapping
     
     // Calculate distance to target
     var dx = this.target.x - this.position.x;

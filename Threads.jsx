@@ -191,30 +191,38 @@ function getResponsiveScaling() {
   return { distanceScale, amplitudeScale };
 }
 
-// Enhanced device detection with GPU profiling
+// Enhanced device detection with GPU profiling (optimized for immediate execution)
 function getDeviceProfile() {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const cores = navigator.hardwareConcurrency || 4;
   const memory = navigator.deviceMemory || 4; // GB
-  
-  // Detect GPU tier
+
+  // Fast GPU tier detection - check only if not mobile (skip for mobile since we have a default profile)
   let gpuTier = 'high';
-  try {
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    if (gl) {
-      const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
-      if (debugInfo) {
-        const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL).toLowerCase();
-        // Intel integrated graphics or old GPUs
-        if (renderer.includes('intel') && !renderer.includes('iris xe')) {
-          gpuTier = 'low';
+  if (!isMobile) {
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl', {
+        powerPreference: 'high-performance',
+        failIfMajorPerformanceCaveat: true
+      });
+      if (gl) {
+        const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+        if (debugInfo) {
+          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL).toLowerCase();
+          // Intel integrated graphics or old GPUs
+          if (renderer.includes('intel') && !renderer.includes('iris xe')) {
+            gpuTier = 'low';
+          }
         }
+        // Clean up immediately
+        gl.getExtension('WEBGL_lose_context')?.loseContext();
       }
+    } catch (e) {
+      // If context creation fails, assume low-end
+      gpuTier = 'low';
     }
-  } catch (e) {
-    // Ignore errors
   }
   
   // Touch-specific smoothing (higher = smoother but slightly more lag)
@@ -378,7 +386,7 @@ let lastTime = performance.now();
 let frameCount = 0;
 let reEntryFrames = 0; // Track frames since re-entry
 const qualityCheckInterval = 120; // Check performance every 2 seconds
-const RE_ENTRY_SMOOTH_FRAMES = 30; // Extra smoothing for 30 frames after re-entry
+const RE_ENTRY_SMOOTH_FRAMES = 10; // Extra smoothing for 10 frames after re-entry (~167ms at 60fps)
 
 function update(t) {
   // Don't render if not visible
@@ -418,10 +426,10 @@ function update(t) {
     const newTargetX = externalMouseRef.current.x;
     const newTargetY = externalMouseRef.current.y;
     
-    // Detect large jumps (re-entry detection)
+    // Detect large jumps (re-entry detection) - lowered threshold for more responsiveness
     const jumpX = Math.abs(newTargetX - targetMouse[0]);
     const jumpY = Math.abs(newTargetY - targetMouse[1]);
-    const isLargeJump = jumpX > 0.3 || jumpY > 0.3;
+    const isLargeJump = jumpX > 0.5 || jumpY > 0.5;
     
     // If large jump detected, start re-entry smoothing
     if (isLargeJump && reEntryFrames === 0) {
@@ -434,9 +442,9 @@ function update(t) {
     // Calculate smoothing factor (extra smooth during re-entry)
     let smoothing = deviceProfile.current.smoothing;
     if (reEntryFrames > 0) {
-      // Gradual transition from super smooth to normal
+      // Gradual transition from smooth to normal - faster ramp up
       const reEntryProgress = reEntryFrames / RE_ENTRY_SMOOTH_FRAMES;
-      smoothing = smoothing * (0.2 + 0.8 * (1 - reEntryProgress)); // Start at 20% speed, ramp to 100%
+      smoothing = smoothing * (0.5 + 0.5 * (1 - reEntryProgress)); // Start at 50% speed, ramp to 100%
       reEntryFrames--;
     }
     

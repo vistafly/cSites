@@ -13,8 +13,27 @@ function HeroThreadsBackground() {
   useEffect(() => {
     const heroSection = document.getElementById('home');
     heroSectionRef.current = heroSection;
-    
+
     if (!heroSection) return;
+
+    // CRITICAL: Check if mouse is already in the hero section on mount
+    // This ensures interaction works immediately on page load
+    if (window.mouseTracker) {
+      const rect = heroSection.getBoundingClientRect();
+      const mouseX = window.mouseTracker.position.x;
+      const mouseY = window.mouseTracker.position.y;
+
+      // If mouse is already in the hero section, mark it and get position
+      if (mouseX >= rect.left && mouseX <= rect.right &&
+          mouseY >= rect.top && mouseY <= rect.bottom) {
+        isMouseInSection.current = true;
+        // Initialize with current mouse position immediately
+        const normalized = window.mouseTracker.getNormalizedPosition(heroSection);
+        mousePositionRef.current = normalized;
+        lastKnownPosition.current = normalized;
+        console.log('🎯 Hero Threads: Mouse detected in section on load', normalized);
+      }
+    }
 
     // Handle mouse enter - smooth transition from last known position
     const handleMouseEnter = () => {
@@ -72,29 +91,23 @@ function HeroThreadsBackground() {
     heroSection.addEventListener('touchend', handleTouchEnd, { passive: true });
     heroSection.addEventListener('touchcancel', handleTouchEnd, { passive: true });
 
-    // Wait for MouseTracker to be available
-    const checkTracker = () => {
-      if (window.mouseTracker) {
-        // Subscribe to global mouse tracker
-        const unsubscribe = window.mouseTracker.subscribe((pos) => {
-          // Only update if mouse is in section
-          if (isMouseInSection.current) {
-            // Get normalized position relative to hero section
-            const normalized = window.mouseTracker.getNormalizedPosition(heroSection);
-            mousePositionRef.current = normalized;
-            lastKnownPosition.current = normalized;
-          }
-        });
-
-        return unsubscribe;
-      } else {
-        // Retry in 50ms if tracker not ready yet
-        const timeout = setTimeout(checkTracker, 50);
-        return () => clearTimeout(timeout);
+    // Subscribe to MouseTracker immediately (it's always available)
+    const unsubscribe = window.mouseTracker.subscribe((pos) => {
+      // Only update if mouse is in section
+      if (isMouseInSection.current) {
+        // Get normalized position relative to hero section
+        const normalized = window.mouseTracker.getNormalizedPosition(heroSection);
+        mousePositionRef.current = normalized;
+        lastKnownPosition.current = normalized;
       }
-    };
+    });
 
-    const cleanup = checkTracker();
+    // Trigger an immediate update if mouse is already in section
+    if (isMouseInSection.current && window.mouseTracker) {
+      const normalized = window.mouseTracker.getNormalizedPosition(heroSection);
+      mousePositionRef.current = normalized;
+      lastKnownPosition.current = normalized;
+    }
     
     return () => {
       heroSection.removeEventListener('mouseenter', handleMouseEnter);
@@ -102,9 +115,9 @@ function HeroThreadsBackground() {
       heroSection.removeEventListener('touchmove', handleTouchMove);
       heroSection.removeEventListener('touchend', handleTouchEnd);
       heroSection.removeEventListener('touchcancel', handleTouchEnd);
-      
-      if (typeof cleanup === 'function') {
-        cleanup();
+
+      if (typeof unsubscribe === 'function') {
+        unsubscribe();
       }
     };
   }, []);

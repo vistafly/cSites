@@ -1,0 +1,15 @@
+# robots.txt for VistaFly
+# https://vistafly.github.io/CSAnew/
+
+User-agent: *
+Allow: /
+
+# Disallow authentication and admin areas
+Disallow: /firebase-config.js
+Disallow: /node_modules/
+
+# Sitemap location
+Sitemap: https://vistafly.github.io/CSAnew/sitemap.xml
+
+# Crawl-delay (optional, prevents server overload)
+Crawl-delay: 1
