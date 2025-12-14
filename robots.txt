@@ -1,15 +1,27 @@
-# robots.txt for VistaFly
-# https://vistafly.github.io/CSAnew/
+# robots.txt for scarlo.dev
+# https://www.robotstxt.org/
 
 User-agent: *
 Allow: /
 
-# Disallow authentication and admin areas
-Disallow: /firebase-config.js
-Disallow: /node_modules/
-
 # Sitemap location
-Sitemap: https://vistafly.github.io/CSAnew/sitemap.xml
+Sitemap: https://scarlo.dev/sitemap.xml
 
-# Crawl-delay (optional, prevents server overload)
+# Disallow admin/private areas if any
+Disallow: /admin/
+Disallow: /private/
+Disallow: /*.json$
+
+# Allow all major search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+# Crawl-delay for less aggressive bots
+User-agent: *
 Crawl-delay: 1

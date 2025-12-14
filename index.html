@@ -3,66 +3,76 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VistaFly — Precision Web Design</title>
-    <meta name="description" content="VistaFly architects digital experiences with obsessive attention to detail. Custom web design and development using modern technologies like React, Next.js, and Firebase.">
-    <meta name="keywords" content="web design, web development, React, Next.js, Firebase, custom websites, web applications, UI/UX design">
-    <meta name="author" content="VistaFly - Carlos Martin">
+    <title>Scarlo — Precision Web Design</title>
+    <meta name="description" content="Scarlo architects digital experiences with obsessive attention to detail. Custom web design and development using modern technologies like React, Next.js, and Firebase.">
+    <meta name="keywords" content="web design, web development, React, Next.js, Firebase, custom websites, web applications, UI/UX design, Scarlo, Carlos Martin">
+    <meta name="author" content="Scarlo - Carlos Martin">
     <meta name="robots" content="index, follow">
     <meta name="theme-color" content="#000000">
-    <link rel="icon" type="image/png" href="/favicons/favicon-96x96.png" sizes="96x96" />
-<link rel="icon" type="image/svg+xml" href="/favicons/favicon.svg" />
-<link rel="shortcut icon" href="/favicons/favicon.ico" />
-<link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png" />
-<meta name="apple-mobile-web-app-title" content="Scarlo.dev" />
-<link rel="manifest" href="/favicons/site.webmanifest" />
+    
+    <!-- Favicons -->
+    <link rel="icon" type="image/png" href="/favicons/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/svg+xml" href="/favicons/favicon.svg">
+    <link rel="shortcut icon" href="/favicons/favicon.ico">
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicons/apple-touch-icon.png">
+    <meta name="apple-mobile-web-app-title" content="Scarlo">
+    <link rel="manifest" href="/favicons/site.webmanifest">
 
-    <!-- Canonical URL -->
-    <link rel="canonical" href="https://vistafly.github.io/CSAnew/">
+    <!-- Canonical URL - FIXED -->
+    <link rel="canonical" href="https://scarlo.dev/">
 
-    <!-- Open Graph Meta Tags -->
-    <meta property="og:title" content="VistaFly — Precision Web Design">
+    <!-- Open Graph Meta Tags - FIXED -->
+    <meta property="og:title" content="Scarlo — Precision Web Design">
     <meta property="og:description" content="We architect digital experiences with obsessive attention to detail, where every interaction feels effortless.">
     <meta property="og:type" content="website">
-    <meta property="og:url" content="https://vistafly.github.io/CSAnew/">
-    <meta property="og:image" content="https://vistafly.github.io/CSAnew/images/midnight-logo0.png">
-    <meta property="og:site_name" content="VistaFly">
+    <meta property="og:url" content="https://scarlo.dev/">
+    <meta property="og:image" content="https://scarlo.dev/images/og-image.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Scarlo">
     <meta property="og:locale" content="en_US">
 
-    <!-- Twitter Card Meta Tags -->
+    <!-- Twitter Card Meta Tags - FIXED -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="VistaFly — Precision Web Design">
+    <meta name="twitter:title" content="Scarlo — Precision Web Design">
     <meta name="twitter:description" content="We architect digital experiences with obsessive attention to detail, where every interaction feels effortless.">
-    <meta name="twitter:image" content="https://vistafly.github.io/CSAnew/images/midnight-logo0.png">
+    <meta name="twitter:image" content="https://scarlo.dev/images/og-image.png">
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon.png">
-
+    <!-- Preload critical assets for performance -->
+    <link rel="preload" href="/images/morph-logo00.png" as="image">
+    <link rel="preload" href="styles.css" as="style">
+    
     <!-- Preconnect to external domains for performance -->
-    <link rel="preconnect" href="https://s14.gifyu.com">
-    <link rel="dns-prefetch" href="https://vistafly.services">
-    <link rel="dns-prefetch" href="https://agstounding.com">
-    <link rel="dns-prefetch" href="https://themorenosband.com">
-    <link rel="dns-prefetch" href="https://vistafly.github.io">
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="dns-prefetch" href="https://www.gstatic.com">
     
     <link rel="stylesheet" href="styles.css">
 
-    <!-- Structured Data (Schema.org JSON-LD) -->
+    <!-- Structured Data (Schema.org JSON-LD) - UPDATED -->
     <script type="application/ld+json">
     {
         "@context": "https://schema.org",
         "@type": "ProfessionalService",
-        "name": "VistaFly",
+        "name": "Scarlo",
+        "alternateName": "Scarlo Web Design",
         "description": "We architect digital experiences with obsessive attention to detail. Custom web design and development using modern technologies.",
-        "url": "https://vistafly.github.io/CSAnew/",
-        "logo": "https://vistafly.github.io/CSAnew/images/midnight-logo0.png",
+        "url": "https://scarlo.dev/",
+        "logo": "https://scarlo.dev/images/og-image.png",
+        "image": "https://scarlo.dev/images/og-image.png",
         "founder": {
             "@type": "Person",
             "name": "Carlos Martin"
         },
         "sameAs": [
-            "https://vistafly.services"
+            "https://twitter.com/scarlo",
+            "https://linkedin.com/in/scarlo",
+            "https://instagram.com/scarlo"
         ],
+        "contactPoint": {
+            "@type": "ContactPoint",
+            "contactType": "customer service",
+            "url": "https://scarlo.dev/#contact"
+        },
         "offers": {
             "@type": "Offer",
             "category": "Web Design & Development Services"
@@ -71,21 +81,23 @@
             "@type": "Place",
             "name": "Worldwide"
         },
+        "priceRange": "$$",
         "serviceType": [
             "Web Design",
-            "Web Development",
+            "Web Development", 
             "UI/UX Design",
             "Custom Web Applications",
             "React Development",
-            "Next.js Development"
+            "Next.js Development",
+            "Firebase Development"
         ]
     }
     </script>
 
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Firebase SDK - defer for performance -->
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js" defer></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js" defer></script>
 </head>
 <body>
     <!-- Loading Screen with Logo Animation -->
@@ -106,95 +118,96 @@
             <!-- Lens streak -->
             <div class="logo-lens-streak" id="loadingLensStreak"></div>
 
-            <!-- Logo stack for crossfade -->
+            <!-- Logo stack for crossfade - First image eager, rest lazy -->
             <div class="logo-stack" id="loadingLogoStack">
-    <img id="loadingLogo0" src="/images/morph-logo00.png" alt="">
-    <img id="loadingLogo1" src="/images/morph-logo01.png" alt="">
-    <img id="loadingLogo2" src="/images/morph-logo02.png" alt="">
-    <img id="loadingLogo3" src="/images/morph-logo03.png" alt="">
-    <img id="loadingLogo4" src="/images/morph-logo04.png" alt="">
-    <img id="loadingLogo5" src="/images/morph-logo05.png" alt="">
-    <img id="loadingLogo6" src="/images/morph-logo06.png" alt="">
-    <img id="loadingLogo7" src="/images/morph-logo07.png" alt="">
-    <img id="loadingLogo8" src="/images/morph-logo08.png" alt="">
-    <img id="loadingLogo9" src="/images/morph-logo09.png" alt="">
-    <img id="loadingLogo10" src="/images/morph-logo10.png" alt="">
-    <img id="loadingLogo11" src="/images/morph-logo11.png" alt="">
-    <img id="loadingLogo12" src="/images/morph-logo12.png" alt="">
-    <img id="loadingLogo13" src="/images/morph-logo13.png" alt="">
-    <img id="loadingLogo14" src="/images/morph-logo14.png" alt="">
-    <img id="loadingLogo15" src="/images/morph-logo15.png" alt="">
-    <img id="loadingLogo16" src="/images/morph-logo16.png" alt="">
-    <img id="loadingLogo17" src="/images/morph-logo17.png" alt="">
-    <img id="loadingLogo18" src="/images/morph-logo18.png" alt="">
-    <img id="loadingLogo19" src="/images/morph-logo19.png" alt="">
-</div>
+                <img id="loadingLogo0" src="/images/morph-logo00.png" alt="Scarlo Logo">
+                <img id="loadingLogo1" src="/images/morph-logo01.png" alt="" loading="lazy">
+                <img id="loadingLogo2" src="/images/morph-logo02.png" alt="" loading="lazy">
+                <img id="loadingLogo3" src="/images/morph-logo03.png" alt="" loading="lazy">
+                <img id="loadingLogo4" src="/images/morph-logo04.png" alt="" loading="lazy">
+                <img id="loadingLogo5" src="/images/morph-logo05.png" alt="" loading="lazy">
+                <img id="loadingLogo6" src="/images/morph-logo06.png" alt="" loading="lazy">
+                <img id="loadingLogo7" src="/images/morph-logo07.png" alt="" loading="lazy">
+                <img id="loadingLogo8" src="/images/morph-logo08.png" alt="" loading="lazy">
+                <img id="loadingLogo9" src="/images/morph-logo09.png" alt="" loading="lazy">
+                <img id="loadingLogo10" src="/images/morph-logo10.png" alt="" loading="lazy">
+                <img id="loadingLogo11" src="/images/morph-logo11.png" alt="" loading="lazy">
+                <img id="loadingLogo12" src="/images/morph-logo12.png" alt="" loading="lazy">
+                <img id="loadingLogo13" src="/images/morph-logo13.png" alt="" loading="lazy">
+                <img id="loadingLogo14" src="/images/morph-logo14.png" alt="" loading="lazy">
+                <img id="loadingLogo15" src="/images/morph-logo15.png" alt="" loading="lazy">
+                <img id="loadingLogo16" src="/images/morph-logo16.png" alt="" loading="lazy">
+                <img id="loadingLogo17" src="/images/morph-logo17.png" alt="" loading="lazy">
+                <img id="loadingLogo18" src="/images/morph-logo18.png" alt="" loading="lazy">
+                <img id="loadingLogo19" src="/images/morph-logo19.png" alt="" loading="lazy">
+            </div>
         </div>
     </div>
+    
     <!-- Ambient Background -->
     <div class="ambient-bg"></div>
 
     <!-- Navigation -->
-<nav class="navbar">
-    <div class="nav-container">
-        <!-- Animated Logo + Text Wrapper -->
-        <a href="#home" class="navbar-brand" id="navbarBrand">
-            <!-- Animated Logo -->
-            <div class="navbar-logo-animated" id="navbarLogoAnimated">
-                <div class="navbar-logo-ambient"></div>
-                <div class="navbar-logo-stack" id="navbarLogoStack">
-                    <img id="navLogo0" class="visible" src="/images/morph-logo00.png" alt="VistaFly Logo">
-                    <img id="navLogo1" src="/images/morph-logo01.png" alt="">
-                    <img id="navLogo2" src="/images/morph-logo02.png" alt="">
-                    <img id="navLogo3" src="/images/morph-logo03.png" alt="">
-                    <img id="navLogo4" src="/images/morph-logo04.png" alt="">
-                    <img id="navLogo5" src="/images/morph-logo05.png" alt="">
-                    <img id="navLogo6" src="/images/morph-logo06.png" alt="">
-                    <img id="navLogo7" src="/images/morph-logo07.png" alt="">
-                    <img id="navLogo8" src="/images/morph-logo08.png" alt="">
-                    <img id="navLogo9" src="/images/morph-logo09.png" alt="">
-                    <img id="navLogo10" src="/images/morph-logo10.png" alt="">
-                    <img id="navLogo11" src="/images/morph-logo11.png" alt="">
-                    <img id="navLogo12" src="/images/morph-logo12.png" alt="">
-                    <img id="navLogo13" src="/images/morph-logo13.png" alt="">
-                    <img id="navLogo14" src="/images/morph-logo14.png" alt="">
-                    <img id="navLogo15" src="/images/morph-logo15.png" alt="">
-                    <img id="navLogo16" src="/images/morph-logo16.png" alt="">
-                    <img id="navLogo17" src="/images/morph-logo17.png" alt="">
-                    <img id="navLogo18" src="/images/morph-logo18.png" alt="">
-                    <img id="navLogo19" src="/images/morph-logo19.png" alt="">
+    <nav class="navbar">
+        <div class="nav-container">
+            <!-- Animated Logo + Text Wrapper -->
+            <a href="#home" class="navbar-brand" id="navbarBrand">
+                <!-- Animated Logo -->
+                <div class="navbar-logo-animated" id="navbarLogoAnimated">
+                    <div class="navbar-logo-ambient"></div>
+                    <div class="navbar-logo-stack" id="navbarLogoStack">
+                        <img id="navLogo0" class="visible" src="/images/morph-logo00.png" alt="Scarlo Logo">
+                        <img id="navLogo1" src="/images/morph-logo01.png" alt="" loading="lazy">
+                        <img id="navLogo2" src="/images/morph-logo02.png" alt="" loading="lazy">
+                        <img id="navLogo3" src="/images/morph-logo03.png" alt="" loading="lazy">
+                        <img id="navLogo4" src="/images/morph-logo04.png" alt="" loading="lazy">
+                        <img id="navLogo5" src="/images/morph-logo05.png" alt="" loading="lazy">
+                        <img id="navLogo6" src="/images/morph-logo06.png" alt="" loading="lazy">
+                        <img id="navLogo7" src="/images/morph-logo07.png" alt="" loading="lazy">
+                        <img id="navLogo8" src="/images/morph-logo08.png" alt="" loading="lazy">
+                        <img id="navLogo9" src="/images/morph-logo09.png" alt="" loading="lazy">
+                        <img id="navLogo10" src="/images/morph-logo10.png" alt="" loading="lazy">
+                        <img id="navLogo11" src="/images/morph-logo11.png" alt="" loading="lazy">
+                        <img id="navLogo12" src="/images/morph-logo12.png" alt="" loading="lazy">
+                        <img id="navLogo13" src="/images/morph-logo13.png" alt="" loading="lazy">
+                        <img id="navLogo14" src="/images/morph-logo14.png" alt="" loading="lazy">
+                        <img id="navLogo15" src="/images/morph-logo15.png" alt="" loading="lazy">
+                        <img id="navLogo16" src="/images/morph-logo16.png" alt="" loading="lazy">
+                        <img id="navLogo17" src="/images/morph-logo17.png" alt="" loading="lazy">
+                        <img id="navLogo18" src="/images/morph-logo18.png" alt="" loading="lazy">
+                        <img id="navLogo19" src="/images/morph-logo19.png" alt="" loading="lazy">
+                    </div>
                 </div>
-            </div>
 
-            <!-- Animated Text -->
-            <div class="navbar-text-animated" id="navbarTextAnimated">
-                <div class="navbar-text-ambient"></div>
-                <div class="navbar-text-stack" id="navbarTextStack">
-                    <img id="navText0" class="visible" src="/images/morph-text00.png" alt="VistaFly">
-                    <img id="navText1" src="/images/morph-text01.png" alt="">
-                    <img id="navText2" src="/images/morph-text02.png" alt="">
-                    <img id="navText3" src="/images/morph-text03.png" alt="">
-                    <img id="navText4" src="/images/morph-text04.png" alt="">
-                    <img id="navText5" src="/images/morph-text05.png" alt="">
-                    <img id="navText6" src="/images/morph-text06.png" alt="">
-                    <img id="navText7" src="/images/morph-text07.png" alt="">
-                    <img id="navText8" src="/images/morph-text08.png" alt="">
-                    <img id="navText9" src="/images/morph-text09.png" alt="">
-                    <img id="navText10" src="/images/morph-text10.png" alt="">
-                    <img id="navText11" src="/images/morph-text11.png" alt="">
-                    <img id="navText12" src="/images/morph-text12.png" alt="">
-                    <img id="navText13" src="/images/morph-text13.png" alt="">
-                    <img id="navText14" src="/images/morph-text14.png" alt="">
-                    <img id="navText15" src="/images/morph-text15.png" alt="">
-                    <img id="navText16" src="/images/morph-text16.png" alt="">
-                    <img id="navText17" src="/images/morph-text17.png" alt="">
-                    <img id="navText18" src="/images/morph-text18.png" alt="">
-                    <img id="navText19" src="/images/morph-text19.png" alt="">
+                <!-- Animated Text -->
+                <div class="navbar-text-animated" id="navbarTextAnimated">
+                    <div class="navbar-text-ambient"></div>
+                    <div class="navbar-text-stack" id="navbarTextStack">
+                        <img id="navText0" class="visible" src="/images/morph-text00.png" alt="Scarlo">
+                        <img id="navText1" src="/images/morph-text01.png" alt="" loading="lazy">
+                        <img id="navText2" src="/images/morph-text02.png" alt="" loading="lazy">
+                        <img id="navText3" src="/images/morph-text03.png" alt="" loading="lazy">
+                        <img id="navText4" src="/images/morph-text04.png" alt="" loading="lazy">
+                        <img id="navText5" src="/images/morph-text05.png" alt="" loading="lazy">
+                        <img id="navText6" src="/images/morph-text06.png" alt="" loading="lazy">
+                        <img id="navText7" src="/images/morph-text07.png" alt="" loading="lazy">
+                        <img id="navText8" src="/images/morph-text08.png" alt="" loading="lazy">
+                        <img id="navText9" src="/images/morph-text09.png" alt="" loading="lazy">
+                        <img id="navText10" src="/images/morph-text10.png" alt="" loading="lazy">
+                        <img id="navText11" src="/images/morph-text11.png" alt="" loading="lazy">
+                        <img id="navText12" src="/images/morph-text12.png" alt="" loading="lazy">
+                        <img id="navText13" src="/images/morph-text13.png" alt="" loading="lazy">
+                        <img id="navText14" src="/images/morph-text14.png" alt="" loading="lazy">
+                        <img id="navText15" src="/images/morph-text15.png" alt="" loading="lazy">
+                        <img id="navText16" src="/images/morph-text16.png" alt="" loading="lazy">
+                        <img id="navText17" src="/images/morph-text17.png" alt="" loading="lazy">
+                        <img id="navText18" src="/images/morph-text18.png" alt="" loading="lazy">
+                        <img id="navText19" src="/images/morph-text19.png" alt="" loading="lazy">
+                    </div>
                 </div>
-            </div>
-        </a>
+            </a>
 
-        <ul class="nav-menu">
+            <ul class="nav-menu">
                 <li><a href="#home" class="nav-link">Home</a></li>
                 <li><a href="#philosophy" class="nav-link">Services</a></li>
                 <li><a href="#portfolio" class="nav-link">Portfolio</a></li>
@@ -210,106 +223,104 @@
                     <span id="authStatusText">Sign In</span>
                 </button>
             </div>
-            <!-- Staggered Menu (React Component) - Replaces old hamburger -->
+            <!-- Staggered Menu (React Component) -->
             <div id="staggered-menu-root"></div>
         </div>
     </nav>
 
     <!-- Hero Section -->
-<section id="home" class="hero">
-    <!-- Threads background - MUST be first -->
-    <div id="hero-threads-root"></div>
-    
-    <!-- Existing background layers -->
-    <div class="hero-bg-layers">
-        <div class="layer layer-1"></div>
-        <div class="layer layer-2"></div>
-    </div>
-    
-    <!-- Content on top -->
-    <div class="hero-content">
-        <div class="hero-badge">Crafted with precision</div>
-        <h1 class="hero-title">
-            <span class="title-line">Design that</span>
-            <span class="title-line gradient-text">
-                <span class="rotating-text-wrapper">
-                    <span class="rotating-text active">sparks your vision</span>
-                    <span class="rotating-text">ignites possibility</span>
-                    <span class="rotating-text">unlocks potential</span>
-                    <span class="rotating-text">dreams into reality</span>
-                    <span class="rotating-text">crafts experiences</span>
-                    <span class="rotating-text">builds your story</span>
-                    <span class="rotating-text">shapes your journey</span>
-                    <span class="rotating-text">elevates your brand</span>
-                    <span class="rotating-text">amplifies your voice</span>
-                    <span class="rotating-text">magnetizes clients</span>
-                    <span class="rotating-text">captivates audiences</span>
-                    <span class="rotating-text">drives engagement</span>
-                    <span class="rotating-text">fuels your growth</span>
-                    <span class="rotating-text">accelerates success</span>
-                    <span class="rotating-text">multiplies impact</span>
-                    <span class="rotating-text">powers your reach</span>
-                    <span class="rotating-text">expands your empire</span>
-                    <span class="rotating-text">conquers challenges</span>
-                    <span class="rotating-text">solves complexities</span>
-                    <span class="rotating-text">delivers solutions</span>
-                    <span class="rotating-text">exceeds benchmarks</span>
-                    <span class="rotating-text">shatters limits</span>
-                    <span class="rotating-text">redefines standards</span>
-                    <span class="rotating-text">pioneers innovation</span>
-                    <span class="rotating-text">leads industries</span>
-                    <span class="rotating-text">dominates markets</span>
-                    <span class="rotating-text">inspires movements</span>
-                    <span class="rotating-text">creates legacies</span>
-                    <span class="rotating-text">builds empires</span>
-                    <span class="rotating-text">generates revenue</span>
-                    <span class="rotating-text">maximizes returns</span>
-                    <span class="rotating-text">scales infinitely</span>
-                    <span class="rotating-text">compounds growth</span>
-                    <span class="rotating-text">sustains momentum</span>
-                    <span class="rotating-text">secures your future</span>
-                    <span class="rotating-text">defines tomorrow</span>
-                    <span class="rotating-text">architects reality</span>
-                    <span class="rotating-text">manifests destiny</span>
-                    <span class="rotating-text">transcends limits</span>
+    <section id="home" class="hero">
+        <!-- Threads background -->
+        <div id="hero-threads-root"></div>
+        
+        <!-- Background layers -->
+        <div class="hero-bg-layers">
+            <div class="layer layer-1"></div>
+            <div class="layer layer-2"></div>
+        </div>
+        
+        <!-- Content -->
+        <div class="hero-content">
+            <div class="hero-badge">Crafted with precision</div>
+            <h1 class="hero-title">
+                <span class="title-line">Design that</span>
+                <span class="title-line gradient-text">
+                    <span class="rotating-text-wrapper">
+                        <span class="rotating-text active">sparks your vision</span>
+                        <span class="rotating-text">ignites possibility</span>
+                        <span class="rotating-text">unlocks potential</span>
+                        <span class="rotating-text">dreams into reality</span>
+                        <span class="rotating-text">crafts experiences</span>
+                        <span class="rotating-text">builds your story</span>
+                        <span class="rotating-text">shapes your journey</span>
+                        <span class="rotating-text">elevates your brand</span>
+                        <span class="rotating-text">amplifies your voice</span>
+                        <span class="rotating-text">magnetizes clients</span>
+                        <span class="rotating-text">captivates audiences</span>
+                        <span class="rotating-text">drives engagement</span>
+                        <span class="rotating-text">fuels your growth</span>
+                        <span class="rotating-text">accelerates success</span>
+                        <span class="rotating-text">multiplies impact</span>
+                        <span class="rotating-text">powers your reach</span>
+                        <span class="rotating-text">expands your empire</span>
+                        <span class="rotating-text">conquers challenges</span>
+                        <span class="rotating-text">solves complexities</span>
+                        <span class="rotating-text">delivers solutions</span>
+                        <span class="rotating-text">exceeds benchmarks</span>
+                        <span class="rotating-text">shatters limits</span>
+                        <span class="rotating-text">redefines standards</span>
+                        <span class="rotating-text">pioneers innovation</span>
+                        <span class="rotating-text">leads industries</span>
+                        <span class="rotating-text">dominates markets</span>
+                        <span class="rotating-text">inspires movements</span>
+                        <span class="rotating-text">creates legacies</span>
+                        <span class="rotating-text">builds empires</span>
+                        <span class="rotating-text">generates revenue</span>
+                        <span class="rotating-text">maximizes returns</span>
+                        <span class="rotating-text">scales infinitely</span>
+                        <span class="rotating-text">compounds growth</span>
+                        <span class="rotating-text">sustains momentum</span>
+                        <span class="rotating-text">secures your future</span>
+                        <span class="rotating-text">defines tomorrow</span>
+                        <span class="rotating-text">architects reality</span>
+                        <span class="rotating-text">manifests destiny</span>
+                        <span class="rotating-text">transcends limits</span>
+                    </span>
                 </span>
-            </span>
-        </h1>
-        <p class="hero-description">
-            We architect digital experiences with obsessive attention to detail,<br>
-            where every interaction feels effortless.
-        </p>
-        <div class="hero-cta">
-            <a href="#portfolio" class="btn-primary">
-                <span>Explore our work</span>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M8 3L8 13M8 13L13 8M8 13L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                </svg>
-            </a>
-            <button class="btn-primary btn-contract-hero view-contract-trigger">
-                <span>View & Sign Agreement</span>
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                    <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-                </svg>
-            </button>
+            </h1>
+            <p class="hero-description">
+                We architect digital experiences with obsessive attention to detail,<br>
+                where every interaction feels effortless.
+            </p>
+            <div class="hero-cta">
+                <a href="#portfolio" class="btn-primary">
+                    <span>Explore our work</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 3L8 13M8 13L13 8M8 13L3 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                </a>
+                <button class="btn-primary btn-contract-hero view-contract-trigger">
+                    <span>View & Sign Agreement</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
+            </div>
         </div>
-        </div>
-    </div>
-</section>
+    </section>
 
     <!-- Philosophy Section -->
-<section id="philosophy" class="philosophy">
-    <div class="container">
-        <div class="section-eyebrow">Our Approach</div>
-        <h2 class="section-title">Precision meets creativity</h2>
-        
-        <!-- React Carousel Mount Point -->
-        <div id="philosophy-carousel-root"></div>
-    </div>
-</section>
+    <section id="philosophy" class="philosophy">
+        <div class="container">
+            <div class="section-eyebrow">Our Approach</div>
+            <h2 class="section-title">Precision meets creativity</h2>
+            
+            <!-- React Carousel Mount Point -->
+            <div id="philosophy-carousel-root"></div>
+        </div>
+    </section>
 
     <!-- Portfolio Section -->
-    <!-- Portfolio Section - 3D Dome Gallery (React) -->
     <section id="portfolio" class="portfolio">
         <div class="container-wide">
             <div class="portfolio-header">
@@ -328,22 +339,22 @@
         <div class="container">
             <div class="section-eyebrow">Legal Agreement</div>
             <h2 class="section-title">Development Agreement</h2>
-            <p class="contract-intro">Review and sign our standard website development agreement. This contract outlines the terms, deliverables, and expectations for all VistaFly projects.</p>
+            <p class="contract-intro">Review and sign our standard website development agreement. This contract outlines the terms, deliverables, and expectations for all Scarlo projects.</p>
             
             <div class="contract-actions">
                 <button id="viewContractBtn" class="btn-contract view-contract-trigger">
-    <span>View & Sign Agreement</span>
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-</button>
+                    <span>View & Sign Agreement</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M3 13L13 3M13 3H5M13 3V11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
                 <button id="requestHelpBtn" class="btn-contract-secondary">
-    <span>Request Help</span>
-    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-        <path d="M8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15Z" stroke="currentColor" stroke-width="1.5"/>
-        <path d="M8 11V11.01M8 8.5V8.5C8 7.5 9 7 9 6C9 5.44772 8.55228 5 8 5C7.44772 5 7 5.44772 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-</button>
+                    <span>Request Help</span>
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                        <path d="M8 15C11.866 15 15 11.866 15 8C15 4.13401 11.866 1 8 1C4.13401 1 1 4.13401 1 8C1 11.866 4.13401 15 8 15Z" stroke="currentColor" stroke-width="1.5"/>
+                        <path d="M8 11V11.01M8 8.5V8.5C8 7.5 9 7 9 6C9 5.44772 8.55228 5 8 5C7.44772 5 7 5.44772 7 6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                    </svg>
+                </button>
             </div>
 
             <div class="contract-features">
@@ -428,20 +439,20 @@
 
             <div class="modal-header">
                 <h1>WEBSITE DEVELOPMENT AGREEMENT</h1>
-                <p class="modal-subtitle">VistaFly - Carlos Martin</p>
+                <p class="modal-subtitle">Scarlo - Carlos Martin</p>
             </div>
 
             <form id="contractForm" class="contract-form">
                 <!-- Parties Section -->
                 <section class="contract-section-inner">
-                    <h2>Parties to the Agreement</h2>
+                    <h3>Parties to the Agreement</h3>
                     <p class="intro-text">
                         This Website Development Agreement ("Agreement") is made effective as of the date of the final signature 
                         (the "Effective Date") and is entered into by and between:
                     </p>
                     
                     <div class="party-info">
-                        <p><strong>VistaFly</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>
+                        <p><strong>Scarlo</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>
                         <p>and</p>
                         <div class="form-group">
                             <label for="clientName">Client's Full Legal Name or Company Name *</label>
@@ -453,25 +464,25 @@
 
                 <!-- Project Scope -->
                 <section class="contract-section-inner">
-                    <h2>1. PROJECT SCOPE</h2>
+                    <h3>1. PROJECT SCOPE</h3>
                     
-                    <h3>1.1 Overview</h3>
+                    <h4>1.1 Overview</h4>
                     <p>Developer agrees to design, build, and deliver a custom website or web application using modern technologies, 
                     which may include but are not limited to: Visual Studio Code, React, Next.js, Firebase, Vite, REST/Graph APIs, 
                     and associated development tools.</p>
 
-                    <h3>1.2 Statement of Work (SOW)</h3>
+                    <h4>1.2 Statement of Work (SOW)</h4>
                     <p>All features, functionalities, pages, integrations, and deliverables will be detailed in a separate Proposal 
                     or Statement of Work ("SOW") prepared by Developer and approved by Client.</p>
 
-                    <h3>1.3 Scope Limitations</h3>
+                    <h4>1.3 Scope Limitations</h4>
                     <p>Only items expressly included in the SOW form part of the Project Scope. Any request beyond that scope—whether 
                     new features, design changes, additional pages, or system enhancements—requires an approved Change Order (Section 10).</p>
                 </section>
 
                 <!-- Packages & Pricing -->
                 <section class="contract-section-inner">
-                    <h2>2. PACKAGES & PRICING</h2>
+                    <h3>2. PACKAGES & PRICING</h3>
                     <p>Developer offers multiple service tiers, including Starter, Professional, Premium, and Elite website/application 
                     packages. The applicable pricing, deliverables, and package level for this Agreement will be specified in the 
                     attached SOW, which forms an integral part of this Agreement.</p>
@@ -479,14 +490,14 @@
 
                 <!-- Payment Terms -->
                 <section class="contract-section-inner">
-                    <h2>3. PAYMENT TERMS</h2>
+                    <h3>3. PAYMENT TERMS</h3>
                     <p>Unless otherwise specified in the SOW:</p>
 
-                    <h3>3.1 Deposit</h3>
+                    <h4>3.1 Deposit</h4>
                     <p>A non-refundable deposit of 50% is required before any work begins, unless the Developer chooses to accept 
                     a different amount at their discretion.</p>
 
-                    <h3>3.2 Milestone Payments</h3>
+                    <h4>3.2 Milestone Payments</h4>
                     <p>If no custom timetable is specified in the SOW, the standard schedule is:</p>
                     <ul>
                         <li>25% due upon UI/UX design approval</li>
@@ -495,14 +506,14 @@
                     <p>The Developer may, at their discretion, adjust the milestone dates, provide grace periods, or allow alternative 
                     arrangements for the Client.</p>
 
-                    <h3>3.3 Late Payments</h3>
+                    <h4>3.3 Late Payments</h4>
                     <p>Payments not received within 7 days of the due date may, at the Developer's discretion, incur a monthly late 
                     fee of up to 5%. The Developer may also pause or delay work until any outstanding balance is paid.</p>
                 </section>
 
                 <!-- Client Responsibilities -->
                 <section class="contract-section-inner">
-                    <h2>4. CLIENT RESPONSIBILITIES</h2>
+                    <h3>4. CLIENT RESPONSIBILITIES</h3>
                     <p>Client agrees to provide all necessary materials—including copy, images, brand assets, credentials, and 
                     requested information—within 5 business days of Developer's request.</p>
                     <p>Any delays in providing required materials will directly extend the project timeline. Developer is not 
@@ -511,7 +522,7 @@
 
                 <!-- Revisions -->
                 <section class="contract-section-inner">
-                    <h2>5. REVISIONS</h2>
+                    <h3>5. REVISIONS</h3>
                     <p>Unless otherwise stated in the SOW:</p>
                     <ul>
                         <li>Client receives up to two (2) rounds of revisions per milestone</li>
@@ -521,9 +532,9 @@
 
                 <!-- Intellectual Property -->
                 <section class="contract-section-inner">
-                    <h2>6. INTELLECTUAL PROPERTY RIGHTS</h2>
+                    <h3>6. INTELLECTUAL PROPERTY RIGHTS</h3>
                     
-                    <h3>6.1 Developer Ownership</h3>
+                    <h4>6.1 Developer Ownership</h4>
                     <p>Developer retains full ownership of all proprietary materials, including:</p>
                     <ul>
                         <li>Source code</li>
@@ -534,7 +545,7 @@
                     <p>These materials are licensed to Client solely for use within the delivered project and may not be reused, 
                     distributed, or modified for other purposes without written authorization.</p>
 
-                    <h3>6.2 Client Ownership</h3>
+                    <h4>6.2 Client Ownership</h4>
                     <p>Upon full payment:</p>
                     <p>Client gains ownership of:</p>
                     <ul>
@@ -548,7 +559,7 @@
 
                 <!-- Maintenance & Support -->
                 <section class="contract-section-inner">
-                    <h2>7. MAINTENANCE & SUPPORT</h2>
+                    <h3>7. MAINTENANCE & SUPPORT</h3>
                     <p>Maintenance plans (Basic, Professional, Premium) may be purchased separately and will be defined in the SOW.</p>
                     <p>Maintenance plans do not include:</p>
                     <ul>
@@ -564,7 +575,7 @@
 
                 <!-- Timeline & Delivery -->
                 <section class="contract-section-inner">
-                    <h2>8. TIMELINE & DELIVERY</h2>
+                    <h3>8. TIMELINE & DELIVERY</h3>
                     <p>Developer will provide an estimated project timeline. Client acknowledges these timelines are estimates, 
                     not guarantees.</p>
                     <p>Any Client-caused delay automatically extends the project schedule.</p>
@@ -572,7 +583,7 @@
 
                 <!-- Change Orders -->
                 <section class="contract-section-inner">
-                    <h2>9. CHANGE ORDERS</h2>
+                    <h3>9. CHANGE ORDERS</h3>
                     <p>Any request modifying the Project Scope—including added features, redesigns, advanced animations, dashboards, 
                     APIs, or system logic—requires a signed Change Order that includes revised pricing and timelines.</p>
                     <p>Developer is not obligated to begin any additional work until the Change Order is fully approved and paid 
@@ -581,13 +592,13 @@
 
                 <!-- Warranty & Limitations -->
                 <section class="contract-section-inner">
-                    <h2>10. WARRANTY & LIMITATIONS</h2>
+                    <h3>10. WARRANTY & LIMITATIONS</h3>
                     
-                    <h3>10.1 Developer Warranty</h3>
+                    <h4>10.1 Developer Warranty</h4>
                     <p>Developer warrants that the delivered website will function substantially as described in the SOW for 30 days 
                     after deployment.</p>
 
-                    <h3>10.2 Exclusions</h3>
+                    <h4>10.2 Exclusions</h4>
                     <p>This warranty does not apply to issues caused by:</p>
                     <ul>
                         <li>Client-modified code or settings</li>
@@ -598,7 +609,7 @@
                         <li>Weak passwords or unprotected credentials</li>
                     </ul>
 
-                    <h3>10.3 Liability Limitations</h3>
+                    <h4>10.3 Liability Limitations</h4>
                     <p>Developer's total liability under this Agreement is limited to the total amount paid by Client. Developer 
                     is not liable for:</p>
                     <ul>
@@ -611,7 +622,7 @@
 
                 <!-- Confidentiality -->
                 <section class="contract-section-inner">
-                    <h2>11. CONFIDENTIALITY</h2>
+                    <h3>11. CONFIDENTIALITY</h3>
                     <p>Both Parties agree to maintain the confidentiality of all proprietary or sensitive information exchanged 
                     during the course of this project. Confidential information shall not be disclosed to third parties without 
                     prior written consent unless required by law.</p>
@@ -619,7 +630,7 @@
 
                 <!-- Indemnification -->
                 <section class="contract-section-inner">
-                    <h2>12. INDEMNIFICATION</h2>
+                    <h3>12. INDEMNIFICATION</h3>
                     <p>Client agrees to indemnify and hold Developer harmless from any claims arising out of:</p>
                     <ul>
                         <li>Content supplied by Client (including copyrighted or illegal material)</li>
@@ -631,7 +642,7 @@
 
                 <!-- Termination -->
                 <section class="contract-section-inner">
-                    <h2>13. TERMINATION</h2>
+                    <h3>13. TERMINATION</h3>
                     <p>Either Party may terminate this Agreement with 7 days written notice.</p>
                     <p>If Client terminates early:</p>
                     <ul>
@@ -643,14 +654,14 @@
 
                 <!-- Governing Law -->
                 <section class="contract-section-inner">
-                    <h2>14. GOVERNING LAW</h2>
+                    <h3>14. GOVERNING LAW</h3>
                     <p>This Agreement shall be governed by and construed in accordance with the laws of the State of California 
                     without regard to conflict-of-law principles.</p>
                 </section>
 
                 <!-- Entire Agreement -->
                 <section class="contract-section-inner">
-                    <h2>15. ENTIRE AGREEMENT</h2>
+                    <h3>15. ENTIRE AGREEMENT</h3>
                     <p>This Agreement, together with all attached SOWs, proposals, and addenda, constitutes the entire and complete 
                     agreement between the Parties and supersedes all prior discussions, negotiations, or understandings.</p>
                 </section>
@@ -666,145 +677,143 @@
                 </section>
 
                 <!-- Signatures -->
-<section class="contract-section-inner signatures">
-    <h2>SIGNATURES</h2>
-    
-    <div class="signature-grid">
-        <!-- Developer Signature (only shown to developer) -->
-        <div class="signature-block" id="devSignatureBlock" style="display: none;">
-            <h3>Developer – VistaFly</h3>
-            <div class="form-group">
-                <label for="devName">Name</label>
-                <input type="text" id="devName" name="devName" value="Carlos Martin" readonly>
-            </div>
-            <div class="form-group">
-                <label>Signature</label>
-                <div class="signature-pad-container">
-                    <canvas id="devSignaturePad" class="signature-pad"></canvas>
-                    <button type="button" class="clear-btn" data-canvas="devSignaturePad">Clear</button>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="devDate">Date *</label>
-                <input type="date" id="devDate" name="devDate">
-            </div>
-        </div>
+                <section class="contract-section-inner signatures">
+                    <h3>SIGNATURES</h3>
+                    
+                    <div class="signature-grid">
+                        <!-- Developer Signature (only shown to developer) -->
+                        <div class="signature-block" id="devSignatureBlock" style="display: none;">
+                            <h4>Developer – Scarlo</h4>
+                            <div class="form-group">
+                                <label for="devName">Name</label>
+                                <input type="text" id="devName" name="devName" value="Carlos Martin" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label>Signature</label>
+                                <div class="signature-pad-container">
+                                    <canvas id="devSignaturePad" class="signature-pad"></canvas>
+                                    <button type="button" class="clear-btn" data-canvas="devSignaturePad">Clear</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="devDate">Date *</label>
+                                <input type="date" id="devDate" name="devDate">
+                            </div>
+                        </div>
 
-        <!-- Client Signature (only shown to client) -->
-        <div class="signature-block" id="clientSignatureBlock" style="display: none;">
-            <h3>Client – <span id="clientNameDisplay">Client Name</span></h3>
-            <div class="form-group">
-                <label for="clientSignerName">Name *</label>
-                <input type="text" id="clientSignerName" name="clientSignerName" placeholder="Full name of person signing">
-            </div>
-            <div class="form-group">
-                <label>Signature *</label>
-                <div class="signature-pad-container">
-                    <canvas id="clientSignaturePad" class="signature-pad"></canvas>
-                    <button type="button" class="clear-btn" data-canvas="clientSignaturePad">Clear</button>
-                </div>
-            </div>
-            <div class="form-group">
-                <label for="clientDate">Date *</label>
-                <input type="date" id="clientDate" name="clientDate">
-            </div>
-        </div>
-        
-        <!-- Developer Info (shown to client after they sign) -->
-        <div class="signature-block developer-pending" id="devPendingBlock" style="display: none;">
-            <h3>Developer – VistaFly</h3>
-            <div class="pending-notice">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-                <p><strong>Pending Developer Signature</strong></p>
-                <p>You will receive the fully executed contract via email once the developer signs.</p>
-            </div>
-        </div>
-    </div>
-    
-    <!-- Status message for clients -->
-    <div id="clientSubmitMessage" style="display: none;" class="contract-note">
-        <p><strong>✓ Your signature has been submitted successfully!</strong></p>
-        <p>The developer will review and sign the agreement. You will receive the fully executed contract via email at <strong id="clientEmailDisplay"></strong> within 24-48 hours.</p>
-    </div>
-</section>
+                        <!-- Client Signature (only shown to client) -->
+                        <div class="signature-block" id="clientSignatureBlock" style="display: none;">
+                            <h4>Client – <span id="clientNameDisplay">Client Name</span></h4>
+                            <div class="form-group">
+                                <label for="clientSignerName">Name *</label>
+                                <input type="text" id="clientSignerName" name="clientSignerName" placeholder="Full name of person signing">
+                            </div>
+                            <div class="form-group">
+                                <label>Signature *</label>
+                                <div class="signature-pad-container">
+                                    <canvas id="clientSignaturePad" class="signature-pad"></canvas>
+                                    <button type="button" class="clear-btn" data-canvas="clientSignaturePad">Clear</button>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label for="clientDate">Date *</label>
+                                <input type="date" id="clientDate" name="clientDate">
+                            </div>
+                        </div>
+                        
+                        <!-- Developer Info (shown to client after they sign) -->
+                        <div class="signature-block developer-pending" id="devPendingBlock" style="display: none;">
+                            <h4>Developer – Scarlo</h4>
+                            <div class="pending-notice">
+                                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"></circle>
+                                    <polyline points="12 6 12 12 16 14"></polyline>
+                                </svg>
+                                <p><strong>Pending Developer Signature</strong></p>
+                                <p>You will receive the fully executed contract via email once the developer signs.</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Status message for clients -->
+                    <div id="clientSubmitMessage" style="display: none;" class="contract-note">
+                        <p><strong>✓ Your signature has been submitted successfully!</strong></p>
+                        <p>The developer will review and sign the agreement. You will receive the fully executed contract via email at <strong id="clientEmailDisplay"></strong> within 24-48 hours.</p>
+                    </div>
+                </section>
 
-<!-- Submit Buttons -->
-<div class="action-buttons">
-    <button type="button" id="downloadBtn" class="btn btn-secondary" style="display: none;">Download PDF</button>
-    <button type="button" class="btn btn-primary" id="submitBtn">
-       <span id="submitBtnText">Submit Agreement</span>
-    </button>
-</div>
+                <!-- Submit Buttons -->
+                <div class="action-buttons">
+                    <button type="button" id="downloadBtn" class="btn btn-secondary" style="display: none;">Download PDF</button>
+                    <button type="button" class="btn btn-primary" id="submitBtn">
+                       <span id="submitBtnText">Submit Agreement</span>
+                    </button>
+                </div>
+            </form>
 
             <div class="modal-footer">
-                <p>&copy; 2024 VistaFly. All rights reserved.</p>
+                <p>&copy; 2025 Scarlo. All rights reserved.</p>
             </div>
         </div>
     </div>
 
-    <!-- Auth Modal (Login/Signup) -->
-
-   <section id="contact" class="contact">
-    <div class="container">
-        <div class="contact-wrapper">
-            <div class="contact-content">
-                <div class="section-eyebrow">Get in Touch</div>
-                <h2 class="section-title">Let's convert<br> your vision<br> into reality...</h2>
-                <p class="contact-tagline">Ready to elevate your digital presence? Let's talk.</p>
-            </div>
-            
-            <!-- ADD THIS WRAPPER DIV -->
-            <div class="form-wrapper">
-                <form class="contact-form">
-                    <div class="form-row">
+    <!-- Contact Section -->
+    <section id="contact" class="contact">
+        <div class="container">
+            <div class="contact-wrapper">
+                <div class="contact-content">
+                    <div class="section-eyebrow">Get in Touch</div>
+                    <h2 class="section-title">Let's convert<br> your vision<br> into reality...</h2>
+                    <p class="contact-tagline">Ready to elevate your digital presence? Let's talk.</p>
+                </div>
+                
+                <div class="form-wrapper">
+                    <form class="contact-form">
+                        <div class="form-row">
+                            <div class="form-field">
+                                <input type="text" id="name" required>
+                                <label for="name">Name</label>
+                                <div class="field-line"></div>
+                            </div>
+                            <div class="form-field">
+                                <input type="email" id="email" required>
+                                <label for="email">Email</label>
+                                <div class="field-line"></div>
+                            </div>
+                        </div>
+                        
                         <div class="form-field">
-                            <input type="text" id="name" required>
-                            <label for="name">Name</label>
+                            <input type="text" id="subject" required>
+                            <label for="subject">Subject</label>
                             <div class="field-line"></div>
                         </div>
+                        
                         <div class="form-field">
-                            <input type="email" id="email" required>
-                            <label for="email">Email</label>
+                            <textarea id="message" rows="2" required></textarea>
+                            <label for="message">Message</label>
                             <div class="field-line"></div>
                         </div>
-                    </div>
-                    
-                    <div class="form-field">
-                        <input type="text" id="subject" required>
-                        <label for="subject">Subject</label>
-                        <div class="field-line"></div>
-                    </div>
-                    
-                    <div class="form-field">
-    <textarea id="message" rows="2" required></textarea>
-    <label for="message">Message</label>
-    <div class="field-line"></div>
-</div>
-                    
-                    <button type="submit" class="btn-submit">
-                        <span class="btn-text">Send message</span>
-                        <span class="btn-icon">
-                            <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-                                <path d="M1 8H15M15 8L8 1M15 8L8 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-                            </svg>
-                        </span>
-                    </button>
-                </form>
+                        
+                        <button type="submit" class="btn-submit">
+                            <span class="btn-text">Send message</span>
+                            <span class="btn-icon">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+                                    <path d="M1 8H15M15 8L8 1M15 8L8 15" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </span>
+                        </button>
+                    </form>
+                </div>
             </div>
-            <!-- END WRAPPER -->
         </div>
-    </div>
-</section>
+    </section>
 
     <!-- Footer -->
     <footer class="footer">
         <div class="container">
             <div class="footer-content">
                 <div class="footer-brand">
-                    <div class="footer-logo">VistaFly</div>
+                    <div class="footer-logo">Scarlo</div>
                     <p class="footer-tagline">Crafting tomorrow's web, today.</p>
                 </div>
                 <div class="footer-links">
@@ -816,99 +825,88 @@
                     </div>
                     <div class="footer-column">
                         <h4>Legal</h4>
-                        <a href="contract.html">Agreement</a>
+                        <a href="#contract">Agreement</a>
                         <a href="#">Privacy</a>
                         <a href="#">Terms</a>
                     </div>
                 </div>
             </div>
             <div class="footer-bottom">
-                <p>&copy; 2025 VistaFly. Crafted with precision.</p>
+                <p>&copy; 2025 Scarlo. Crafted with precision.</p>
             </div>
         </div>
     </footer>
-<!-- Help Request Modal -->
-<div id="helpModal" class="help-modal">
-    <div class="modal-overlay"></div>
-    <div class="modal-content help-modal-content">
-        <button class="modal-close" id="closeHelpBtn">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-            </svg>
-        </button>
 
-        <div class="modal-header">
-            <h1>Request Help</h1>
-            <p class="modal-subtitle">Having trouble with the contract? Let us know!</p>
-        </div>
-
-        <form id="helpRequestForm" class="help-form">
-            <div class="form-group">
-                <label for="helpEmail">Your Email *</label>
-                <input type="email" id="helpEmail" name="helpEmail" required placeholder="your@email.com">
-                <small class="field-hint">We'll use this to contact you about your request</small>
-            </div>
-
-            <div class="form-group">
-                <label for="helpIssue">What do you need help with? *</label>
-                <select id="helpIssue" name="helpIssue" required>
-                    <option value="">Select an issue...</option>
-                    <option value="contract_not_showing">Contract not showing</option>
-                    <option value="contract_not_showing">SOW not showing</option>
-                    <option value="problems_submitting">Problems submitting contract</option>
-                    <option value="signature_issues">Signature issues</option>
-                    <option value="account_access">Account access problems</option>
-                    <option value="other">Other issues</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label for="helpDetails">Please provide details *</label>
-                <textarea id="helpDetails" name="helpDetails" required placeholder="Describe the issue you're experiencing..." rows="4"></textarea>
-            </div>
-
-            <div class="help-form-footer">
-                <button type="button" class="btn btn-secondary" id="cancelHelpBtn">Cancel</button>
-                <button type="submit" class="btn btn-primary">
-                    <span id="helpSubmitText">Send Help Request</span>
-                </button>
-            </div>
-
-            <div class="help-success-message" id="helpSuccessMessage">
+    <!-- Help Request Modal -->
+    <div id="helpModal" class="help-modal">
+        <div class="modal-overlay"></div>
+        <div class="modal-content help-modal-content">
+            <button class="modal-close" id="closeHelpBtn">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
-                <p><strong>Help request sent!</strong></p>
-                <p>We've received your request and will get back to you shortly at your email address.</p>
+            </button>
+
+            <div class="modal-header">
+                <h1>Request Help</h1>
+                <p class="modal-subtitle">Having trouble with the contract? Let us know!</p>
             </div>
-        </form>
+
+            <form id="helpRequestForm" class="help-form">
+                <div class="form-group">
+                    <label for="helpEmail">Your Email *</label>
+                    <input type="email" id="helpEmail" name="helpEmail" required placeholder="your@email.com">
+                    <small class="field-hint">We'll use this to contact you about your request</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="helpIssue">What do you need help with? *</label>
+                    <select id="helpIssue" name="helpIssue" required>
+                        <option value="">Select an issue...</option>
+                        <option value="contract_not_showing">Contract not showing</option>
+                        <option value="sow_not_showing">SOW not showing</option>
+                        <option value="problems_submitting">Problems submitting contract</option>
+                        <option value="signature_issues">Signature issues</option>
+                        <option value="account_access">Account access problems</option>
+                        <option value="other">Other issues</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="helpDetails">Please provide details *</label>
+                    <textarea id="helpDetails" name="helpDetails" required placeholder="Describe the issue you're experiencing..." rows="4"></textarea>
+                </div>
+
+                <div class="help-form-footer">
+                    <button type="button" class="btn btn-secondary" id="cancelHelpBtn">Cancel</button>
+                    <button type="submit" class="btn btn-primary">
+                        <span id="helpSubmitText">Send Help Request</span>
+                    </button>
+                </div>
+
+                <div class="help-success-message" id="helpSuccessMessage">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                        <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                    </svg>
+                    <p><strong>Help request sent!</strong></p>
+                    <p>We've received your request and will get back to you shortly at your email address.</p>
+                </div>
+            </form>
+        </div>
     </div>
-</div>
-<!-- Logo Animation (Loading Screen + Navbar) - Load first! -->
-<script src="./LogoAnimation.js"></script>
-<script src="./NavbarLogoAnimation.js"></script>
-<script src="./navbartextanimation.js"></script>
 
-<!-- Firebase Configuration -->
-<script type="module" src="./firebase-config.js"></script>
-
-<!-- ADD THIS: Global Mouse Tracker -->
-<script type="module" src="./MouseTracker.js"></script>
-
-<!-- Hero Threads Background -->
-<script type="module" src="./HeroThreads.jsx"></script>
-
-<!-- React Portfolio Dome -->
-<script type="module" src="./portfolio-dome.jsx"></script>
-
-<!-- Staggered Menu (React Component) -->
-<script type="module" src="./staggered-menu-mount.jsx"></script>
-
-<script type="module" src="./philosophy-carousel-mount.jsx"></script>
-
-<!-- Main Script -->
-<script type="module" src="./script.js"></script>
+    <!-- Scripts - deferred for performance -->
+    <script src="./LogoAnimation.js" defer></script>
+    <script src="./NavbarLogoAnimation.js" defer></script>
+    <script src="./navbartextanimation.js" defer></script>
+    <script type="module" src="./firebase-config.js"></script>
+    <script type="module" src="./MouseTracker.js"></script>
+    <script type="module" src="./HeroThreads.jsx"></script>
+    <script type="module" src="./portfolio-dome.jsx"></script>
+    <script type="module" src="./staggered-menu-mount.jsx"></script>
+    <script type="module" src="./philosophy-carousel-mount.jsx"></script>
+    <script type="module" src="./script.js"></script>
 </body>
 </html>
