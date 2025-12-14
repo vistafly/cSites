@@ -888,7 +888,92 @@ body {
 .hero-description br {
     display: inline; /* Show on desktop */
 }
+/* ============================================
+   SEO HERO TITLE FIX
+   Add this to your styles.css (near the .hero-title section)
+   ============================================ */
 
+/* Hide the SEO H1 visually but keep accessible to search engines */
+h1.hero-title {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
+
+/* The visual animated version - inherits all original hero-title styling */
+.hero-title-visual {
+    font-size: clamp(2.5rem, 8vw, 6rem);
+    font-weight: 700;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    margin-bottom: 1.5rem;
+    text-align: center;
+}
+
+.hero-title-visual .title-line {
+    display: block;
+    opacity: 0;
+    transform: translateY(30px);
+    animation: fadeInUp 0.6s var(--ease-smooth) forwards;
+}
+
+.hero-title-visual .title-line:nth-child(1) {
+    animation-delay: 0.5s;
+}
+
+.hero-title-visual .title-line:nth-child(2) {
+    animation-delay: 0.7s;
+}
+
+.hero-title-visual .gradient-text {
+    background: linear-gradient(135deg, #ffffff 0%, #a1a1aa 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+/* Mobile adjustments for hero-title-visual */
+@media (max-width: 768px) {
+    .hero-title-visual .title-line:first-child {
+        font-size: clamp(2.1rem, 6.5vw, 2.6rem);
+        margin-bottom: 0.5rem;
+    }
+    
+    .hero-title-visual .title-line.gradient-text {
+        font-size: clamp(2.5rem, 8vw, 3.25rem);
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title-visual {
+        font-size: 2rem;
+    }
+    
+    .hero-title-visual .title-line:first-child {
+        font-size: 2.2rem;
+        margin-bottom: 0.8rem;
+    }
+    
+    .hero-title-visual .title-line.gradient-text {
+        font-size: 2.3rem;
+    }
+}
+
+/* ============================================
+   MISC SEO FIXES
+   ============================================ */
+
+/* Style for dynamically populated client email (was empty <strong> tag) */
+.client-email-display {
+    font-weight: 700;
+    color: #fff;
+}
 /* Hide line break on mobile - let text wrap naturally */
 @media (max-width: 768px) {
     .hero-description br {
