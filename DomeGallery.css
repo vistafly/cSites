@@ -33,10 +33,11 @@ main.sphere-main {
   display: grid;
   place-items: center;
   overflow: visible !important;
-  /* FIXED: Changed from 'none' to allow drag on mobile */
-  touch-action: pan-x pan-y;
+  /* Allow manipulation for smooth drag */
+  touch-action: manipulation;
   user-select: none;
   -webkit-user-select: none;
+  -webkit-touch-callout: none;
   background: transparent;
   padding-top: 20px;
 }
@@ -199,19 +200,29 @@ main.sphere-main {
 
 /* Touch optimization - Better active state for mobile */
 @media (hover: none) and (pointer: coarse) {
+  main.sphere-main {
+    /* Prevent default gestures for smoother swipe */
+    touch-action: none;
+  }
+
   /* Remove hover effects on touch devices */
   .item__image:hover {
     transform: translateZ(0) scale(1);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
     border-color: rgba(255, 255, 255, 0.03);
   }
-  
+
   /* Subtle active feedback on touch */
   .item__image:active {
     transform: translateZ(5px) scale(1.02);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6);
     border-color: rgba(255, 255, 255, 0.1);
-    transition-duration: 0.1s;
+    transition-duration: 0.15s;
+  }
+
+  /* Faster transitions for snappier mobile feel */
+  .item {
+    transition: transform 150ms ease-out, opacity 150ms ease-out;
   }
 }
 

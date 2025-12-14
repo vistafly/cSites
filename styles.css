@@ -1432,11 +1432,15 @@ section {
 
 .modal-close:hover {
     background: rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg);
 }
 
 .modal-close svg {
     color: var(--white);
+    transition: transform 0.3s var(--ease-smooth);
+}
+
+.modal-close:hover svg {
+    transform: rotate(90deg);
 }
 
 .modal-header {
@@ -2537,6 +2541,17 @@ section {
 body:has(.sphere-root[data-enlarging='true']) .custom-cursor {
     opacity: 0 !important;
     pointer-events: none !important;
+}
+
+/* Hide section separators when viewing embeddings */
+body:has(.sphere-root[data-enlarging='true']) section::after {
+    opacity: 0 !important;
+    z-index: -1 !important;
+}
+
+/* Prevent body scroll when viewing embeddings */
+body:has(.sphere-root[data-enlarging='true']) {
+    overflow: hidden !important;
 }
 
 /* Re-enable normal cursor in overlays */
@@ -5376,11 +5391,15 @@ body.modal-open .custom-cursor {
 
 .modal-close:hover {
     background: rgba(255, 255, 255, 0.2);
-    transform: rotate(90deg);
 }
 
 .modal-close svg {
     color: var(--white);
+    transition: transform 0.3s var(--ease-smooth);
+}
+
+.modal-close:hover svg {
+    transform: rotate(90deg);
 }
 
     .btn-submit {

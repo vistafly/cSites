@@ -135,8 +135,8 @@ export default function DomeGallery({
   openedImageBorderRadius = '20px',
   overlayBlurColor = '#0a0a0a',
   grayscale = false,
-  pressHoldDuration = 500,
-  scrollThreshold = 20 // Higher threshold before considering it a scroll
+  pressHoldDuration = 400,
+  scrollThreshold = 12 // Lower threshold for more responsive swipe detection
 }) {
   const rootRef = useRef(null);
   const mainRef = useRef(null);
@@ -434,56 +434,56 @@ export default function DomeGallery({
   const handleTileTouchStart = useCallback((e) => {
     const touch = e.touches[0];
     const tile = e.currentTarget.parentElement;
-    
+
     tileTouchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
     tileTouchStartTimeRef.current = performance.now();
     activeTouchTileRef.current = tile;
     holdCompletedRef.current = false;
     isScrollingRef.current = false;
-    
-    // Light haptic on touch
-    triggerHaptic();
-    
+
     // Clear any existing timer
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
     }
-    
+
     // Start press-and-hold timer
     touchTimerRef.current = setTimeout(() => {
       // Check if still valid for opening
       if (activeTouchTileRef.current && !isScrollingRef.current) {
         holdCompletedRef.current = true;
-        // Strong haptic for hold completion
+        // Haptic feedback only on hold completion
         triggerHaptic();
-        console.log('✅ Press-and-hold completed!');
       }
     }, pressHoldDuration);
   }, [triggerHaptic, pressHoldDuration]);
 
   // TILE: Touch Move - Detect scrolling
   const handleTileTouchMove = useCallback((e) => {
-    if (!tileTouchStartPosRef.current) return;
-    
+    // Early bailout if already scrolling or no start position
+    if (isScrollingRef.current || !tileTouchStartPosRef.current) return;
+
     const touch = e.touches[0];
     const dx = touch.clientX - tileTouchStartPosRef.current.x;
     const dy = touch.clientY - tileTouchStartPosRef.current.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    
-    // If moved beyond threshold, it's a scroll
-    if (distance > scrollThreshold) {
+
+    // Use squared distance to avoid sqrt for performance
+    const distanceSq = dx * dx + dy * dy;
+    const thresholdSq = scrollThreshold * scrollThreshold;
+
+    // If moved beyond threshold, it's a scroll/swipe
+    if (distanceSq > thresholdSq) {
       isScrollingRef.current = true;
-      
-      // Cancel press-and-hold
+
+      // Cancel press-and-hold immediately
       if (touchTimerRef.current) {
         clearTimeout(touchTimerRef.current);
         touchTimerRef.current = null;
       }
       holdCompletedRef.current = false;
-      
-      // Start sphere drag
-      if (!isDraggingRef.current && tileTouchStartPosRef.current) {
-        startDrag(tileTouchStartPosRef.current.x, tileTouchStartPosRef.current.y);
+
+      // Start sphere drag from current touch position for smoother feel
+      if (!isDraggingRef.current) {
+        startDrag(touch.clientX, touch.clientY);
       }
     }
   }, [scrollThreshold, startDrag]);
@@ -491,29 +491,22 @@ export default function DomeGallery({
   // TILE: Touch End
   const handleTileTouchEnd = useCallback((e) => {
     const parent = activeTouchTileRef.current;
-    const touchDuration = performance.now() - tileTouchStartTimeRef.current;
-    
+    const wasHoldCompleted = holdCompletedRef.current;
+    const wasScrolling = isScrollingRef.current;
+
     // Clear timer
     if (touchTimerRef.current) {
       clearTimeout(touchTimerRef.current);
       touchTimerRef.current = null;
     }
-    
-    console.log('Touch end:', {
-      holdCompleted: holdCompletedRef.current,
-      isScrolling: isScrollingRef.current,
-      duration: touchDuration,
-      hasParent: !!parent
-    });
-    
-    // CRITICAL: Only open if hold was completed and not scrolling
-    if (holdCompletedRef.current && !isScrollingRef.current && parent) {
+
+    // Only open if hold was completed and not scrolling
+    if (wasHoldCompleted && !wasScrolling && parent) {
       e.preventDefault();
       e.stopPropagation();
-      console.log('🎉 Opening tile!');
       openTileContent(parent);
     }
-    
+
     // Reset all tracking
     activeTouchTileRef.current = null;
     tileTouchStartPosRef.current = null;

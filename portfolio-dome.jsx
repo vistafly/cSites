@@ -83,7 +83,7 @@ function ResponsiveDomeGallery() {
           maxRadius: 650,
           fit: 0.9,
           maxVerticalRotationDeg: 1.5,
-          dragSensitivity: 22,
+          dragSensitivity: 16, // Lower for more responsive swipe
           segments: 20,
           openedImageWidth: "85vw",
           openedImageHeight: "78vh",
@@ -97,7 +97,7 @@ function ResponsiveDomeGallery() {
           maxRadius: 700,
           fit: 0.95,
           maxVerticalRotationDeg: 1.8,
-          dragSensitivity: 20,
+          dragSensitivity: 17, // Slightly lower for smoother tablet swipe
           segments: 25,
           openedImageWidth: "90vw",
           openedImageHeight: "80vh",
