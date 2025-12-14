@@ -18,7 +18,7 @@
     <meta property="og:description" content="We architect digital experiences with obsessive attention to detail, where every interaction feels effortless.">
     <meta property="og:type" content="website">
     <meta property="og:url" content="https://vistafly.github.io/CSAnew/">
-    <meta property="og:image" content="https://vistafly.github.io/CSAnew/images/csiteslogo.gif">
+    <meta property="og:image" content="https://vistafly.github.io/CSAnew/images/midnight-logo0.png">
     <meta property="og:site_name" content="VistaFly">
     <meta property="og:locale" content="en_US">
 
@@ -26,7 +26,7 @@
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="VistaFly — Precision Web Design">
     <meta name="twitter:description" content="We architect digital experiences with obsessive attention to detail, where every interaction feels effortless.">
-    <meta name="twitter:image" content="https://vistafly.github.io/CSAnew/images/csiteslogo.gif">
+    <meta name="twitter:image" content="https://vistafly.github.io/CSAnew/images/midnight-logo0.png">
 
     <!-- Favicon -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico">
@@ -49,7 +49,7 @@
         "name": "VistaFly",
         "description": "We architect digital experiences with obsessive attention to detail. Custom web design and development using modern technologies.",
         "url": "https://vistafly.github.io/CSAnew/",
-        "logo": "https://vistafly.github.io/CSAnew/images/csiteslogo.gif",
+        "logo": "https://vistafly.github.io/CSAnew/images/midnight-logo0.png",
         "founder": {
             "@type": "Person",
             "name": "Carlos Martin"
@@ -82,16 +82,113 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </head>
 <body>
+    <!-- Loading Screen with Logo Animation -->
+    <div id="logoLoadingScreen" class="logo-loading-screen">
+        <div class="loading-grain-overlay"></div>
+        <div class="loading-vignette"></div>
+
+        <div class="logo-animation-container" id="loadingLogoContainer">
+            <!-- Ambient light layers -->
+            <div class="logo-ambient-layer logo-ambient-deep" id="loadingAmbientDeep"></div>
+            <div class="logo-ambient-layer logo-ambient-mid" id="loadingAmbientMid"></div>
+
+            <!-- Light bloom effects -->
+            <div class="logo-light-bloom logo-bloom-wide" id="loadingBloomWide"></div>
+            <div class="logo-light-bloom logo-bloom-soft" id="loadingBloomSoft"></div>
+            <div class="logo-light-bloom logo-bloom-core" id="loadingBloomCore"></div>
+
+            <!-- Lens streak -->
+            <div class="logo-lens-streak" id="loadingLensStreak"></div>
+
+            <!-- Logo stack for crossfade -->
+            <div class="logo-stack" id="loadingLogoStack">
+    <img id="loadingLogo0" src="/images/morph-logo00.png" alt="">
+    <img id="loadingLogo1" src="/images/morph-logo01.png" alt="">
+    <img id="loadingLogo2" src="/images/morph-logo02.png" alt="">
+    <img id="loadingLogo3" src="/images/morph-logo03.png" alt="">
+    <img id="loadingLogo4" src="/images/morph-logo04.png" alt="">
+    <img id="loadingLogo5" src="/images/morph-logo05.png" alt="">
+    <img id="loadingLogo6" src="/images/morph-logo06.png" alt="">
+    <img id="loadingLogo7" src="/images/morph-logo07.png" alt="">
+    <img id="loadingLogo8" src="/images/morph-logo08.png" alt="">
+    <img id="loadingLogo9" src="/images/morph-logo09.png" alt="">
+    <img id="loadingLogo10" src="/images/morph-logo10.png" alt="">
+    <img id="loadingLogo11" src="/images/morph-logo11.png" alt="">
+    <img id="loadingLogo12" src="/images/morph-logo12.png" alt="">
+    <img id="loadingLogo13" src="/images/morph-logo13.png" alt="">
+    <img id="loadingLogo14" src="/images/morph-logo14.png" alt="">
+    <img id="loadingLogo15" src="/images/morph-logo15.png" alt="">
+    <img id="loadingLogo16" src="/images/morph-logo16.png" alt="">
+    <img id="loadingLogo17" src="/images/morph-logo17.png" alt="">
+    <img id="loadingLogo18" src="/images/morph-logo18.png" alt="">
+    <img id="loadingLogo19" src="/images/morph-logo19.png" alt="">
+</div>
+        </div>
+    </div>
     <!-- Ambient Background -->
     <div class="ambient-bg"></div>
 
     <!-- Navigation -->
-    <nav class="navbar">
-        <div class="nav-container">
-            <div class="logo-crop-container">
-                <img src="/images/csiteslogo.gif" alt="VistaFly Logo" class="logo-crop-img" loading="eager" />
+<nav class="navbar">
+    <div class="nav-container">
+        <!-- Animated Logo + Text Wrapper -->
+        <a href="#home" class="navbar-brand" id="navbarBrand">
+            <!-- Animated Logo -->
+            <div class="navbar-logo-animated" id="navbarLogoAnimated">
+                <div class="navbar-logo-ambient"></div>
+                <div class="navbar-logo-stack" id="navbarLogoStack">
+                    <img id="navLogo0" class="visible" src="/images/morph-logo00.png" alt="VistaFly Logo">
+                    <img id="navLogo1" src="/images/morph-logo01.png" alt="">
+                    <img id="navLogo2" src="/images/morph-logo02.png" alt="">
+                    <img id="navLogo3" src="/images/morph-logo03.png" alt="">
+                    <img id="navLogo4" src="/images/morph-logo04.png" alt="">
+                    <img id="navLogo5" src="/images/morph-logo05.png" alt="">
+                    <img id="navLogo6" src="/images/morph-logo06.png" alt="">
+                    <img id="navLogo7" src="/images/morph-logo07.png" alt="">
+                    <img id="navLogo8" src="/images/morph-logo08.png" alt="">
+                    <img id="navLogo9" src="/images/morph-logo09.png" alt="">
+                    <img id="navLogo10" src="/images/morph-logo10.png" alt="">
+                    <img id="navLogo11" src="/images/morph-logo11.png" alt="">
+                    <img id="navLogo12" src="/images/morph-logo12.png" alt="">
+                    <img id="navLogo13" src="/images/morph-logo13.png" alt="">
+                    <img id="navLogo14" src="/images/morph-logo14.png" alt="">
+                    <img id="navLogo15" src="/images/morph-logo15.png" alt="">
+                    <img id="navLogo16" src="/images/morph-logo16.png" alt="">
+                    <img id="navLogo17" src="/images/morph-logo17.png" alt="">
+                    <img id="navLogo18" src="/images/morph-logo18.png" alt="">
+                    <img id="navLogo19" src="/images/morph-logo19.png" alt="">
+                </div>
             </div>
-            <ul class="nav-menu">
+
+            <!-- Animated Text -->
+            <div class="navbar-text-animated" id="navbarTextAnimated">
+                <div class="navbar-text-ambient"></div>
+                <div class="navbar-text-stack" id="navbarTextStack">
+                    <img id="navText0" class="visible" src="/images/morph-text00.png" alt="VistaFly">
+                    <img id="navText1" src="/images/morph-text01.png" alt="">
+                    <img id="navText2" src="/images/morph-text02.png" alt="">
+                    <img id="navText3" src="/images/morph-text03.png" alt="">
+                    <img id="navText4" src="/images/morph-text04.png" alt="">
+                    <img id="navText5" src="/images/morph-text05.png" alt="">
+                    <img id="navText6" src="/images/morph-text06.png" alt="">
+                    <img id="navText7" src="/images/morph-text07.png" alt="">
+                    <img id="navText8" src="/images/morph-text08.png" alt="">
+                    <img id="navText9" src="/images/morph-text09.png" alt="">
+                    <img id="navText10" src="/images/morph-text10.png" alt="">
+                    <img id="navText11" src="/images/morph-text11.png" alt="">
+                    <img id="navText12" src="/images/morph-text12.png" alt="">
+                    <img id="navText13" src="/images/morph-text13.png" alt="">
+                    <img id="navText14" src="/images/morph-text14.png" alt="">
+                    <img id="navText15" src="/images/morph-text15.png" alt="">
+                    <img id="navText16" src="/images/morph-text16.png" alt="">
+                    <img id="navText17" src="/images/morph-text17.png" alt="">
+                    <img id="navText18" src="/images/morph-text18.png" alt="">
+                    <img id="navText19" src="/images/morph-text19.png" alt="">
+                </div>
+            </div>
+        </a>
+
+        <ul class="nav-menu">
                 <li><a href="#home" class="nav-link">Home</a></li>
                 <li><a href="#philosophy" class="nav-link">Services</a></li>
                 <li><a href="#portfolio" class="nav-link">Portfolio</a></li>
@@ -783,7 +880,12 @@
         </form>
     </div>
 </div>
-    <!-- Firebase Configuration -->
+<!-- Logo Animation (Loading Screen + Navbar) - Load first! -->
+<script src="./LogoAnimation.js"></script>
+<script src="./NavbarLogoAnimation.js"></script>
+<script src="./navbartextanimation.js"></script>
+
+<!-- Firebase Configuration -->
 <script type="module" src="./firebase-config.js"></script>
 
 <!-- ADD THIS: Global Mouse Tracker -->
@@ -799,7 +901,6 @@
 <script type="module" src="./staggered-menu-mount.jsx"></script>
 
 <script type="module" src="./philosophy-carousel-mount.jsx"></script>
-
 
 <!-- Main Script -->
 <script type="module" src="./script.js"></script>

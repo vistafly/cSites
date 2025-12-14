@@ -560,7 +560,7 @@ body {
     left: 0;
     right: 0;
     z-index: 1000;
-    padding: .3rem 0;
+    padding: .7rem 0;
     background: transparent;
     box-shadow: none;
     transition: padding 0.25s ease-out,
@@ -5456,4 +5456,868 @@ section.separator-visible::after {
 
 .header-content {
     flex: 1;
+}
+
+/* ============================================
+   LOGO ANIMATION - LOADING SCREEN & NAVBAR
+   ============================================ */
+
+/* Loading Screen Overlay */
+.logo-loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: #030304;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+    transition: opacity 0.8s cubic-bezier(0.4, 0, 0.2, 1),
+                visibility 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo-loading-screen.fade-out {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+.logo-loading-screen.hidden {
+    display: none;
+}
+
+/* Film grain overlay - disabled to prevent pixelation */
+.loading-grain-overlay {
+    display: none;
+}
+
+/* Vignette effect */
+.loading-vignette {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    background: radial-gradient(ellipse at center,
+        transparent 40%,
+        rgba(0, 0, 0, 0.4) 100%);
+    z-index: 50;
+}
+
+/* Animation container */
+.logo-animation-container {
+    position: relative;
+    width: 500px;
+    height: 500px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+@media (max-width: 768px) {
+    .logo-animation-container {
+        width: 320px;
+        height: 320px;
+    }
+}
+
+/* Ambient light layers */
+.logo-ambient-layer {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.logo-ambient-deep {
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle,
+        rgba(40, 50, 80, 0.2) 0%,
+        rgba(30, 40, 60, 0.1) 30%,
+        transparent 60%);
+    filter: blur(20px);
+    z-index: 1;
+}
+
+.logo-ambient-mid {
+    width: 450px;
+    height: 450px;
+    background: radial-gradient(circle,
+        rgba(60, 70, 100, 0.15) 0%,
+        transparent 50%);
+    filter: blur(15px);
+    z-index: 2;
+}
+
+.logo-ambient-layer.active {
+    opacity: 1;
+}
+
+.logo-ambient-layer.active {
+    animation: ambientPulse 3s ease-in-out infinite;
+}
+
+@keyframes ambientPulse {
+    0%, 100% {
+        opacity: 0.8;
+        transform: scale(1);
+    }
+    50% {
+        opacity: 1;
+        transform: scale(1.05);
+    }
+}
+
+@media (max-width: 768px) {
+    .logo-ambient-deep {
+        width: 400px;
+        height: 400px;
+    }
+    .logo-ambient-mid {
+        width: 300px;
+        height: 300px;
+    }
+}
+
+/* Light bloom effects */
+.logo-light-bloom {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 15;
+}
+
+.logo-bloom-core {
+    width: 400px;
+    height: 400px;
+    background: radial-gradient(circle,
+        rgba(255, 255, 255, 0.9) 0%,
+        rgba(255, 255, 255, 0.4) 15%,
+        rgba(200, 210, 230, 0.15) 40%,
+        transparent 65%);
+    filter: blur(2px);
+}
+
+.logo-bloom-soft {
+    width: 500px;
+    height: 500px;
+    background: radial-gradient(circle,
+        rgba(180, 190, 220, 0.3) 0%,
+        rgba(150, 160, 200, 0.1) 35%,
+        transparent 60%);
+    filter: blur(12px);
+}
+
+.logo-bloom-wide {
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle,
+        rgba(100, 120, 160, 0.2) 0%,
+        transparent 50%);
+    filter: blur(18px);
+}
+
+@media (max-width: 768px) {
+    .logo-bloom-core { width: 280px; height: 280px; }
+    .logo-bloom-soft { width: 350px; height: 350px; }
+    .logo-bloom-wide { width: 500px; height: 500px; }
+}
+
+.logo-light-bloom.reveal {
+    animation: logoBloomReveal 1.2s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.logo-bloom-soft.reveal {
+    animation: logoBloomRevealSoft 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.logo-bloom-wide.reveal {
+    animation: logoBloomRevealWide 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes logoBloomReveal {
+    0% { opacity: 0; transform: scale(0.6); }
+    20% { opacity: 1; transform: scale(1.1); }
+    100% { opacity: 0; transform: scale(1.4); }
+}
+
+@keyframes logoBloomRevealSoft {
+    0% { opacity: 0; transform: scale(0.7); }
+    25% { opacity: 1; transform: scale(1.05); }
+    100% { opacity: 0; transform: scale(1.3); }
+}
+
+@keyframes logoBloomRevealWide {
+    0% { opacity: 0; transform: scale(0.8); }
+    30% { opacity: 0.8; transform: scale(1); }
+    100% { opacity: 0; transform: scale(1.2); }
+}
+
+/* Lens streak */
+.logo-lens-streak {
+    position: absolute;
+    width: 0;
+    height: 2px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.1) 20%,
+        rgba(255, 255, 255, 0.6) 50%,
+        rgba(255, 255, 255, 0.1) 80%,
+        transparent 100%);
+    pointer-events: none;
+    opacity: 0;
+    z-index: 18;
+    filter: blur(1px);
+}
+
+.logo-lens-streak.reveal {
+    animation: logoStreakReveal 0.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes logoStreakReveal {
+    0% { width: 0; opacity: 0; }
+    30% { width: 400px; opacity: 1; }
+    100% { width: 600px; opacity: 0; }
+}
+
+@media (max-width: 768px) {
+    @keyframes logoStreakReveal {
+        0% { width: 0; opacity: 0; }
+        30% { width: 280px; opacity: 1; }
+        100% { width: 400px; opacity: 0; }
+    }
+}
+
+/* Logo stack - all logos layered for crossfade */
+.logo-stack {
+    position: relative;
+    width: 320px;
+    height: 320px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 10;
+}
+
+@media (max-width: 768px) {
+    .logo-stack {
+        width: 220px;
+        height: 220px;
+    }
+}
+
+/* Subtle glow pulse during morphing */
+.logo-stack {
+    filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.1));
+    animation: morphGlow 2.5s ease-in-out infinite;
+}
+
+@keyframes morphGlow {
+    0%, 100% {
+        filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.1));
+    }
+    50% {
+        filter: drop-shadow(0 0 40px rgba(255, 255, 255, 0.2));
+    }
+}
+
+/* Stop glow animation once final reveal happens */
+.logo-stack.final-reveal {
+    animation: none;
+}
+
+.logo-stack img {
+    position: absolute;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    will-change: opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+    /* No CSS transition - JS handles blending */
+}
+
+.logo-stack img.visible {
+    opacity: 1;
+}
+
+.logo-stack img.fading-out {
+    opacity: 0;
+}
+
+.logo-stack img.pulse-in {
+    animation: logoSubtlePulse 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes logoSubtlePulse {
+    0% { transform: scale(0.97); }
+    50% { transform: scale(1.015); }
+    100% { transform: scale(1); }
+}
+
+/* Final logo reveal */
+.logo-stack.final-reveal img.visible {
+    animation: logoLuxuryReveal 1.8s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes logoLuxuryReveal {
+    0% {
+        filter: brightness(2.5) saturate(0.8);
+        transform: scale(1.06);
+    }
+    40% {
+        filter: brightness(1.4) saturate(1);
+        transform: scale(1.02);
+    }
+    100% {
+        filter: brightness(1) saturate(1) drop-shadow(0 0 30px rgba(255,255,255,0.2));
+        transform: scale(1);
+    }
+}
+
+/* Subtle idle shimmer */
+.logo-stack.idle img.visible {
+    animation: logoIdleShimmer 6s ease-in-out infinite;
+}
+
+@keyframes logoIdleShimmer {
+    0%, 100% {
+        filter: drop-shadow(0 0 20px rgba(255,255,255,0.15)) brightness(1);
+        transform: scale(1);
+    }
+    50% {
+        filter: drop-shadow(0 0 35px rgba(255,255,255,0.25)) brightness(1.05);
+        transform: scale(1.008);
+    }
+}
+
+/* ============================================
+   NAVBAR BRAND WRAPPER
+   ============================================ */
+
+.navbar-brand {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    z-index: 1001;
+    transition: transform 0.3s var(--ease-smooth);
+    flex-shrink: 0;
+}
+
+.navbar-brand:hover {
+    transform: scale(1.05);
+}
+
+/* Glow on parent hover */
+.navbar-brand:hover .navbar-logo-stack img.visible,
+.navbar-brand:hover .navbar-text-stack img.visible {
+    filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.3));
+}
+
+.navbar-brand:hover .navbar-logo-ambient,
+.navbar-brand:hover .navbar-text-ambient {
+    opacity: 1;
+}
+
+/* ============================================
+   NAVBAR ANIMATED LOGO
+   ============================================ */
+
+.navbar-logo-animated {
+    position: relative;
+    width: 90px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    scale: 1.1;
+}
+
+.navbar-logo-stack {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.navbar-logo-stack img {
+    position: absolute;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    will-change: opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+}
+
+.navbar-logo-stack img.visible {
+    opacity: 1;
+}
+
+.navbar-logo-ambient {
+    position: absolute;
+    width: 150%;
+    height: 150%;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        rgba(255, 255, 255, 0.05) 0%,
+        transparent 60%);
+    filter: blur(20px);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+/* ============================================
+   NAVBAR ANIMATED TEXT
+   ============================================ */
+
+.navbar-text-animated {
+    position: relative;
+    width: 100px;
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-left: -26px;
+    opacity: .55;
+    bottom: 3px;
+}
+
+.navbar-text-stack {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.navbar-text-stack img {
+    position: absolute;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    opacity: 0;
+    will-change: opacity;
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform: translateZ(0);
+    margin-left: -6px;
+}
+
+.navbar-text-stack img.visible {
+    opacity: 1;
+}
+
+.navbar-text-ambient {
+    position: absolute;
+    width: 150%;
+    height: 150%;
+    border-radius: 50%;
+    background: radial-gradient(circle,
+        rgba(255, 255, 255, 0.05) 0%,
+        transparent 60%);
+    filter: blur(20px);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    pointer-events: none;
+}
+
+/* ============================================
+   REDUCED MOTION
+   ============================================ */
+
+@media (prefers-reduced-motion: reduce) {
+    .logo-stack img,
+    .navbar-logo-stack img,
+    .navbar-text-stack img,
+    .logo-light-bloom,
+    .logo-lens-streak,
+    .logo-ambient-layer {
+        animation: none !important;
+        transition: opacity 0.3s ease !important;
+    }
+
+    .logo-loading-screen {
+        transition: opacity 0.3s ease, visibility 0.3s ease !important;
+    }
+}
+
+/* ============================================
+   CURSOR BREAKOUT ANIMATION - OPTIMIZED
+   Clean, smooth, perfectly timed
+   ============================================ */
+
+/* ==========================================
+   LOGO VANISH - Instant on click
+   ========================================== */
+.logo-stack.logo-clicked {
+    animation: logoDisappear 0.25s ease-out forwards !important;
+}
+
+@keyframes logoDisappear {
+    0% {
+        opacity: 1;
+        transform: scale(1);
+        filter: brightness(1);
+    }
+    40% {
+        opacity: 0.7;
+        filter: brightness(2);
+    }
+    100% {
+        opacity: 0;
+        transform: scale(0.98);
+        filter: brightness(2.5) blur(3px);
+    }
+}
+
+/* ==========================================
+   CLICK FLASH - Covers entire logo area
+   ========================================== */
+.click-flash-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 450px;
+    height: 450px;
+    transform: translate(-50%, -50%) scale(0);
+    background: radial-gradient(circle,
+        rgba(255, 255, 255, 1) 0%,
+        rgba(255, 255, 255, 0.8) 25%,
+        rgba(228, 216, 196, 0.4) 50%,
+        transparent 75%);
+    border-radius: 50%;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 50;
+}
+
+.click-flash-overlay.active {
+    animation: flashPop 0.25s ease-out forwards;
+}
+
+@keyframes flashPop {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0);
+    }
+    30% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(0.7);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1.3);
+    }
+}
+
+@media (max-width: 768px) {
+    .click-flash-overlay {
+        width: 300px;
+        height: 300px;
+    }
+}
+
+/* ==========================================
+   CURSOR CONTAINER - Matches logo-stack exactly
+   ========================================== */
+.cursor-breakout-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    height: 320px;
+    pointer-events: none;
+    z-index: 30;
+}
+
+@media (max-width: 768px) {
+    .cursor-breakout-container {
+        width: 220px;
+        height: 220px;
+    }
+}
+
+/* ==========================================
+   BREAKOUT CURSOR - The animated cursor
+   Using transition-based approach for smooth human-like motion
+   ========================================== */
+.breakout-cursor {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    pointer-events: none;
+    will-change: transform, opacity;
+    transform: translateY(0) translateX(0) scale(1);
+    transform-origin: center center;
+    filter: drop-shadow(0 0 0 transparent);
+    transition:
+        opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+        filter 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.breakout-cursor-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+}
+
+/* ==========================================
+   PHASE 1: BREAKOUT - Cursor lifts up smoothly
+   ========================================== */
+.breakout-cursor.phase-breakout {
+    opacity: 1;
+    transform: translateY(-20px) translateX(5px) scale(0.75);
+    filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.4));
+    transition:
+        opacity 0.4s cubic-bezier(0.0, 0.0, 0.2, 1),
+        transform 0.7s cubic-bezier(0.34, 1.2, 0.64, 1),
+        filter 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+/* ==========================================
+   PHASE 2: CLICK - Natural press down motion
+   ========================================== */
+.breakout-cursor.phase-click {
+    opacity: 1;
+    transform: translateY(-20px) translateX(5px) scale(0.95);
+    filter: drop-shadow(0 30px 60px rgba(0, 0, 0, 0.5));
+    transition:
+        opacity 0.08s ease-out,
+        transform 0.08s ease-out,
+        filter 0.08s ease-out;
+}
+
+/* ==========================================
+   PHASE 3: RELEASE - Bounce back after click
+   ========================================== */
+.breakout-cursor.phase-release {
+    opacity: 1;
+    transform: translateY(-16px) translateX(5px) scale(0.74);
+    filter: drop-shadow(0 18px 35px rgba(0, 0, 0, 0.38));
+    transition:
+        opacity 0.25s ease-out,
+        transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+        filter 0.25s ease-out;
+}
+
+/* ==========================================
+   PHASE 4: FADEOUT - Cursor fades in place
+   ========================================== */
+.breakout-cursor.phase-fadeout {
+    opacity: 0;
+    transform: translateY(-16px) translateX(5px) scale(0.74);
+    filter: drop-shadow(0 18px 35px rgba(0, 0, 0, 0.15));
+    transition:
+        opacity 0.35s cubic-bezier(0.4, 0, 0.6, 1),
+        filter 0.35s ease-out;
+}
+
+/* ==========================================
+   CURSOR SHADOW
+   ========================================== */
+.cursor-shadow {
+    position: absolute;
+    bottom: 32%;
+    left: 50%;
+    width: 60px;
+    height: 20px;
+    transform: translateX(-20%);
+    background: radial-gradient(ellipse,
+        rgba(0, 0, 0, 0.5) 0%,
+        rgba(0, 0, 0, 0.2) 50%,
+        transparent 80%);
+    border-radius: 50%;
+    opacity: 0;
+    filter: blur(6px);
+    pointer-events: none;
+}
+
+/* Shadow transitions for each phase */
+.cursor-shadow {
+    transition:
+        opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.breakout-cursor.phase-breakout .cursor-shadow {
+    opacity: 0.6;
+    transform: translateX(-20%) scale(1.3);
+    transition:
+        opacity 0.7s cubic-bezier(0.34, 1.2, 0.64, 1),
+        transform 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.breakout-cursor.phase-click .cursor-shadow {
+    opacity: 0.8;
+    transform: translateX(-20%) scale(0.9);
+    transition:
+        opacity 0.12s ease-out,
+        transform 0.12s ease-out;
+}
+
+.breakout-cursor.phase-release .cursor-shadow {
+    opacity: 0.55;
+    transform: translateX(-20%) scale(1.2);
+    transition:
+        opacity 0.25s cubic-bezier(0.34, 1.56, 0.64, 1),
+        transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.breakout-cursor.phase-fadeout .cursor-shadow {
+    opacity: 0;
+    transform: translateX(-20%) scale(1.2);
+    transition:
+        opacity 0.35s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* ==========================================
+   PULSE RINGS - Sleek expanding rings from cursor tip
+   ========================================== */
+.cursor-pulse-rings {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.pulse-ring {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border: 1px solid rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    opacity: 0;
+    transform: scale(0);
+    box-shadow: 0 0 8px rgba(255, 255, 255, 0.3);
+    will-change: transform, opacity;
+}
+
+/* Staggered ring animations on click */
+.breakout-cursor.phase-click .pulse-ring:nth-child(1),
+.breakout-cursor.phase-release .pulse-ring:nth-child(1) {
+    animation: pulseRingExpand 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+.breakout-cursor.phase-click .pulse-ring:nth-child(2),
+.breakout-cursor.phase-release .pulse-ring:nth-child(2) {
+    animation: pulseRingExpand 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.06s forwards;
+}
+
+.breakout-cursor.phase-click .pulse-ring:nth-child(3),
+.breakout-cursor.phase-release .pulse-ring:nth-child(3) {
+    animation: pulseRingExpand 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.12s forwards;
+}
+
+@keyframes pulseRingExpand {
+    0% {
+        transform: scale(0);
+        opacity: 0.8;
+    }
+    100% {
+        transform: scale(8);
+        opacity: 0;
+    }
+}
+
+/* ==========================================
+   TIP GLOW
+   ========================================== */
+.cursor-tip-glow {
+    position: absolute;
+    top: 38%;
+    left: 45%;
+    width: 40px;
+    height: 40px;
+    background: radial-gradient(circle,
+        rgba(255, 255, 255, 0.8) 0%,
+        rgba(228, 216, 196, 0.4) 40%,
+        transparent 70%);
+    border-radius: 50%;
+    opacity: 0;
+    filter: blur(8px);
+    pointer-events: none;
+}
+
+/* Tip glow transitions for each phase */
+.cursor-tip-glow {
+    transition:
+        opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+        transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.breakout-cursor.phase-breakout .cursor-tip-glow {
+    opacity: 0.7;
+    transform: scale(1);
+    transition:
+        opacity 0.7s cubic-bezier(0.34, 1.2, 0.64, 1),
+        transform 0.7s cubic-bezier(0.34, 1.2, 0.64, 1);
+}
+
+.breakout-cursor.phase-click .cursor-tip-glow {
+    opacity: 1;
+    transform: scale(1.6);
+    transition:
+        opacity 0.12s ease-out,
+        transform 0.12s ease-out;
+}
+
+.breakout-cursor.phase-release .cursor-tip-glow {
+    opacity: 0.5;
+    transform: scale(1.1);
+    transition:
+        opacity 0.25s ease-out,
+        transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.breakout-cursor.phase-fadeout .cursor-tip-glow {
+    opacity: 0;
+    transform: scale(1.1);
+    transition:
+        opacity 0.35s cubic-bezier(0.4, 0, 0.6, 1);
+}
+
+/* ==========================================
+   REDUCED MOTION
+   ========================================== */
+@media (prefers-reduced-motion: reduce) {
+    .breakout-cursor,
+    .cursor-shadow,
+    .cursor-tip-glow {
+        transition-duration: 0.01ms !important;
+    }
+
+    .pulse-ring,
+    .click-flash-overlay,
+    .logo-stack.logo-clicked {
+        animation-duration: 0.01ms !important;
+    }
 }
