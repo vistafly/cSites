@@ -37,10 +37,21 @@
   gap: 24px;
   cursor: grab;
   will-change: transform;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .carousel-track:active {
   cursor: grabbing;
+}
+
+/* Mobile-specific touch optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .carousel-track {
+    touch-action: pan-y pinch-zoom;
+  }
 }
 
 .carousel-item {

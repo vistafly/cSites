@@ -1,18 +1,28 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, useMotionValue } from 'motion/react';
 import './Carousel.css';
 
-const DRAG_BUFFER = 50;
+// ============================================
+// SWIPE CONFIGURATION
+// ============================================
+const VELOCITY_THRESHOLD = 300; // px/second for flick detection
+
+// Responsive drag buffer - smaller on mobile for easier swiping
+const getDragBuffer = (itemWidth) => {
+  const width = window.innerWidth;
+  if (width <= 390) return Math.min(25, itemWidth * 0.08);
+  if (width <= 540) return Math.min(30, itemWidth * 0.1);
+  return Math.min(40, itemWidth * 0.12);
+};
 
 // ============================================
 // SLIDE ANIMATION CONFIGURATION
 // ============================================
-// Adjust these for smoother/slower slide transitions
 const SPRING_OPTIONS = {
   type: 'spring',
-  mass: 2,          // Weight of spring (higher = slower/heavier)
-  stiffness: 280,   // Spring tightness (lower = smoother/slower)
-  damping: 40,      // Resistance (higher = less bounce, smoother)
+  mass: 0.8,        // Lighter for snappier response
+  stiffness: 350,   // Quicker settle
+  damping: 30,      // Natural bounce
 };
 // ============================================
 
@@ -39,6 +49,9 @@ const containerPadding = getContainerPadding();
   const dragX = useMotionValue(0);
   const containerRef = useRef(null);
   const [isHovered, setIsHovered] = useState(false);
+
+  // Memoize drag buffer for performance
+  const dragBuffer = useMemo(() => getDragBuffer(itemWidth), [itemWidth]);
 
   useEffect(() => {
     if (!autoplay || (pauseOnHover && isHovered)) return;
@@ -75,17 +88,23 @@ const containerPadding = getContainerPadding();
     };
   }, [pauseOnHover]);
 
-  const onDragEnd = () => {
+  // Velocity-aware drag end handler for easier swiping
+  const onDragEnd = (event, info) => {
     const x = dragX.get();
+    const velocity = info.velocity.x;
 
-    if (x <= -DRAG_BUFFER && imgIndex < items.length - 1) {
+    // Swipe detection: distance OR velocity (fast flicks work even with small distance)
+    const shouldGoNext = x <= -dragBuffer || velocity < -VELOCITY_THRESHOLD;
+    const shouldGoPrev = x >= dragBuffer || velocity > VELOCITY_THRESHOLD;
+
+    if (shouldGoNext && imgIndex < items.length - 1) {
       setImgIndex((pv) => pv + 1);
-    } else if (x >= DRAG_BUFFER && imgIndex > 0) {
+    } else if (shouldGoPrev && imgIndex > 0) {
       setImgIndex((pv) => pv - 1);
     } else if (loop) {
-      if (x <= -DRAG_BUFFER && imgIndex === items.length - 1) {
+      if (shouldGoNext && imgIndex === items.length - 1) {
         setImgIndex(0);
-      } else if (x >= DRAG_BUFFER && imgIndex === 0) {
+      } else if (shouldGoPrev && imgIndex === 0) {
         setImgIndex(items.length - 1);
       }
     }
@@ -105,9 +124,11 @@ const containerPadding = getContainerPadding();
     >
       <motion.div
         drag="x"
-        dragConstraints={{
-          left: 0,
-          right: 0,
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.2}
+        dragTransition={{
+          bounceStiffness: 300,
+          bounceDamping: 20,
         }}
         style={{
           x: dragX,
