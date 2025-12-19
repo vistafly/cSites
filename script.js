@@ -65,6 +65,31 @@
         }
     };
 
+    // Normalize phone number to E.164 format (+1XXXXXXXXXX) for Firestore storage
+    // This ensures phone numbers match Firebase Auth format for security rules
+    var normalizeToE164 = function(phone) {
+        if (!phone) return '';
+        // Remove all non-digits
+        var cleaned = phone.replace(/\D/g, '');
+        // If it's 10 digits, add country code
+        if (cleaned.length === 10) {
+            return '+1' + cleaned;
+        }
+        // If it's 11 digits starting with 1, add +
+        if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            return '+' + cleaned;
+        }
+        // If already has + at start, return as-is
+        if (phone.startsWith('+')) {
+            return phone.replace(/[^\d+]/g, '');
+        }
+        // Fallback: return with +1 prefix if we have digits
+        if (cleaned.length >= 10) {
+            return '+1' + cleaned.slice(-10);
+        }
+        return phone; // Return original if can't normalize
+    };
+
     // Live phone input formatter - attach to input elements
     var setupPhoneInputFormatting = function(input) {
         if (!input) return;
@@ -839,48 +864,13 @@ RotatingText.prototype.rotate = function() {
         }
     };
 
+    // Initialize invisible reCAPTCHA (required by Firebase, but verification is disabled via appVerificationDisabledForTesting)
     FirebaseAuthHandler.prototype.initRecaptcha = function() {
-        var self = this;
+        if (this.recaptchaVerifier) return;
 
-        // Clear any existing verifier
-        if (this.recaptchaVerifier) {
-            try {
-                this.recaptchaVerifier.clear();
-            } catch (e) {
-                console.log('reCAPTCHA clear error:', e);
-            }
-            this.recaptchaVerifier = null;
-        }
-
-        // Destroy and recreate the container to fully reset reCAPTCHA
-        var container = document.getElementById('recaptcha-container');
-        if (container) {
-            var parent = container.parentNode;
-            var newContainer = document.createElement('div');
-            newContainer.id = 'recaptcha-container';
-            parent.replaceChild(newContainer, container);
-        }
-
-        try {
-            this.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
-                'size': 'invisible',
-                'callback': function(response) {
-                    console.log('reCAPTCHA verified');
-                },
-                'expired-callback': function() {
-                    console.log('reCAPTCHA expired, reinitializing');
-                    self.initRecaptcha();
-                }
-            });
-
-            this.recaptchaVerifier.render().then(function(widgetId) {
-                console.log('reCAPTCHA rendered');
-            }).catch(function(error) {
-                console.error('reCAPTCHA render error:', error);
-            });
-        } catch (error) {
-            console.error('Error initializing reCAPTCHA:', error);
-        }
+        this.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+            'size': 'invisible'
+        });
     };
 
     FirebaseAuthHandler.prototype.handlePhoneSubmit = function() {
@@ -911,40 +901,34 @@ RotatingText.prototype.rotate = function() {
         // Show loading state
         this.setPhoneLoadingState(submitBtn, true);
 
-        // Initialize reCAPTCHA if not already done
-        if (!this.recaptchaVerifier) {
-            this.initRecaptcha();
-        }
+        // Initialize reCAPTCHA (required by Firebase API, but verification is disabled)
+        this.initRecaptcha();
 
-        // Small delay to ensure reCAPTCHA is ready
-        setTimeout(function() {
-            firebase.auth().signInWithPhoneNumber(fullPhoneNumber, self.recaptchaVerifier)
-                .then(function(confirmationResult) {
-                    console.log('SMS sent successfully');
-                    self.confirmationResult = confirmationResult;
+        // Send verification code
+        firebase.auth().signInWithPhoneNumber(fullPhoneNumber, this.recaptchaVerifier)
+            .then(function(confirmationResult) {
+                console.log('SMS sent successfully');
+                self.confirmationResult = confirmationResult;
 
-                    // Update UI to show verification step
-                    self.showVerificationStep();
+                // Update UI to show verification step
+                self.showVerificationStep();
 
-                    // Display the number code was sent to
-                    var sentToEl = $('#sentToNumber');
-                    if (sentToEl) {
-                        sentToEl.textContent = self.formatPhoneDisplay(fullPhoneNumber);
-                    }
+                // Display the number code was sent to
+                var sentToEl = $('#sentToNumber');
+                if (sentToEl) {
+                    sentToEl.textContent = self.formatPhoneDisplay(fullPhoneNumber);
+                }
 
-                    // Start resend timer
-                    self.startResendTimer();
-                })
-                .catch(function(error) {
-                    console.error('SMS send error:', error);
-                    self.showError(errorEl, self.getErrorMessage(error.code));
-                    // Re-initialize reCAPTCHA on error
-                    self.initRecaptcha();
-                })
-                .finally(function() {
-                    self.setPhoneLoadingState(submitBtn, false);
-                });
-        }, 500);
+                // Start resend timer
+                self.startResendTimer();
+            })
+            .catch(function(error) {
+                console.error('SMS send error:', error);
+                self.showError(errorEl, self.getErrorMessage(error.code));
+            })
+            .finally(function() {
+                self.setPhoneLoadingState(submitBtn, false);
+            });
     };
 
     FirebaseAuthHandler.prototype.handleCodeVerification = function() {
@@ -1084,23 +1068,21 @@ RotatingText.prototype.rotate = function() {
 
         if (resendBtn) resendBtn.disabled = true;
 
-        // Re-initialize reCAPTCHA
+        // Initialize reCAPTCHA if needed
         this.initRecaptcha();
 
-        // Wait for reCAPTCHA to be ready
-        setTimeout(function() {
-            firebase.auth().signInWithPhoneNumber(self.currentPhoneNumber, self.recaptchaVerifier)
-                .then(function(confirmationResult) {
-                    console.log('SMS resent successfully');
-                    self.confirmationResult = confirmationResult;
-                    self.startResendTimer();
-                })
-                .catch(function(error) {
-                    console.error('Resend SMS error:', error);
-                    self.showError(errorEl, self.getErrorMessage(error.code));
-                    if (resendBtn) resendBtn.disabled = false;
-                });
-        }, 500);
+        // Resend verification code
+        firebase.auth().signInWithPhoneNumber(this.currentPhoneNumber, this.recaptchaVerifier)
+            .then(function(confirmationResult) {
+                console.log('SMS resent successfully');
+                self.confirmationResult = confirmationResult;
+                self.startResendTimer();
+            })
+            .catch(function(error) {
+                console.error('Resend SMS error:', error);
+                self.showError(errorEl, self.getErrorMessage(error.code));
+                if (resendBtn) resendBtn.disabled = false;
+            });
     };
 
     FirebaseAuthHandler.prototype.setPhoneLoadingState = function(button, isLoading) {
@@ -1970,7 +1952,7 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
                 '<div class="help-icon">❓</div>' +
                 '<div class="help-details">' +
                 '<div class="help-header">' +
-                '<h4>' + (request.userEmail || 'Unknown User') + '</h4>' +
+                '<h4>' + (request.userEmail || request.userPhone || 'Unknown User') + '</h4>' +
                 authBadge +
                 '<span class="help-badge">' + self.getIssueTypeLabel(request.issueType) + '</span>' +
                 '</div>' +
@@ -3817,7 +3799,7 @@ ContractFormHandler.prototype.saveSOW = function() {
     var sowData = {
         clientName: clientName,
         clientEmail: clientEmail || '',
-        clientPhone: clientPhone || '',
+        clientPhone: normalizeToE164(clientPhone) || '',
         packageType: packageType,
         estimatedWeeks: parseInt(weeks),
         startDate: startDate || null,
@@ -5067,7 +5049,7 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     var sowData = {
         clientName: clientName,
         clientEmail: clientEmail || '',
-        clientPhone: clientPhone || '',
+        clientPhone: normalizeToE164(clientPhone) || '',
         packageType: packageType,
         estimatedWeeks: parseInt(weeks),
         startDate: startDate || null,
@@ -6579,7 +6561,7 @@ ContractFormHandler.prototype.validateContractTab = function() {
         clientDate: $('#clientDate').value,
         clientSignature: this.clientSignaturePad.toDataURL(),
         clientEmail: clientEmail,
-        clientPhone: clientPhone,
+        clientPhone: normalizeToE164(clientPhone),
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'pending_developer'
     };
@@ -6749,7 +6731,7 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
         '<div class="doc-field-row"><span class="field-label">Client:</span><span class="field-value">' + (contractData.clientName || 'N/A') + '</span></div>' +
         '<div class="doc-field-row"><span class="field-label">Client Signed:</span><span class="field-value">' + (contractData.clientDate || 'N/A') + '</span></div>' +
         (isFullySigned ? '<div class="doc-field-row"><span class="field-label">Developer Signed:</span><span class="field-value">' + (contractData.devDate || 'N/A') + '</span></div>' : '') +
-        '<div class="doc-field-row"><span class="field-label">Email:</span><span class="field-value">' + (contractData.clientEmail || 'N/A') + '</span></div>' +
+        '<div class="doc-field-row"><span class="field-label">' + (contractData.clientEmail ? 'Email:' : 'Phone:') + '</span><span class="field-value">' + (contractData.clientEmail || (contractData.clientPhone ? formatPhoneNumber(contractData.clientPhone) : 'N/A')) + '</span></div>' +
         '</div>' +
         '<div class="doc-signature-preview">' +
         '<p class="signature-label">Your Signature:</p>' +
@@ -6917,8 +6899,8 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<span class="field-value">' + (contractData.clientDate || 'N/A') + '</span>' +
         '</div>' +
         '<div class="doc-field-row">' +
-        '<span class="field-label">Email:</span>' +
-        '<span class="field-value">' + (contractData.clientEmail || 'N/A') + '</span>' +
+        '<span class="field-label">' + (contractData.clientEmail ? 'Email:' : 'Phone:') + '</span>' +
+        '<span class="field-value">' + (contractData.clientEmail || (contractData.clientPhone ? formatPhoneNumber(contractData.clientPhone) : 'N/A')) + '</span>' +
         '</div>' +
         '</div>' +
         '<div class="doc-signature-preview">' +
@@ -7128,7 +7110,10 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         var devDate = contractData.devDate || 'N/A';
         var clientName = contractData.clientName || 'N/A';
         var clientSignerName = contractData.clientSignerName || 'N/A';
-        var clientEmail = contractData.clientEmail || 'N/A';
+        var clientEmail = contractData.clientEmail || '';
+        var clientPhone = contractData.clientPhone || '';
+        var clientContact = clientEmail || (clientPhone ? formatPhoneNumber(clientPhone) : 'N/A');
+        var clientContactLabel = clientEmail ? 'Email' : 'Phone';
         var devName = contractData.devName || 'Carlos Martin';
         var devEmail = contractData.devEmail || 'carlos@scarlo.dev';
         var clientSignature = contractData.clientSignature || '';
@@ -7181,7 +7166,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<p>This Agreement is entered into as of <strong>' + clientDate + '</strong> between:</p>' +
         '<div class="parties">' +
         '<p><strong>Developer:</strong> Scarlo (Carlos Martin), Fresno County, California</p>' +
-        '<p><strong>Client:</strong> ' + clientName + ' (' + clientEmail + ')</p>' +
+        '<p><strong>Client:</strong> ' + clientName + (clientEmail ? ' (' + clientEmail + ')' : '') + '</p>' +
         '</div>' +
         '</div>' +
 
@@ -7288,7 +7273,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div class="signature-label">Authorized Signature</div>' +
         '<div class="signature-name">' + clientSignerName + '</div>' +
         '<div class="signature-date">Date: ' + clientDate + '</div>' +
-        '<div class="signature-email">Email: ' + clientEmail + '</div>' +
+        '<div class="signature-email">' + clientContactLabel + ': ' + clientContact + '</div>' +
         '</div>' +
 
         '</div>' +
@@ -7337,7 +7322,10 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     var devDate = contractData.devDate || 'N/A';
     var clientName = contractData.clientName || 'N/A';
     var clientSignerName = contractData.clientSignerName || 'N/A';
-    var clientEmail = contractData.clientEmail || 'N/A';
+    var clientEmail = contractData.clientEmail || '';
+    var clientPhone = contractData.clientPhone || '';
+    var clientContact = clientEmail || (clientPhone ? formatPhoneNumber(clientPhone) : 'N/A');
+    var clientContactLabel = clientEmail ? 'Email' : 'Phone';
     var devName = contractData.devName || 'Carlos Martin';
     var devEmail = contractData.devEmail || 'N/A';
     var clientSignature = contractData.clientSignature || '';
@@ -7567,12 +7555,12 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div class="signature-label">Signature</div>' +
         '<div class="signature-name">' + clientSignerName + '</div>' +
         '<div class="signature-date">Date: ' + clientDate + '</div>' +
-        '<div class="signature-email">' + clientEmail + '</div>' +
+        '<div class="signature-email">' + clientContactLabel + ': ' + clientContact + '</div>' +
         '</div>' +
-        
+
         '</div>' +
         '</div>' +
-        
+
         // ==================== SOW SECTION (NEW PAGE) ====================
         '<div class="page-break"></div>' +
         

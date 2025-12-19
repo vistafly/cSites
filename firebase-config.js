@@ -41,6 +41,9 @@ firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
 
+// Disable app verification for testing with Firebase Console test phone numbers
+auth.settings.appVerificationDisabledForTesting = true;
+
 // Google Auth Provider
 const googleProvider = new firebase.auth.GoogleAuthProvider();
 

@@ -1763,6 +1763,7 @@ section {
     text-align: center;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--medium-gray);
+    margin-top: 1rem;
 }
 
 /* === AUTH MODAL === */
@@ -2824,7 +2825,7 @@ section {
     display: flex;
 }
 
-/* === reCAPTCHA CONTAINER (invisible) === */
+/* === reCAPTCHA CONTAINER (invisible, required by Firebase) === */
 #recaptcha-container {
     position: absolute;
     bottom: 0;
@@ -5464,7 +5465,7 @@ body.modal-open .custom-cursor {
 }
 
 .dual-signing-completed {
-    padding: 2rem;
+    padding: 0rem 2rem;
 }
 
 @media (max-width: 768px) {
