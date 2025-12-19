@@ -1,4 +1,4 @@
-// VISTAFLY — Navbar Logo Animation
+// Scarlo — Navbar Logo Animation
 // Seamless ping-pong loop (0→19→0→19...) for never-ending morph
 
 (function() {
@@ -9,7 +9,7 @@
     const CONFIG = {
         // Time per frame (ms)
         frameInterval: 120,
-        
+
         // Faster on hover
         hoverFrameInterval: 60
     };
@@ -20,7 +20,7 @@
             this.logoStack = document.getElementById('navbarLogoStack');
             this.brandContainer = document.getElementById('navbarBrand');
             this.logos = [];
-            
+
             for (let i = 0; i < TOTAL_FRAMES; i++) {
                 const el = document.getElementById('navLogo' + i);
                 if (el) this.logos.push(el);
@@ -30,6 +30,8 @@
             this.direction = 1; // 1 = forward, -1 = backward
             this.isHovering = false;
             this.isRunning = false;
+            this.animationFrameId = null;
+            this.lastFrameTime = 0;
 
             if (this.container && this.logoStack && this.logos.length > 0) {
                 this.init();
@@ -55,6 +57,13 @@
 
             hoverTarget.addEventListener('mouseleave', () => {
                 this.isHovering = false;
+            });
+
+            // Reset timing when tab becomes visible to prevent frame burst
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) {
+                    this.lastFrameTime = performance.now();
+                }
             });
 
             // Start animation loop
@@ -88,19 +97,34 @@
             this.showFrame(this.currentIndex);
         }
 
+        stopLoop() {
+            if (this.animationFrameId) {
+                cancelAnimationFrame(this.animationFrameId);
+                this.animationFrameId = null;
+            }
+            this.isRunning = false;
+        }
+
         startLoop() {
             if (this.isRunning) return;
             this.isRunning = true;
+            this.lastFrameTime = performance.now();
 
-            const animate = () => {
-                this.nextFrame();
+            const animate = (currentTime) => {
+                if (!this.isRunning) return;
+
                 const interval = this.isHovering ? CONFIG.hoverFrameInterval : CONFIG.frameInterval;
-                setTimeout(animate, interval);
+                const elapsed = currentTime - this.lastFrameTime;
+
+                if (elapsed >= interval) {
+                    this.nextFrame();
+                    this.lastFrameTime = currentTime;
+                }
+
+                this.animationFrameId = requestAnimationFrame(animate);
             };
 
-            // Start after initial delay
-            const interval = this.isHovering ? CONFIG.hoverFrameInterval : CONFIG.frameInterval;
-            setTimeout(animate, interval);
+            this.animationFrameId = requestAnimationFrame(animate);
         }
     }
 
@@ -119,7 +143,7 @@
         if (!document.getElementById('logoLoadingScreen')) {
             initNavbar();
         }
-        
+
         // Fallback init after 5 seconds
         setTimeout(initNavbar, 5000);
     });

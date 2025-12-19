@@ -10,7 +10,7 @@ const portfolioProjects = [
   {
     preview: `${BASE_URL}images/logo.png`,
     url: 'https://vistafly.services/',
-    alt: 'VistaFly Services - Precision Web Design',
+    alt: 'VistaFly Services - FPV drone videography',
     type: 'iframe'
   },
   {

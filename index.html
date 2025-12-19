@@ -413,19 +413,114 @@
                 <p>Contact the developer to obtain log-in credentials to view & sign agreements.</p>
             </div>
 
-            <!-- Login Form Only -->
-            <form id="loginForm" class="auth-form active-form">
-                <div class="form-group">
-                    <label for="loginEmail">Email</label>
-                    <input type="email" id="loginEmail" required placeholder="your@email.com" autocomplete="email">
+            <!-- Auth Method Tabs -->
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="email" type="button">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                    </svg>
+                    <span>Email</span>
+                </button>
+                <button class="auth-tab" data-tab="phone" type="button">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
+                        <line x1="12" y1="18" x2="12.01" y2="18"></line>
+                    </svg>
+                    <span>Phone</span>
+                </button>
+            </div>
+
+            <!-- Auth Panels Container -->
+            <div class="auth-panels">
+                <!-- Email Panel -->
+                <div class="auth-panel active" id="emailPanel">
+                    <form id="loginForm" class="auth-form">
+                        <div class="form-group">
+                            <label for="loginEmail">Email</label>
+                            <input type="email" id="loginEmail" required placeholder="your@email.com" autocomplete="email">
+                        </div>
+                        <div class="form-group">
+                            <label for="loginPassword">Password</label>
+                            <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
+                        </div>
+                        <button type="submit" class="btn-auth">Sign In</button>
+                        <div class="auth-error" id="loginError"></div>
+                    </form>
                 </div>
-                <div class="form-group">
-                    <label for="loginPassword">Password</label>
-                    <input type="password" id="loginPassword" required placeholder="••••••••" autocomplete="current-password">
+
+                <!-- Phone Panel -->
+                <div class="auth-panel" id="phonePanel">
+                    <!-- Step 1: Phone Number Input -->
+                    <form id="phoneForm" class="auth-form phone-step" data-step="phone">
+                        <div class="form-group">
+                            <label for="phoneNumber">Phone Number</label>
+                            <div class="phone-input-wrapper">
+                                <select id="countryCode" class="country-code-select">
+                                    <option value="+1" selected>US +1</option>
+                                    <option value="+1">CA +1</option>
+                                    <option value="+44">UK +44</option>
+                                    <option value="+91">IN +91</option>
+                                    <option value="+61">AU +61</option>
+                                    <option value="+81">JP +81</option>
+                                    <option value="+49">DE +49</option>
+                                    <option value="+33">FR +33</option>
+                                    <option value="+86">CN +86</option>
+                                    <option value="+52">MX +52</option>
+                                    <option value="+55">BR +55</option>
+                                </select>
+                                <input type="tel" id="phoneNumber" required placeholder="(555) 123-4567" autocomplete="tel-national">
+                            </div>
+                        </div>
+                        <button type="submit" class="btn-auth" id="sendCodeBtn">
+                            <span class="btn-text">Send Verification Code</span>
+                            <span class="btn-loading">
+                                <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" transform="rotate(-90 12 12)"/>
+                                </svg>
+                                Sending...
+                            </span>
+                        </button>
+                        <div class="auth-error" id="phoneError"></div>
+                    </form>
+
+                    <!-- Step 2: Verification Code Input -->
+                    <form id="verifyCodeForm" class="auth-form phone-step" data-step="verify" style="display: none;">
+                        <div class="verify-header">
+                            <p class="verify-message">Enter the 6-digit code sent to <span id="sentToNumber"></span></p>
+                        </div>
+                        <div class="form-group">
+                            <label for="verificationCode">Verification Code</label>
+                            <div class="code-input-wrapper">
+                                <input type="text" id="verificationCode" required maxlength="6" placeholder="000000" autocomplete="one-time-code" inputmode="numeric">
+                            </div>
+                        </div>
+                        <div class="resend-wrapper">
+                            <span id="resendTimer" class="resend-timer">Resend code in <span id="countdown">60</span>s</span>
+                            <button type="button" id="resendCodeBtn" class="btn-resend" style="display: none;">Resend Code</button>
+                        </div>
+                        <button type="submit" class="btn-auth" id="verifyCodeBtn">
+                            <span class="btn-text">Verify & Sign In</span>
+                            <span class="btn-loading">
+                                <svg class="spinner" width="20" height="20" viewBox="0 0 24 24">
+                                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" fill="none" stroke-dasharray="31.4 31.4" transform="rotate(-90 12 12)"/>
+                                </svg>
+                                Verifying...
+                            </span>
+                        </button>
+                        <button type="button" id="backToPhoneBtn" class="btn-secondary">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="15 18 9 12 15 6"></polyline>
+                            </svg>
+                            Change Number
+                        </button>
+                        <div class="auth-error" id="verifyError"></div>
+                    </form>
                 </div>
-                <button type="submit" class="btn-auth">Sign In</button>
-                <div class="auth-error" id="loginError"></div>
-            </form>
+            </div>
+
+            <!-- Invisible reCAPTCHA container -->
+            <div id="recaptcha-container"></div>
 
             <p class="auth-note">If provided credentials are invalid use the Request Help section to contact the developer.</p>
         </div>
@@ -866,10 +961,14 @@
             </div>
 
             <form id="helpRequestForm" class="help-form">
-                <div class="form-group">
-                    <label for="helpEmail">Your Email *</label>
-                    <input type="email" id="helpEmail" name="helpEmail" required placeholder="your@email.com">
-                    <small class="field-hint">We'll use this to contact you about your request</small>
+                <div class="form-group" id="helpContactGroup">
+                    <div class="contact-tabs" id="contactTabs" style="display: none;">
+                        <button type="button" class="contact-tab active" data-type="email">Email</button>
+                        <button type="button" class="contact-tab" data-type="phone">Phone</button>
+                    </div>
+                    <label for="helpContact" id="helpContactLabel">Your Email *</label>
+                    <input type="email" id="helpContact" name="helpContact" required placeholder="your@email.com">
+                    <small class="field-hint" id="helpContactHint">We'll use this to contact you about your request</small>
                 </div>
 
                 <div class="form-group">

@@ -1,7 +1,7 @@
 {
-  "name": "vistafly-website",
+  "name": "scarlo-website",
   "version": "1.0.0",
-  "description": "VistaFly portfolio website with Firebase authentication",
+  "description": "Scarlo portfolio website with Firebase authentication",
   "type": "module",
   "scripts": {
     "dev": "vite",

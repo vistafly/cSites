@@ -1,4 +1,4 @@
-// VISTAFLY — MOBILE-OPTIMIZED INTERACTIONS
+// Scarlo — MOBILE-OPTIMIZED INTERACTIONS
 
 (function() {
     'use strict';
@@ -39,6 +39,77 @@
                 func.apply(context, args);
             }, delay);
         };
+    };
+
+    // Format phone number to (xxx) xxx-xxxx - handles partial input for live formatting
+    var formatPhoneNumber = function(phone) {
+        if (!phone) return '';
+        // Remove all non-digits
+        var cleaned = phone.replace(/\D/g, '');
+        // Handle +1 country code
+        if (cleaned.length === 11 && cleaned.startsWith('1')) {
+            cleaned = cleaned.slice(1);
+        }
+        // Limit to 10 digits
+        cleaned = cleaned.slice(0, 10);
+
+        // Progressive formatting as user types
+        if (cleaned.length === 0) {
+            return '';
+        } else if (cleaned.length <= 3) {
+            return '(' + cleaned;
+        } else if (cleaned.length <= 6) {
+            return '(' + cleaned.slice(0, 3) + ') ' + cleaned.slice(3);
+        } else {
+            return '(' + cleaned.slice(0, 3) + ') ' + cleaned.slice(3, 6) + '-' + cleaned.slice(6);
+        }
+    };
+
+    // Live phone input formatter - attach to input elements
+    var setupPhoneInputFormatting = function(input) {
+        if (!input) return;
+
+        input.addEventListener('input', function() {
+            var cursorPos = input.selectionStart;
+            var value = input.value;
+
+            // Count digits before cursor in raw input
+            var digitsBeforeCursor = value.slice(0, cursorPos).replace(/\D/g, '').length;
+
+            // Extract all digits, limit to 10
+            var digits = value.replace(/\D/g, '').slice(0, 10);
+
+            // Build formatted string piece by piece
+            var formatted = '';
+            for (var i = 0; i < digits.length; i++) {
+                if (i === 0) formatted += '(';
+                if (i === 3) formatted += ') ';
+                if (i === 6) formatted += '-';
+                formatted += digits[i];
+            }
+
+            input.value = formatted;
+
+            // Find cursor position: count through formatted string until we've seen digitsBeforeCursor digits
+            var newCursorPos = 0;
+            var digitsSeen = 0;
+            for (var j = 0; j < formatted.length; j++) {
+                if (/\d/.test(formatted[j])) {
+                    digitsSeen++;
+                    if (digitsSeen === digitsBeforeCursor) {
+                        newCursorPos = j + 1;
+                        break;
+                    }
+                }
+            }
+
+            // Handle edge case: cursor at very start
+            if (digitsBeforeCursor === 0) {
+                newCursorPos = formatted.length > 0 ? 1 : 0; // After '(' if exists
+            }
+
+            input.setSelectionRange(newCursorPos, newCursorPos);
+        });
     };
 
     // === DEVICE DETECTION ===
@@ -427,12 +498,18 @@ RotatingText.prototype.rotate = function() {
         this.authModal = $('#authModal');
         this.contractModal = $('#contractModal');
         this.currentUser = null;
-        
+
+        // Phone auth properties
+        this.recaptchaVerifier = null;
+        this.confirmationResult = null;
+        this.currentPhoneNumber = '';
+        this.resendTimerInterval = null;
+
         if (!this.authModal || !this.contractModal) {
             console.error('Auth or Contract modal not found');
             return;
         }
-        
+
         this.init();
     };
 
@@ -512,6 +589,10 @@ RotatingText.prototype.rotate = function() {
                 self.closeContractModal();
             });
         }
+
+        // Initialize phone authentication
+        this.setupTabs();
+        this.initPhoneAuth();
     };
 
     FirebaseAuthHandler.prototype.checkAuthAndShowContract = function() {
@@ -524,14 +605,23 @@ RotatingText.prototype.rotate = function() {
 
     FirebaseAuthHandler.prototype.handleAuthStateChange = function(user) {
         this.currentUser = user;
-        
+
         var authBtn = $('#authActionBtn');
         var authText = $('#authStatusText');
-        
+
         if (user) {
-            console.log('User signed in:', user.email);
+            console.log('User signed in:', user.email || user.phoneNumber);
             if (authBtn) authBtn.classList.add('logged-in');
-            if (authText) authText.textContent = user.email.split('@')[0];
+
+            // Display email or formatted phone number
+            if (authText) {
+                if (user.email) {
+                    authText.textContent = user.email.split('@')[0];
+                } else if (user.phoneNumber) {
+                    // Display last 4 digits of phone
+                    authText.textContent = '***' + user.phoneNumber.slice(-4);
+                }
+            }
         } else {
             console.log('User signed out');
             if (authBtn) authBtn.classList.remove('logged-in');
@@ -553,6 +643,10 @@ RotatingText.prototype.rotate = function() {
             this.authModal.classList.remove('show');
             document.body.style.overflow = '';
             document.body.classList.remove('modal-open');
+
+            // Reset phone auth state when closing
+            this.stopResendTimer();
+            this.resetPhoneAuthToStep1();
         }
     };
 
@@ -637,17 +731,397 @@ RotatingText.prototype.rotate = function() {
 
     FirebaseAuthHandler.prototype.getErrorMessage = function(errorCode) {
         var messages = {
+            // Email auth errors
             'auth/configuration-not-found': 'Firebase is not configured.',
             'auth/invalid-email': 'Invalid email address',
             'auth/user-not-found': 'No account found.',
             'auth/wrong-password': 'Incorrect password',
-            'auth/too-many-requests': 'Too many failed attempts.',
-            'auth/network-request-failed': 'Network error.',
+            'auth/too-many-requests': 'Too many failed attempts. Please wait a moment.',
+            'auth/network-request-failed': 'Network error. Check your connection.',
             'auth/user-disabled': 'Account disabled.',
-            'auth/invalid-credential': 'Invalid email or password'
+            'auth/invalid-credential': 'Invalid email or password',
+            // Phone auth errors
+            'auth/invalid-phone-number': 'Invalid phone number format.',
+            'auth/missing-phone-number': 'Please enter a phone number.',
+            'auth/quota-exceeded': 'SMS quota exceeded. Please try again later.',
+            'auth/captcha-check-failed': 'reCAPTCHA verification failed. Please try again.',
+            'auth/invalid-verification-code': 'Invalid verification code.',
+            'auth/code-expired': 'Verification code has expired. Please request a new one.',
+            'auth/missing-verification-code': 'Please enter the verification code.',
+            'auth/invalid-verification-id': 'Session expired. Please request a new code.',
+            'auth/session-expired': 'Session expired. Please request a new verification code.',
+            'auth/credential-already-in-use': 'This phone number is already linked to another account.',
+            'auth/operation-not-allowed': 'Phone authentication is not enabled.'
         };
-        
-        return messages[errorCode] || 'Authentication error.';
+
+        return messages[errorCode] || 'Authentication error. Please try again.';
+    };
+
+    // === PHONE AUTHENTICATION METHODS ===
+
+    FirebaseAuthHandler.prototype.setupTabs = function() {
+        var self = this;
+        var tabs = $$('.auth-tab', this.authModal);
+        var panels = $$('.auth-panel', this.authModal);
+
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var targetTab = this.getAttribute('data-tab');
+
+                // Update tab active states
+                tabs.forEach(function(t) { t.classList.remove('active'); });
+                this.classList.add('active');
+
+                // Update panel visibility
+                panels.forEach(function(panel) {
+                    panel.classList.remove('active');
+                });
+
+                var targetPanel = $('#' + targetTab + 'Panel', self.authModal);
+                if (targetPanel) {
+                    targetPanel.classList.add('active');
+                }
+
+                // Reset phone auth state when switching to phone tab
+                if (targetTab === 'phone') {
+                    self.resetPhoneAuthToStep1();
+                }
+            });
+        });
+    };
+
+    FirebaseAuthHandler.prototype.initPhoneAuth = function() {
+        var self = this;
+
+        var phoneForm = $('#phoneForm');
+        var verifyForm = $('#verifyCodeForm');
+        var backBtn = $('#backToPhoneBtn');
+        var resendBtn = $('#resendCodeBtn');
+
+        if (phoneForm) {
+            phoneForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                self.handlePhoneSubmit();
+            });
+        }
+
+        if (verifyForm) {
+            verifyForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                self.handleCodeVerification();
+            });
+        }
+
+        if (backBtn) {
+            backBtn.addEventListener('click', function() {
+                self.resetPhoneAuthToStep1();
+            });
+        }
+
+        if (resendBtn) {
+            resendBtn.addEventListener('click', function() {
+                self.handleResendCode();
+            });
+        }
+
+        // Auto-format phone number input with proper deletion support
+        var phoneInput = $('#phoneNumber');
+        if (phoneInput) {
+            setupPhoneInputFormatting(phoneInput);
+        }
+
+        // Auto-filter verification code input to digits only
+        var codeInput = $('#verificationCode');
+        if (codeInput) {
+            codeInput.addEventListener('input', function(e) {
+                e.target.value = e.target.value.replace(/\D/g, '').slice(0, 6);
+            });
+        }
+    };
+
+    FirebaseAuthHandler.prototype.initRecaptcha = function() {
+        var self = this;
+
+        // Clear any existing verifier
+        if (this.recaptchaVerifier) {
+            try {
+                this.recaptchaVerifier.clear();
+            } catch (e) {
+                console.log('reCAPTCHA clear error:', e);
+            }
+            this.recaptchaVerifier = null;
+        }
+
+        // Destroy and recreate the container to fully reset reCAPTCHA
+        var container = document.getElementById('recaptcha-container');
+        if (container) {
+            var parent = container.parentNode;
+            var newContainer = document.createElement('div');
+            newContainer.id = 'recaptcha-container';
+            parent.replaceChild(newContainer, container);
+        }
+
+        try {
+            this.recaptchaVerifier = new firebase.auth.RecaptchaVerifier('recaptcha-container', {
+                'size': 'invisible',
+                'callback': function(response) {
+                    console.log('reCAPTCHA verified');
+                },
+                'expired-callback': function() {
+                    console.log('reCAPTCHA expired, reinitializing');
+                    self.initRecaptcha();
+                }
+            });
+
+            this.recaptchaVerifier.render().then(function(widgetId) {
+                console.log('reCAPTCHA rendered');
+            }).catch(function(error) {
+                console.error('reCAPTCHA render error:', error);
+            });
+        } catch (error) {
+            console.error('Error initializing reCAPTCHA:', error);
+        }
+    };
+
+    FirebaseAuthHandler.prototype.handlePhoneSubmit = function() {
+        var self = this;
+        var countryCodeEl = $('#countryCode');
+        var phoneNumberEl = $('#phoneNumber');
+        var countryCode = countryCodeEl ? countryCodeEl.value : '+1';
+        var phoneNumber = phoneNumberEl ? phoneNumberEl.value.replace(/\D/g, '') : '';
+        var errorEl = $('#phoneError');
+        var submitBtn = $('#sendCodeBtn');
+
+        // Clear previous errors
+        if (errorEl) {
+            errorEl.classList.remove('show');
+            errorEl.textContent = '';
+        }
+
+        // Validate phone number
+        if (!phoneNumber || phoneNumber.length < 10) {
+            this.showError(errorEl, 'Please enter a valid phone number');
+            return;
+        }
+
+        // Format full phone number
+        var fullPhoneNumber = countryCode + phoneNumber;
+        this.currentPhoneNumber = fullPhoneNumber;
+
+        // Show loading state
+        this.setPhoneLoadingState(submitBtn, true);
+
+        // Initialize reCAPTCHA if not already done
+        if (!this.recaptchaVerifier) {
+            this.initRecaptcha();
+        }
+
+        // Small delay to ensure reCAPTCHA is ready
+        setTimeout(function() {
+            firebase.auth().signInWithPhoneNumber(fullPhoneNumber, self.recaptchaVerifier)
+                .then(function(confirmationResult) {
+                    console.log('SMS sent successfully');
+                    self.confirmationResult = confirmationResult;
+
+                    // Update UI to show verification step
+                    self.showVerificationStep();
+
+                    // Display the number code was sent to
+                    var sentToEl = $('#sentToNumber');
+                    if (sentToEl) {
+                        sentToEl.textContent = self.formatPhoneDisplay(fullPhoneNumber);
+                    }
+
+                    // Start resend timer
+                    self.startResendTimer();
+                })
+                .catch(function(error) {
+                    console.error('SMS send error:', error);
+                    self.showError(errorEl, self.getErrorMessage(error.code));
+                    // Re-initialize reCAPTCHA on error
+                    self.initRecaptcha();
+                })
+                .finally(function() {
+                    self.setPhoneLoadingState(submitBtn, false);
+                });
+        }, 500);
+    };
+
+    FirebaseAuthHandler.prototype.handleCodeVerification = function() {
+        var self = this;
+        var codeInput = $('#verificationCode');
+        var code = codeInput ? codeInput.value.trim() : '';
+        var errorEl = $('#verifyError');
+        var submitBtn = $('#verifyCodeBtn');
+
+        // Clear previous errors
+        if (errorEl) {
+            errorEl.classList.remove('show');
+            errorEl.textContent = '';
+        }
+
+        // Validate code
+        if (!code || code.length !== 6) {
+            this.showError(errorEl, 'Please enter the 6-digit verification code');
+            return;
+        }
+
+        if (!this.confirmationResult) {
+            this.showError(errorEl, 'Session expired. Please request a new code.');
+            return;
+        }
+
+        // Show loading state
+        this.setPhoneLoadingState(submitBtn, true);
+
+        // Verify the code
+        this.confirmationResult.confirm(code)
+            .then(function(result) {
+                console.log('Phone auth successful:', result.user);
+                self.closeAuthModal();
+                self.resetPhoneAuthState();
+                setTimeout(function() {
+                    self.showContractModal();
+                }, 300);
+            })
+            .catch(function(error) {
+                console.error('Code verification error:', error);
+                self.showError(errorEl, self.getErrorMessage(error.code));
+            })
+            .finally(function() {
+                self.setPhoneLoadingState(submitBtn, false);
+            });
+    };
+
+    FirebaseAuthHandler.prototype.showVerificationStep = function() {
+        var phoneForm = $('#phoneForm');
+        var verifyForm = $('#verifyCodeForm');
+
+        if (phoneForm) phoneForm.style.display = 'none';
+        if (verifyForm) verifyForm.style.display = 'block';
+
+        // Focus on code input
+        var codeInput = $('#verificationCode');
+        if (codeInput) {
+            setTimeout(function() { codeInput.focus(); }, 100);
+        }
+    };
+
+    FirebaseAuthHandler.prototype.resetPhoneAuthToStep1 = function() {
+        var phoneForm = $('#phoneForm');
+        var verifyForm = $('#verifyCodeForm');
+
+        if (phoneForm) phoneForm.style.display = 'block';
+        if (verifyForm) verifyForm.style.display = 'none';
+
+        // Clear verification code
+        var codeInput = $('#verificationCode');
+        if (codeInput) codeInput.value = '';
+
+        // Clear errors
+        var phoneError = $('#phoneError');
+        var verifyError = $('#verifyError');
+        if (phoneError) phoneError.classList.remove('show');
+        if (verifyError) verifyError.classList.remove('show');
+
+        // Stop resend timer
+        this.stopResendTimer();
+    };
+
+    FirebaseAuthHandler.prototype.resetPhoneAuthState = function() {
+        this.confirmationResult = null;
+        this.currentPhoneNumber = '';
+        this.resetPhoneAuthToStep1();
+
+        // Clear phone form
+        var phoneForm = $('#phoneForm');
+        if (phoneForm) phoneForm.reset();
+    };
+
+    FirebaseAuthHandler.prototype.startResendTimer = function() {
+        var self = this;
+        var resendCountdown = 60;
+
+        var timerEl = $('#resendTimer');
+        var countdownEl = $('#countdown');
+        var resendBtn = $('#resendCodeBtn');
+
+        if (timerEl) timerEl.style.display = 'inline';
+        if (resendBtn) resendBtn.style.display = 'none';
+        if (countdownEl) countdownEl.textContent = resendCountdown;
+
+        this.resendTimerInterval = setInterval(function() {
+            resendCountdown--;
+
+            if (countdownEl) {
+                countdownEl.textContent = resendCountdown;
+            }
+
+            if (resendCountdown <= 0) {
+                self.stopResendTimer();
+                if (timerEl) timerEl.style.display = 'none';
+                if (resendBtn) resendBtn.style.display = 'inline';
+            }
+        }, 1000);
+    };
+
+    FirebaseAuthHandler.prototype.stopResendTimer = function() {
+        if (this.resendTimerInterval) {
+            clearInterval(this.resendTimerInterval);
+            this.resendTimerInterval = null;
+        }
+    };
+
+    FirebaseAuthHandler.prototype.handleResendCode = function() {
+        var self = this;
+        var resendBtn = $('#resendCodeBtn');
+        var errorEl = $('#verifyError');
+
+        if (!this.currentPhoneNumber) {
+            this.showError(errorEl, 'Phone number not found. Please start over.');
+            return;
+        }
+
+        if (resendBtn) resendBtn.disabled = true;
+
+        // Re-initialize reCAPTCHA
+        this.initRecaptcha();
+
+        // Wait for reCAPTCHA to be ready
+        setTimeout(function() {
+            firebase.auth().signInWithPhoneNumber(self.currentPhoneNumber, self.recaptchaVerifier)
+                .then(function(confirmationResult) {
+                    console.log('SMS resent successfully');
+                    self.confirmationResult = confirmationResult;
+                    self.startResendTimer();
+                })
+                .catch(function(error) {
+                    console.error('Resend SMS error:', error);
+                    self.showError(errorEl, self.getErrorMessage(error.code));
+                    if (resendBtn) resendBtn.disabled = false;
+                });
+        }, 500);
+    };
+
+    FirebaseAuthHandler.prototype.setPhoneLoadingState = function(button, isLoading) {
+        if (!button) return;
+
+        if (isLoading) {
+            button.classList.add('loading');
+            button.disabled = true;
+        } else {
+            button.classList.remove('loading');
+            button.disabled = false;
+        }
+    };
+
+    FirebaseAuthHandler.prototype.formatPhoneDisplay = function(phoneNumber) {
+        // Format for display: +1 (555) 123-4567
+        if (phoneNumber.startsWith('+1') && phoneNumber.length === 12) {
+            var num = phoneNumber.slice(2);
+            return '+1 (' + num.slice(0, 3) + ') ' + num.slice(3, 6) + '-' + num.slice(6);
+        }
+        return phoneNumber;
     };
 
     // =====================================================
@@ -923,9 +1397,9 @@ HelpRequestHandler.prototype.init = function() {
         firebase.auth().onAuthStateChanged(function(user) {
             self.currentUser = user;
             if (user) {
-                var emailField = $('#helpEmail');
-                if (emailField && self.helpModal.classList.contains('show')) {
-                    emailField.value = user.email;
+                var contactField = $('#helpContact');
+                if (contactField && self.helpModal.classList.contains('show')) {
+                    contactField.value = user.email || formatPhoneNumber(user.phoneNumber) || '';
                 }
             }
         });
@@ -973,26 +1447,115 @@ HelpRequestHandler.prototype.showHelpModal = function() {
         this.helpModal.classList.add('show');
         document.body.style.overflow = 'hidden';
         document.body.classList.add('modal-open');
-        
+
         var successMessage = $('#helpSuccessMessage');
         if (successMessage) successMessage.classList.remove('show');
-        
+
         var formFields = $('.help-form');
         if (formFields) formFields.style.display = 'block';
-        
+
         if (this.helpForm) this.helpForm.reset();
-        
-        var emailField = $('#helpEmail');
-        if (emailField && this.currentUser) {
-            emailField.value = this.currentUser.email;
-            emailField.setAttribute('readonly', 'readonly');
-            emailField.style.opacity = '0.7';
-        } else if (emailField) {
-            emailField.removeAttribute('readonly');
-            emailField.style.opacity = '1';
-            emailField.placeholder = 'your@email.com';
+
+        var contactField = $('#helpContact');
+        var contactLabel = $('#helpContactLabel');
+        var contactHint = $('#helpContactHint');
+        var contactTabs = $('#contactTabs');
+
+        if (contactField && this.currentUser) {
+            // User is signed in - hide tabs, show their contact info
+            if (contactTabs) contactTabs.style.display = 'none';
+
+            var hasEmail = this.currentUser.email;
+            var hasPhone = this.currentUser.phoneNumber;
+
+            if (hasEmail) {
+                contactField.value = this.currentUser.email;
+                contactField.type = 'email';
+                contactField.placeholder = 'your@email.com';
+                if (contactLabel) contactLabel.textContent = 'Your Email *';
+                if (contactHint) contactHint.textContent = "We'll use this to contact you about your request";
+            } else if (hasPhone) {
+                contactField.value = formatPhoneNumber(this.currentUser.phoneNumber);
+                contactField.type = 'tel';
+                contactField.placeholder = '(555) 123-4567';
+                if (contactLabel) contactLabel.textContent = 'Your Phone Number *';
+                if (contactHint) contactHint.textContent = "We'll use this to contact you about your request";
+            }
+
+            contactField.setAttribute('readonly', 'readonly');
+            contactField.style.opacity = '0.7';
+        } else if (contactField) {
+            // User is NOT signed in - show tabs for email/phone selection
+            if (contactTabs) {
+                contactTabs.style.display = 'flex';
+                this.setupContactTabs(contactField, contactLabel, contactHint, contactTabs);
+            }
+
+            contactField.removeAttribute('readonly');
+            contactField.style.opacity = '1';
+            contactField.type = 'email';
+            contactField.value = '';
+            contactField.placeholder = 'your@email.com';
+            if (contactLabel) contactLabel.textContent = 'Your Email *';
+
+            // Reset tabs to email
+            var tabs = $$('.contact-tab', contactTabs);
+            tabs.forEach(function(tab) {
+                tab.classList.toggle('active', tab.dataset.type === 'email');
+            });
         }
     }
+};
+
+HelpRequestHandler.prototype.setupContactTabs = function(contactField, contactLabel, contactHint, contactTabs) {
+    var self = this;
+    var tabs = $$('.contact-tab', contactTabs);
+
+    // Remove existing listeners by cloning
+    tabs.forEach(function(tab) {
+        var newTab = tab.cloneNode(true);
+        tab.parentNode.replaceChild(newTab, tab);
+    });
+
+    // Re-query after cloning
+    tabs = $$('.contact-tab', contactTabs);
+
+    tabs.forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            var type = this.dataset.type;
+
+            // Update active state
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            this.classList.add('active');
+
+            // Clear the field
+            contactField.value = '';
+
+            if (type === 'email') {
+                contactField.type = 'email';
+                contactField.placeholder = 'your@email.com';
+                if (contactLabel) contactLabel.textContent = 'Your Email *';
+                if (contactHint) contactHint.textContent = "We'll use this to contact you about your request";
+                // Remove phone formatting listener
+                self.removePhoneFormatting(contactField);
+            } else {
+                contactField.type = 'tel';
+                contactField.placeholder = '(555) 123-4567';
+                if (contactLabel) contactLabel.textContent = 'Your Phone Number *';
+                if (contactHint) contactHint.textContent = "We'll use this to contact you about your request";
+                // Add phone formatting
+                setupPhoneInputFormatting(contactField);
+            }
+
+            contactField.focus();
+        });
+    });
+};
+
+HelpRequestHandler.prototype.removePhoneFormatting = function(input) {
+    // Clone and replace to remove all event listeners
+    var newInput = input.cloneNode(true);
+    input.parentNode.replaceChild(newInput, input);
 };
 
 HelpRequestHandler.prototype.closeHelpModal = function() {
@@ -1013,27 +1576,41 @@ HelpRequestHandler.prototype.submitHelpRequest = function() {
     if (submitBtn) submitBtn.disabled = true;
     if (submitText) submitText.textContent = 'Sending...';
     
-    var helpEmail = $('#helpEmail').value.trim();
+    var helpContact = $('#helpContact').value.trim();
     var helpIssue = $('#helpIssue').value;
     var helpDetails = $('#helpDetails').value.trim();
-    
-    if (!helpEmail || !helpIssue || !helpDetails) {
+
+    if (!helpContact || !helpIssue || !helpDetails) {
         alert('Please fill in all required fields');
         if (submitBtn) submitBtn.disabled = false;
         if (submitText) submitText.textContent = originalText;
         return;
     }
-    
+
+    // Determine if contact is email or phone
+    var isPhone = this.currentUser && this.currentUser.phoneNumber && !this.currentUser.email;
     var emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(helpEmail)) {
+    var phoneRegex = /^\+?[1-9]\d{6,14}$/;
+
+    if (!isPhone && !emailRegex.test(helpContact)) {
         alert('Please enter a valid email address');
         if (submitBtn) submitBtn.disabled = false;
         if (submitText) submitText.textContent = originalText;
         return;
     }
-    
+
+    if (isPhone && !phoneRegex.test(helpContact.replace(/[\s\-\(\)]/g, ''))) {
+        alert('Please enter a valid phone number');
+        if (submitBtn) submitBtn.disabled = false;
+        if (submitText) submitText.textContent = originalText;
+        return;
+    }
+
     var helpRequestData = {
-        userEmail: helpEmail,
+        userContact: helpContact,
+        contactType: isPhone ? 'phone' : 'email',
+        userEmail: isPhone ? '' : helpContact,
+        userPhone: isPhone ? helpContact : '',
         issueType: helpIssue,
         issueDetails: helpDetails,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -1094,8 +1671,9 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
             // Re-check user role when modal opens (in case auth state changed)
             var user = firebase.auth().currentUser;
             if (user) {
-                self.currentUserEmail = user.email.trim().toLowerCase();
-                self.isDeveloper = self.currentUserEmail === self.DEVELOPER_EMAIL;
+                // Handle both email and phone auth users
+                self.currentUserEmail = user.email ? user.email.trim().toLowerCase() : '';
+                self.isDeveloper = self.currentUserEmail && self.currentUserEmail === self.DEVELOPER_EMAIL;
                 
                
                 // Setup the correct view based on role
@@ -1116,10 +1694,11 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
         if (typeof firebase !== 'undefined' && firebase.auth) {
             firebase.auth().onAuthStateChanged(function(user) {
                 if (user) {
-                    self.currentUserEmail = user.email.trim().toLowerCase();
-                    self.isDeveloper = self.currentUserEmail === self.DEVELOPER_EMAIL;
-                    
-                    console.log('Auth state changed - User:', self.currentUserEmail);
+                    // Handle both email and phone auth users
+                    self.currentUserEmail = user.email ? user.email.trim().toLowerCase() : '';
+                    self.isDeveloper = self.currentUserEmail && self.currentUserEmail === self.DEVELOPER_EMAIL;
+
+                    console.log('Auth state changed - User:', self.currentUserEmail || user.phoneNumber);
                     console.log('isDeveloper:', self.isDeveloper);
                     
                     self.setupForm();
@@ -1804,19 +2383,31 @@ ContractFormHandler.prototype.switchTab = function(tabName) {
 // New function to load SOW documents
 ContractFormHandler.prototype.loadSOWDocuments = function() {
     var self = this;
-    
+
     firebase.firestore().collection('sow_documents')
         .orderBy('createdAt', 'desc')
         .get()
         .then(function(snapshot) {
             var sows = [];
+            var changeRequestIds = [];
+
             snapshot.forEach(function(doc) {
                 var data = doc.data();
                 data.id = doc.id;
                 sows.push(data);
+
+                // Collect change request IDs
+                if (data.changeRequestId) {
+                    changeRequestIds.push(data.changeRequestId);
+                }
             });
-            
-            self.renderSOWTab(sows);
+
+            // If there are change requests, fetch them to check for unread messages
+            if (changeRequestIds.length > 0) {
+                self.fetchChangeRequestsUnreadStatus(changeRequestIds, sows);
+            } else {
+                self.renderSOWTab(sows);
+            }
         })
         .catch(function(error) {
             console.error('Error loading SOWs:', error);
@@ -1827,6 +2418,59 @@ ContractFormHandler.prototype.loadSOWDocuments = function() {
                     '<button class="btn-create-sow" onclick="location.reload()">Retry</button>' +
                     '</div>';
             }
+        });
+};
+
+// Fetch change requests to check for unread messages
+ContractFormHandler.prototype.fetchChangeRequestsUnreadStatus = function(changeRequestIds, sows) {
+    var self = this;
+    var viewerType = self.isDeveloper ? 'developer' : 'client';
+    var lastViewedField = self.isDeveloper ? 'developerLastViewed' : 'clientLastViewed';
+
+    // Firestore doesn't support 'in' queries with more than 10 items, so chunk them
+    var chunks = [];
+    for (var i = 0; i < changeRequestIds.length; i += 10) {
+        chunks.push(changeRequestIds.slice(i, i + 10));
+    }
+
+    var changeRequestsMap = {};
+    var promises = chunks.map(function(chunk) {
+        return firebase.firestore().collection('change_requests')
+            .where(firebase.firestore.FieldPath.documentId(), 'in', chunk)
+            .get()
+            .then(function(snapshot) {
+                snapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    data.id = doc.id;
+
+                    // Check if there are unread messages
+                    var hasUnread = false;
+                    if (data.lastMessageBy && data.lastMessageBy !== viewerType && data.lastMessageAt) {
+                        var lastViewed = data[lastViewedField];
+                        if (!lastViewed || data.lastMessageAt.toMillis() > lastViewed.toMillis()) {
+                            hasUnread = true;
+                        }
+                    }
+                    data.hasUnreadMessages = hasUnread;
+                    changeRequestsMap[doc.id] = data;
+                });
+            });
+    });
+
+    Promise.all(promises)
+        .then(function() {
+            // Attach change request data to SOWs
+            sows.forEach(function(sow) {
+                if (sow.changeRequestId && changeRequestsMap[sow.changeRequestId]) {
+                    sow.changeRequestData = changeRequestsMap[sow.changeRequestId];
+                }
+            });
+            self.renderSOWTab(sows);
+        })
+        .catch(function(error) {
+            console.error('Error fetching change requests:', error);
+            // Still render SOWs even if change request fetch fails
+            self.renderSOWTab(sows);
         });
 };
 
@@ -1843,9 +2487,8 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
     if (sowBadge) sowBadge.textContent = sows.length;
     
     var html = '<div class="sow-tab-header">' +
-        '<h3>📋 Statement of Work Documents</h3>' +
         '<button class="btn-create-sow" onclick="window.contractFormHandler.showSOWCreator()">' +
-        '<span class="btn-icon">+</span> Create New SOW' +
+        '<span class="btn-icon">+</span> Create SOW' +
         '</button>' +
         '</div>';
     
@@ -1900,6 +2543,28 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
             
                         // Contract status is now handled inline in the header
            
+            // Change request badge with unread indicator
+            var changeRequestBadge = '';
+            if (sow.hasChangeRequest && sow.changeRequestStatus) {
+                var crStyles = {
+                    'pending': { bg: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24', text: '📝 Change Requested' },
+                    'approved': { bg: 'rgba(16, 185, 129, 0.2)', color: '#10b981', text: '✅ Change Approved' },
+                    'rejected': { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', text: '❌ Change Rejected' },
+                    'change_order': { bg: 'rgba(99, 102, 241, 0.2)', color: '#6366f1', text: '📋 Change Order' }
+                };
+                var crStyle = crStyles[sow.changeRequestStatus] || crStyles.pending;
+
+                // Check for unread messages
+                var unreadBadge = '';
+                if (sow.changeRequestData && sow.changeRequestData.hasUnreadMessages) {
+                    unreadBadge = '<span class="unread-badge">New</span>';
+                }
+
+                changeRequestBadge = '<div style="font-size: 0.75rem; color: ' + crStyle.color + '; background: ' + crStyle.bg + '; padding: 4px 8px; border-radius: 4px; white-space: nowrap; cursor: pointer; display: flex; align-items: center;" onclick="window.contractFormHandler.viewChangeRequest(\'' + sow.changeRequestId + '\')">' +
+                    crStyle.text + unreadBadge +
+                    '</div>';
+            }
+
             html += '<div class="sow-item" data-sow-id="' + sow.id + '">' +
                 '<div class="sow-item-header">' +
                 '<div class="sow-client-info">' +
@@ -1910,18 +2575,19 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
                 '<span class="sow-status" style="background: ' + statusStyle.bg + '; color: ' + statusStyle.color + ';">' +
                 statusStyle.icon + ' ' + statusText +
                 '</span>' +
-                (sow.linkedContract ? 
+                (sow.linkedContract ?
                     '<div style="font-size: 0.75rem; color: #10b981; background: rgba(16, 185, 129, 0.15); padding: 4px 8px; border-radius: 4px; white-space: nowrap;">' +
                     '🔗 Linked to Contract' +
-                    '</div>' 
+                    '</div>'
                 : '') +
+                changeRequestBadge +
                 '</div>' +
                 '</div>' +
-                
+
                 '<div class="sow-item-details">' +
                 '<div class="sow-detail-row">' +
-                '<span class="detail-label">📧 Email:</span>' +
-                '<span class="detail-value">' + (sow.clientEmail || 'N/A') + '</span>' +
+                '<span class="detail-label">' + (sow.clientEmail ? '📧 Email:' : '📱 Phone:') + '</span>' +
+                '<span class="detail-value">' + (sow.clientEmail || (sow.clientPhone ? formatPhoneNumber(sow.clientPhone) : 'N/A')) + '</span>' +
                 '</div>' +
                 '<div class="sow-detail-row">' +
                 '<span class="detail-label">💰 Total:</span>' +
@@ -1936,12 +2602,35 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
                 '<span class="detail-value">' + createdDate + '</span>' +
                 '</div>' +
                 '</div>' +
-                
+
+// Change Request Card (if pending)
+(sow.hasChangeRequest && sow.changeRequestStatus === 'pending' ?
+    '<div class="change-request-card" style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">' +
+    '<div style="display: flex; justify-content: space-between; align-items: center;">' +
+    '<div>' +
+    '<p style="margin: 0; font-weight: 600; color: #fbbf24; font-size: 0.9rem; display: flex; align-items: center;">📝 Client Requested Changes' +
+    (sow.changeRequestData && sow.changeRequestData.hasUnreadMessages ? '<span class="unread-badge">New</span>' : '') +
+    '</p>' +
+    '<p style="margin: 0.25rem 0 0; font-size: 0.8rem; opacity: 0.8;">Review and respond to this change request</p>' +
+    '</div>' +
+    '<button class="btn" style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="window.contractFormHandler.viewChangeRequest(\'' + sow.changeRequestId + '\')">' +
+    'View Request' +
+    '</button>' +
+    '</div>' +
+    '</div>'
+: '') +
+
                 '<div class="sow-item-actions">' +
 // Sign button (if not fully signed)
-((!sow.clientSignature || !sow.devSignature) ? 
+((!sow.clientSignature || !sow.devSignature) ?
     '<button class="btn-sign-sow" onclick="window.contractFormHandler.showSOWSigningModal(\'' + sow.id + '\')" title="Sign SOW">' +
     '<span>✍️ Sign</span>' +
+    '</button>' : '') +
+
+// View Change Request button (if there's a change request)
+(sow.hasChangeRequest && sow.changeRequestId ?
+    '<button class="btn" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.2);" onclick="window.contractFormHandler.viewChangeRequest(\'' + sow.changeRequestId + '\')" title="View Change Request">' +
+    '<span>📝 Request</span>' +
     '</button>' : '') +
 
 '<button class="btn-edit-sow" onclick="window.contractFormHandler.editSOW(window.' + sowDataId + ')" title="Edit SOW">' +
@@ -2002,9 +2691,9 @@ ContractFormHandler.prototype.deleteSOW = function(sowId) {
     if (!confirm('Are you sure you want to delete this SOW? This action cannot be undone.')) {
         return;
     }
-    
+
     var self = this;
-    
+
     firebase.firestore().collection('sow_documents')
         .doc(sowId)
         .delete()
@@ -2018,6 +2707,736 @@ ContractFormHandler.prototype.deleteSOW = function(sowId) {
             alert('Error deleting SOW: ' + error.message);
         });
 };
+
+// ============= CHANGE REQUEST FUNCTIONS =============
+
+ContractFormHandler.prototype.showChangeRequestModal = function(sowData) {
+    var self = this;
+
+    // Store SOW data for the request
+    this.currentChangeRequestSOW = sowData;
+
+    // SOW sections that can be changed
+    var sections = [
+        { id: 'package', label: 'Package Tier', desc: 'Change to a different package level' },
+        { id: 'features', label: 'Features & Deliverables', desc: 'Add, remove, or modify features' },
+        { id: 'timeline', label: 'Timeline', desc: 'Adjust project duration or milestones' },
+        { id: 'payment', label: 'Payment Structure', desc: 'Modify payment schedule or amounts' },
+        { id: 'maintenance', label: 'Maintenance Plan', desc: 'Change ongoing maintenance options' },
+        { id: 'other', label: 'Other', desc: 'Any other modifications not listed above' }
+    ];
+
+    var sectionsHtml = sections.map(function(section) {
+        return '<label class="change-section-option">' +
+            '<input type="checkbox" name="changeSections" value="' + section.id + '" />' +
+            '<div class="section-option-content">' +
+            '<span class="section-option-label">' + section.label + '</span>' +
+            '<span class="section-option-desc">' + section.desc + '</span>' +
+            '</div>' +
+            '</label>';
+    }).join('');
+
+    var modalHtml = '<div id="changeRequestModal" class="modal-overlay" style="display: flex; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.9); backdrop-filter: blur(10px); z-index: 10000; justify-content: center; align-items: center;">' +
+        '<div class="modal-content" style="max-width: 800px; padding: 2rem;">' +
+        '<div class="modal-header" style="position: relative; padding-bottom: 1rem; margin-bottom: 1rem; border-bottom: 1px solid rgba(255,255,255,0.1);">' +
+        '<h2 style="margin: 0; font-size: 1.5rem; color: #fff;">📝 Request SOW Change</h2>' +
+        '<button type="button" class="modal-close" onclick="window.contractFormHandler.closeChangeRequestModal()" style="position: absolute; top: 0; right: 0; background: rgba(255, 255, 255, 0.1); border: none; width: 36px; height: 36px; border-radius: 50%; color: #fff; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; line-height: 1;">×</button>' +
+        '</div>' +
+        '<div class="modal-body" style="color: #fff;">' +
+
+        '<div class="change-request-info" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">' +
+        '<p style="margin: 0; font-size: 0.9rem;"><strong>📋 SOW:</strong> ' + (sowData.packageType || 'N/A') + ' Package</p>' +
+        '<p style="margin: 0.5rem 0 0; font-size: 0.9rem;"><strong>💰 Current Total:</strong> $' + (sowData.payment ? sowData.payment.total.toFixed(2) : '0.00') + '</p>' +
+        '</div>' +
+
+        '<div class="form-group">' +
+        '<label class="form-label" style="display: block; margin-bottom: 0.75rem; font-weight: 600;">Which sections do you want to modify?</label>' +
+        '<div class="change-sections-grid" style="display: grid; gap: 0.75rem;">' +
+        sectionsHtml +
+        '</div>' +
+        '</div>' +
+
+        '<div class="form-group" style="margin-top: 1.5rem;">' +
+        '<label class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Describe the changes you need:</label>' +
+        '<textarea id="changeRequestDescription" class="form-input" rows="5" placeholder="Please describe in detail what changes you would like to make. Be as specific as possible to help the developer understand your request." style="width: 100%; resize: vertical; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 0.75rem; color: #fff; font-size: 0.95rem;"></textarea>' +
+        '</div>' +
+
+        '<div class="form-group" style="margin-top: 1rem;">' +
+        '<label class="form-label" style="display: block; margin-bottom: 0.5rem; font-weight: 600;">Priority Level:</label>' +
+        '<select id="changeRequestPriority" class="form-input" style="width: 100%; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 0.75rem; color: #fff; font-size: 0.95rem;">' +
+        '<option value="normal" style="background: #1a1a1a; color: #fff;">Normal - Can wait for next review cycle</option>' +
+        '<option value="high" style="background: #1a1a1a; color: #fff;">High - Needed before project continues</option>' +
+        '<option value="urgent" style="background: #1a1a1a; color: #fff;">Urgent - Critical blocker</option>' +
+        '</select>' +
+        '</div>' +
+
+        '</div>' +
+        '<div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end; padding-top: 1.5rem; margin-top: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">' +
+        '<button type="button" class="btn btn-secondary" onclick="window.contractFormHandler.closeChangeRequestModal()" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancel</button>' +
+        '<button type="button" class="btn btn-primary" onclick="window.contractFormHandler.submitChangeRequest()" style="background: linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%); border: none; color: #fff; padding: 0.75rem 1.5rem; border-radius: 8px; cursor: pointer; font-weight: 600;">Submit Request</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+
+    // Add modal styles if not already present
+    if (!document.getElementById('changeRequestStyles')) {
+        var styleEl = document.createElement('style');
+        styleEl.id = 'changeRequestStyles';
+        styleEl.textContent = '.change-section-option { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.75rem; background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; cursor: pointer; transition: all 0.2s; }' +
+            '.change-section-option:hover { background: rgba(255,255,255,0.08); border-color: rgba(99, 102, 241, 0.5); }' +
+            '.change-section-option input[type="checkbox"] { margin-top: 3px; }' +
+            '.change-section-option input[type="checkbox"]:checked + .section-option-content { color: #6366f1; }' +
+            '.section-option-content { display: flex; flex-direction: column; }' +
+            '.section-option-label { font-weight: 600; font-size: 0.95rem; }' +
+            '.section-option-desc { font-size: 0.8rem; opacity: 0.7; margin-top: 2px; }' +
+            '.change-request-badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 600; }' +
+            '.change-request-badge.pending { background: rgba(251, 191, 36, 0.2); color: #fbbf24; }' +
+            '.change-request-badge.approved { background: rgba(16, 185, 129, 0.2); color: #10b981; }' +
+            '.change-request-badge.rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; }' +
+            '.change-request-badge.change-order { background: rgba(99, 102, 241, 0.2); color: #6366f1; }' +
+            '.change-request-card { background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 1rem; margin-top: 1rem; }' +
+            '.change-request-card.approved { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); }' +
+            '.change-request-card.rejected { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }' +
+            '.btn-change-request { cursor: pointer !important; pointer-events: auto !important; }' +
+            '.btn-change-request:hover { background: linear-gradient(135deg, rgba(251, 191, 36, 0.4) 0%, rgba(245, 158, 11, 0.4) 100%) !important; border-color: rgba(251, 191, 36, 0.6) !important; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(251, 191, 36, 0.2); }';
+        document.head.appendChild(styleEl);
+    }
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+ContractFormHandler.prototype.closeChangeRequestModal = function() {
+    var modal = document.getElementById('changeRequestModal');
+    if (modal) modal.remove();
+    this.currentChangeRequestSOW = null;
+};
+
+ContractFormHandler.prototype.submitChangeRequest = function() {
+    var self = this;
+    var sowData = this.currentChangeRequestSOW;
+
+    if (!sowData) {
+        alert('Error: No SOW data found');
+        return;
+    }
+
+    // Get selected sections
+    var selectedSections = [];
+    document.querySelectorAll('input[name="changeSections"]:checked').forEach(function(checkbox) {
+        selectedSections.push(checkbox.value);
+    });
+
+    if (selectedSections.length === 0) {
+        alert('Please select at least one section to modify');
+        return;
+    }
+
+    var description = document.getElementById('changeRequestDescription').value.trim();
+    if (!description) {
+        alert('Please describe the changes you need');
+        return;
+    }
+
+    var priority = document.getElementById('changeRequestPriority').value;
+
+    // Create change request object
+    var changeRequest = {
+        sowId: sowData.id,
+        sowData: {
+            clientName: sowData.clientName,
+            clientEmail: sowData.clientEmail,
+            packageType: sowData.packageType,
+            payment: sowData.payment,
+            estimatedWeeks: sowData.estimatedWeeks
+        },
+        sections: selectedSections,
+        description: description,
+        priority: priority,
+        status: 'pending',
+        clientEmail: sowData.clientEmail,
+        clientName: sowData.clientName,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    // Save to Firebase
+    firebase.firestore().collection('change_requests')
+        .add(changeRequest)
+        .then(function(docRef) {
+            console.log('Change request submitted:', docRef.id);
+
+            // Update SOW document to flag it has a pending change request
+            return firebase.firestore().collection('sow_documents')
+                .doc(sowData.id)
+                .update({
+                    hasChangeRequest: true,
+                    changeRequestId: docRef.id,
+                    changeRequestStatus: 'pending'
+                });
+        })
+        .then(function() {
+            self.closeChangeRequestModal();
+            alert('✓ Change request submitted successfully!\n\nThe developer will review your request and respond shortly.');
+        })
+        .catch(function(error) {
+            console.error('Error submitting change request:', error);
+            alert('Error submitting change request: ' + error.message);
+        });
+};
+
+// Developer functions for handling change requests
+ContractFormHandler.prototype.viewChangeRequest = function(changeRequestId) {
+    var self = this;
+
+    firebase.firestore().collection('change_requests')
+        .doc(changeRequestId)
+        .get()
+        .then(function(doc) {
+            if (!doc.exists) {
+                alert('Change request not found');
+                return;
+            }
+
+            var request = doc.data();
+            request.id = doc.id;
+            self.showChangeRequestDetailModal(request);
+        })
+        .catch(function(error) {
+            console.error('Error loading change request:', error);
+            alert('Error loading change request: ' + error.message);
+        });
+};
+
+ContractFormHandler.prototype.showChangeRequestDetailModal = function(request) {
+    var self = this;
+
+    // Store request for message sending
+    this.currentChangeRequest = request;
+
+    var sectionLabels = {
+        'package': '📦 Package Tier',
+        'features': '✨ Features & Deliverables',
+        'timeline': '⏱️ Timeline',
+        'payment': '💰 Payment Structure',
+        'maintenance': '🔧 Maintenance Plan',
+        'other': '📝 Other'
+    };
+
+    var priorityStyles = {
+        'normal': { bg: 'rgba(107, 114, 128, 0.2)', color: '#9ca3af', label: 'Normal' },
+        'high': { bg: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24', label: 'High Priority' },
+        'urgent': { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', label: 'Urgent' }
+    };
+
+    var statusStyles = {
+        'pending': { bg: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24', label: '⏳ Pending Review' },
+        'approved': { bg: 'rgba(16, 185, 129, 0.2)', color: '#10b981', label: '✅ Approved' },
+        'rejected': { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', label: '❌ Rejected' },
+        'change_order': { bg: 'rgba(99, 102, 241, 0.2)', color: '#6366f1', label: '📋 Change Order Created' }
+    };
+
+    var sectionsHtml = request.sections.map(function(sectionId) {
+        return '<span style="background: rgba(99, 102, 241, 0.15); color: #a5b4fc; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;">' +
+            (sectionLabels[sectionId] || sectionId) + '</span>';
+    }).join(' ');
+
+    var priorityStyle = priorityStyles[request.priority] || priorityStyles.normal;
+    var statusStyle = statusStyles[request.status] || statusStyles.pending;
+
+    var createdDate = request.createdAt ? new Date(request.createdAt.toDate()).toLocaleString() : 'N/A';
+
+    // Build conversation thread HTML
+    var conversationHtml = self.renderConversationThread(request.messages || []);
+
+    var actionsHtml = '';
+    if (self.isDeveloper && request.status === 'pending') {
+        actionsHtml = '<div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">' +
+            '<button class="btn btn-primary" onclick="window.contractFormHandler.approveChangeRequest(\'' + request.id + '\')">✅ Approve</button>' +
+            '<button class="btn" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;" onclick="window.contractFormHandler.rejectChangeRequest(\'' + request.id + '\')">❌ Reject</button>' +
+            '<button class="btn" style="background: rgba(99, 102, 241, 0.2); color: #6366f1;" onclick="window.contractFormHandler.createChangeOrderFromRequest(\'' + request.id + '\')">📋 Create Change Order</button>' +
+            '</div>';
+    } else if (self.isDeveloper && (request.status === 'approved' || request.status === 'change_order')) {
+        actionsHtml = '<div style="display: flex; gap: 0.75rem;">' +
+            '<button class="btn btn-primary" onclick="window.contractFormHandler.editSOWFromChangeRequest(\'' + request.sowId + '\')">✏️ Edit SOW</button>' +
+            '</div>';
+    }
+
+    var modalHtml = '<div id="changeRequestDetailModal" class="modal-overlay-fixed">' +
+        '<div class="modal-content" style="max-width: 700px;">' +
+        '<div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">' +
+        '<h2 style="margin: 0; font-size: 1.25rem;">📝 Change Request Details</h2>' +
+        '<button style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'" onclick="document.getElementById(\'changeRequestDetailModal\').remove()">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 1.5rem;">' +
+
+        '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">' +
+        '<div>' +
+        '<h3 style="margin: 0;">' + request.clientName + '</h3>' +
+        '<p style="margin: 0.25rem 0 0; opacity: 0.7; font-size: 0.9rem;">' + request.clientEmail + '</p>' +
+        '</div>' +
+        '<span style="background: ' + statusStyle.bg + '; color: ' + statusStyle.color + '; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem;">' + statusStyle.label + '</span>' +
+        '</div>' +
+
+        '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">' +
+        '<div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">' +
+        '<p style="margin: 0; font-size: 0.8rem; opacity: 0.7;">PACKAGE</p>' +
+        '<p style="margin: 0.25rem 0 0; font-weight: 600;">' + (request.sowData.packageType || 'N/A') + '</p>' +
+        '</div>' +
+        '<div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">' +
+        '<p style="margin: 0; font-size: 0.8rem; opacity: 0.7;">CURRENT TOTAL</p>' +
+        '<p style="margin: 0.25rem 0 0; font-weight: 600;">$' + (request.sowData.payment ? request.sowData.payment.total.toFixed(2) : '0.00') + '</p>' +
+        '</div>' +
+        '</div>' +
+
+        '<div style="margin-bottom: 1.5rem;">' +
+        '<p style="margin: 0 0 0.5rem; font-weight: 600;">Sections to Modify:</p>' +
+        '<div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">' + sectionsHtml + '</div>' +
+        '</div>' +
+
+        '<div style="margin-bottom: 1.5rem;">' +
+        '<p style="margin: 0 0 0.5rem; font-weight: 600;">Description:</p>' +
+        '<div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px; white-space: pre-wrap;">' + request.description + '</div>' +
+        '</div>' +
+
+        '<div style="display: flex; gap: 2rem; margin-bottom: 1.5rem;">' +
+        '<div>' +
+        '<p style="margin: 0; font-size: 0.8rem; opacity: 0.7;">PRIORITY</p>' +
+        '<span style="background: ' + priorityStyle.bg + '; color: ' + priorityStyle.color + '; padding: 4px 10px; border-radius: 4px; font-size: 0.85rem;">' + priorityStyle.label + '</span>' +
+        '</div>' +
+        '<div>' +
+        '<p style="margin: 0; font-size: 0.8rem; opacity: 0.7;">SUBMITTED</p>' +
+        '<p style="margin: 0.25rem 0 0;">' + createdDate + '</p>' +
+        '</div>' +
+        '</div>' +
+
+        // Conversation Section
+        '<div class="conversation-section">' +
+        '<h4>💬 Conversation</h4>' +
+        '<div id="conversationThread" class="conversation-thread">' +
+        conversationHtml +
+        '</div>' +
+        '<div class="conversation-input-wrapper">' +
+        '<textarea id="conversationInput" class="conversation-input" placeholder="Type your message..." rows="1"></textarea>' +
+        '<button class="conversation-send-btn" onclick="window.contractFormHandler.sendChangeRequestMessage(\'' + request.id + '\')">Send</button>' +
+        '</div>' +
+        '</div>' +
+
+        '</div>' +
+        '<div class="modal-footer" style="padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">' +
+        actionsHtml +
+        '</div>' +
+        '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+
+    // Scroll conversation to bottom
+    var thread = document.getElementById('conversationThread');
+    if (thread) {
+        thread.scrollTop = thread.scrollHeight;
+    }
+
+    // Update last viewed timestamp for current user
+    self.updateChangeRequestLastViewed(request.id);
+};
+
+// Render conversation thread HTML
+ContractFormHandler.prototype.renderConversationThread = function(messages) {
+    if (!messages || messages.length === 0) {
+        return '<div class="conversation-empty">No messages yet. Start the conversation!</div>';
+    }
+
+    return messages.map(function(msg) {
+        // Handle both Firestore timestamps and ISO strings
+        var timestamp = '';
+        if (msg.timestamp) {
+            if (msg.timestamp.toDate) {
+                timestamp = new Date(msg.timestamp.toDate()).toLocaleString();
+            } else {
+                timestamp = new Date(msg.timestamp).toLocaleString();
+            }
+        }
+        var senderClass = msg.sender === 'developer' ? 'developer' : 'client';
+        return '<div class="conversation-message ' + senderClass + '">' +
+            '<div class="message-sender">' + (msg.senderName || msg.sender) + '</div>' +
+            '<div class="message-text">' + msg.text + '</div>' +
+            '<div class="message-time">' + timestamp + '</div>' +
+            '</div>';
+    }).join('');
+};
+
+// Send a message in the change request conversation
+ContractFormHandler.prototype.sendChangeRequestMessage = function(changeRequestId) {
+    var self = this;
+    var input = document.getElementById('conversationInput');
+    var text = input.value.trim();
+
+    if (!text) return;
+
+    var senderType = self.isDeveloper ? 'developer' : 'client';
+    var senderName = self.isDeveloper ? 'Carlos (Developer)' : (self.currentChangeRequest.clientName || 'Client');
+
+    // Use ISO string for timestamp (serverTimestamp not allowed in arrayUnion)
+    var newMessage = {
+        sender: senderType,
+        senderName: senderName,
+        text: text,
+        timestamp: new Date().toISOString()
+    };
+
+    // Disable send button while sending
+    var sendBtn = document.querySelector('.conversation-send-btn');
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.textContent = 'Sending...';
+    }
+
+    firebase.firestore().collection('change_requests')
+        .doc(changeRequestId)
+        .update({
+            messages: firebase.firestore.FieldValue.arrayUnion(newMessage),
+            lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastMessageBy: senderType
+        })
+        .then(function() {
+            // Clear input
+            input.value = '';
+
+            // Add message to UI immediately (optimistic update)
+            var thread = document.getElementById('conversationThread');
+            if (thread) {
+                // Remove empty state if present
+                var emptyState = thread.querySelector('.conversation-empty');
+                if (emptyState) {
+                    emptyState.remove();
+                }
+
+                var msgHtml = '<div class="conversation-message ' + senderType + '">' +
+                    '<div class="message-sender">' + senderName + '</div>' +
+                    '<div class="message-text">' + text + '</div>' +
+                    '<div class="message-time">Just now</div>' +
+                    '</div>';
+                thread.insertAdjacentHTML('beforeend', msgHtml);
+                thread.scrollTop = thread.scrollHeight;
+            }
+
+            // Re-enable send button
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error sending message:', error);
+            alert('Failed to send message. Please try again.');
+            if (sendBtn) {
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send';
+            }
+        });
+};
+
+// Update last viewed timestamp for tracking unread messages
+ContractFormHandler.prototype.updateChangeRequestLastViewed = function(changeRequestId) {
+    var self = this;
+    var field = self.isDeveloper ? 'developerLastViewed' : 'clientLastViewed';
+
+    firebase.firestore().collection('change_requests')
+        .doc(changeRequestId)
+        .update({
+            [field]: firebase.firestore.FieldValue.serverTimestamp()
+        })
+        .catch(function(error) {
+            console.error('Error updating last viewed:', error);
+        });
+};
+
+ContractFormHandler.prototype.approveChangeRequest = function(changeRequestId) {
+    var self = this;
+
+    if (!confirm('Are you sure you want to approve this change request?')) {
+        return;
+    }
+
+    // Add a system message to the conversation (use ISO string for arrayUnion)
+    var approvalMessage = {
+        sender: 'developer',
+        senderName: 'Carlos (Developer)',
+        text: '✅ Change request has been APPROVED. I will now proceed with the requested changes.',
+        timestamp: new Date().toISOString()
+    };
+
+    firebase.firestore().collection('change_requests')
+        .doc(changeRequestId)
+        .update({
+            status: 'approved',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            messages: firebase.firestore.FieldValue.arrayUnion(approvalMessage),
+            lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastMessageBy: 'developer'
+        })
+        .then(function() {
+            // Get the change request to update the SOW
+            return firebase.firestore().collection('change_requests').doc(changeRequestId).get();
+        })
+        .then(function(doc) {
+            var request = doc.data();
+            // Update SOW status
+            return firebase.firestore().collection('sow_documents')
+                .doc(request.sowId)
+                .update({
+                    changeRequestStatus: 'approved'
+                });
+        })
+        .then(function() {
+            document.getElementById('changeRequestDetailModal').remove();
+            alert('Change request approved! You can now edit the SOW with the requested changes.');
+            self.loadSOWDocuments();
+        })
+        .catch(function(error) {
+            console.error('Error approving change request:', error);
+            alert('Error: ' + error.message);
+        });
+};
+
+ContractFormHandler.prototype.rejectChangeRequest = function(changeRequestId) {
+    var self = this;
+
+    if (!confirm('Are you sure you want to reject this change request? Consider sending a message to explain why before rejecting.')) {
+        return;
+    }
+
+    // Add a system message to the conversation (use ISO string for arrayUnion)
+    var rejectionMessage = {
+        sender: 'developer',
+        senderName: 'Carlos (Developer)',
+        text: '❌ Change request has been REJECTED. Please see my previous messages for details.',
+        timestamp: new Date().toISOString()
+    };
+
+    firebase.firestore().collection('change_requests')
+        .doc(changeRequestId)
+        .update({
+            status: 'rejected',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            messages: firebase.firestore.FieldValue.arrayUnion(rejectionMessage),
+            lastMessageAt: firebase.firestore.FieldValue.serverTimestamp(),
+            lastMessageBy: 'developer'
+        })
+        .then(function() {
+            return firebase.firestore().collection('change_requests').doc(changeRequestId).get();
+        })
+        .then(function(doc) {
+            var request = doc.data();
+            return firebase.firestore().collection('sow_documents')
+                .doc(request.sowId)
+                .update({
+                    changeRequestStatus: 'rejected',
+                    hasChangeRequest: false
+                });
+        })
+        .then(function() {
+            document.getElementById('changeRequestDetailModal').remove();
+            alert('Change request rejected. The client has been notified.');
+            self.loadSOWDocuments();
+        })
+        .catch(function(error) {
+            console.error('Error rejecting change request:', error);
+            alert('Error: ' + error.message);
+        });
+};
+
+ContractFormHandler.prototype.createChangeOrderFromRequest = function(changeRequestId) {
+    var self = this;
+
+    firebase.firestore().collection('change_requests')
+        .doc(changeRequestId)
+        .get()
+        .then(function(doc) {
+            if (!doc.exists) {
+                alert('Change request not found');
+                return;
+            }
+
+            var request = doc.data();
+            request.id = doc.id;
+
+            // Close the detail modal
+            var detailModal = document.getElementById('changeRequestDetailModal');
+            if (detailModal) detailModal.remove();
+
+            // Show Change Order creation modal
+            self.showChangeOrderModal(request);
+        })
+        .catch(function(error) {
+            console.error('Error loading change request:', error);
+            alert('Error: ' + error.message);
+        });
+};
+
+ContractFormHandler.prototype.showChangeOrderModal = function(changeRequest) {
+    var self = this;
+
+    var sectionLabels = {
+        'package': 'Package Tier',
+        'features': 'Features & Deliverables',
+        'timeline': 'Timeline',
+        'payment': 'Payment Structure',
+        'maintenance': 'Maintenance Plan',
+        'other': 'Other'
+    };
+
+    var sectionsText = changeRequest.sections.map(function(s) { return sectionLabels[s] || s; }).join(', ');
+
+    var modalHtml = '<div id="changeOrderModal" class="modal-overlay-fixed">' +
+        '<div class="modal-content" style="max-width: 600px;">' +
+        '<div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">' +
+        '<h2 style="margin: 0; font-size: 1.25rem;">📋 Create Change Order</h2>' +
+        '<button style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'" onclick="document.getElementById(\'changeOrderModal\').remove()">&times;</button>' +
+        '</div>' +
+        '<div class="modal-body" style="padding: 1.5rem;">' +
+
+        '<div style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">' +
+        '<p style="margin: 0; font-size: 0.9rem;"><strong>Client:</strong> ' + changeRequest.clientName + '</p>' +
+        '<p style="margin: 0.5rem 0 0; font-size: 0.9rem;"><strong>Sections:</strong> ' + sectionsText + '</p>' +
+        '<p style="margin: 0.5rem 0 0; font-size: 0.9rem;"><strong>Request:</strong> ' + changeRequest.description.substring(0, 100) + (changeRequest.description.length > 100 ? '...' : '') + '</p>' +
+        '</div>' +
+
+        '<div class="form-group">' +
+        '<label class="form-label">Change Order Description:</label>' +
+        '<textarea id="changeOrderDescription" class="form-input" rows="4" placeholder="Describe the approved changes in detail..." style="width: 100%; resize: vertical;">' + changeRequest.description + '</textarea>' +
+        '</div>' +
+
+        '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">' +
+        '<div class="form-group">' +
+        '<label class="form-label">Price Adjustment ($):</label>' +
+        '<input type="number" id="changeOrderPrice" class="form-input" value="0" step="50" style="width: 100%;" />' +
+        '<p style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.25rem;">Use negative for discounts</p>' +
+        '</div>' +
+        '<div class="form-group">' +
+        '<label class="form-label">Timeline Adjustment (weeks):</label>' +
+        '<input type="number" id="changeOrderTimeline" class="form-input" value="0" step="1" style="width: 100%;" />' +
+        '<p style="font-size: 0.8rem; opacity: 0.7; margin-top: 0.25rem;">Use negative to reduce</p>' +
+        '</div>' +
+        '</div>' +
+
+        '<div class="form-group" style="margin-top: 1rem;">' +
+        '<label class="form-label">Notes for Client:</label>' +
+        '<textarea id="changeOrderNotes" class="form-input" rows="2" placeholder="Any additional notes..." style="width: 100%; resize: vertical;"></textarea>' +
+        '</div>' +
+
+        '</div>' +
+        '<div class="modal-footer" style="display: flex; gap: 1rem; justify-content: flex-end; padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">' +
+        '<button class="btn btn-secondary" onclick="document.getElementById(\'changeOrderModal\').remove()">Cancel</button>' +
+        '<button class="btn btn-primary" onclick="window.contractFormHandler.saveChangeOrder(\'' + changeRequest.id + '\', \'' + changeRequest.sowId + '\')">Create Change Order</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+
+    document.body.insertAdjacentHTML('beforeend', modalHtml);
+};
+
+ContractFormHandler.prototype.saveChangeOrder = function(changeRequestId, sowId) {
+    var self = this;
+
+    var description = document.getElementById('changeOrderDescription').value.trim();
+    var priceAdjustment = parseFloat(document.getElementById('changeOrderPrice').value) || 0;
+    var timelineAdjustment = parseInt(document.getElementById('changeOrderTimeline').value) || 0;
+    var notes = document.getElementById('changeOrderNotes').value.trim();
+
+    if (!description) {
+        alert('Please provide a description for the change order');
+        return;
+    }
+
+    // Get the current SOW data
+    firebase.firestore().collection('sow_documents')
+        .doc(sowId)
+        .get()
+        .then(function(doc) {
+            if (!doc.exists) {
+                throw new Error('SOW not found');
+            }
+
+            var sowData = doc.data();
+            var currentTotal = sowData.payment ? sowData.payment.total : 0;
+            var currentTimeline = sowData.estimatedWeeks || 0;
+
+            // Create change order document
+            var changeOrder = {
+                sowId: sowId,
+                changeRequestId: changeRequestId,
+                clientName: sowData.clientName,
+                clientEmail: sowData.clientEmail,
+                description: description,
+                priceAdjustment: priceAdjustment,
+                timelineAdjustment: timelineAdjustment,
+                notes: notes,
+                previousTotal: currentTotal,
+                newTotal: currentTotal + priceAdjustment,
+                previousTimeline: currentTimeline,
+                newTimeline: currentTimeline + timelineAdjustment,
+                status: 'pending_approval',
+                createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+                createdBy: firebase.auth().currentUser.email
+            };
+
+            return firebase.firestore().collection('change_orders').add(changeOrder);
+        })
+        .then(function(docRef) {
+            // Update change request status
+            return firebase.firestore().collection('change_requests')
+                .doc(changeRequestId)
+                .update({
+                    status: 'change_order',
+                    changeOrderId: docRef.id,
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                });
+        })
+        .then(function() {
+            // Update SOW with change order reference
+            return firebase.firestore().collection('sow_documents')
+                .doc(sowId)
+                .update({
+                    changeRequestStatus: 'change_order',
+                    hasChangeOrder: true
+                });
+        })
+        .then(function() {
+            document.getElementById('changeOrderModal').remove();
+            alert('✓ Change Order created successfully!\n\nThe client will be notified to review and approve the changes.');
+            self.loadSOWDocuments();
+        })
+        .catch(function(error) {
+            console.error('Error creating change order:', error);
+            alert('Error: ' + error.message);
+        });
+};
+
+ContractFormHandler.prototype.editSOWFromChangeRequest = function(sowId) {
+    var self = this;
+
+    // Close the modal first
+    var modal = document.getElementById('changeRequestDetailModal');
+    if (modal) modal.remove();
+
+    // Load the SOW and open editor
+    firebase.firestore().collection('sow_documents')
+        .doc(sowId)
+        .get()
+        .then(function(doc) {
+            if (doc.exists) {
+                var sowData = doc.data();
+                sowData.id = doc.id;
+                self.editSOW(sowData);
+            }
+        })
+        .catch(function(error) {
+            console.error('Error loading SOW:', error);
+            alert('Error loading SOW: ' + error.message);
+        });
+};
+
     // ============= SOW CREATOR FUNCTIONS =============
 
 ContractFormHandler.prototype.showSOWCreator = function() {
@@ -2031,11 +3450,20 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '</div>' +
         
         // Client Information
-        '<div class="sow-form-section">' +
+        '<div class="sow-form-section client-info-section">' +
         '<h5><span class="section-icon">👤</span> Client Information</h5>' +
-        '<div class="sow-input-group">' +
+        '<div class="client-id-toggle">' +
+        '<span class="toggle-label" id="emailToggleLabel">Email</span>' +
+        '<label class="toggle-switch">' +
+        '<input type="checkbox" id="clientIdTypeToggle" />' +
+        '<span class="toggle-slider"></span>' +
+        '</label>' +
+        '<span class="toggle-label" id="phoneToggleLabel">Phone</span>' +
+        '</div>' +
+        '<div class="sow-input-group client-inputs-row">' +
         '<input type="text" id="sowClientName" placeholder="Client Name *" class="sow-input" required />' +
-        '<input type="email" id="sowClientEmail" placeholder="Client Email *" class="sow-input" required />' +
+        '<input type="email" id="sowClientEmail" placeholder="Client Email *" class="sow-input" />' +
+        '<input type="tel" id="sowClientPhone" placeholder="Client Phone (e.g., +15551234567) *" class="sow-input" style="display: none;" />' +
         '</div>' +
         '</div>' +
         
@@ -2242,7 +3670,36 @@ ContractFormHandler.prototype.showSOWCreator = function() {
             container.style.display = 'none';
         });
     }
-    
+
+    // Client ID type toggle (Email/Phone)
+    var clientIdToggle = $('#clientIdTypeToggle');
+    var emailInput = $('#sowClientEmail');
+    var phoneInput = $('#sowClientPhone');
+    var emailLabel = $('#emailToggleLabel');
+    var phoneLabel = $('#phoneToggleLabel');
+
+    if (clientIdToggle) {
+        clientIdToggle.addEventListener('change', function() {
+            if (this.checked) {
+                // Phone mode
+                emailInput.style.display = 'none';
+                emailInput.value = '';
+                phoneInput.style.display = 'block';
+                emailLabel.classList.remove('active');
+                phoneLabel.classList.add('active');
+            } else {
+                // Email mode
+                phoneInput.style.display = 'none';
+                phoneInput.value = '';
+                emailInput.style.display = 'block';
+                phoneLabel.classList.remove('active');
+                emailLabel.classList.add('active');
+            }
+        });
+        // Set initial state
+        emailLabel.classList.add('active');
+    }
+
     // Save button
     var saveBtn = $('.btn-save-sow');
     if (saveBtn) {
@@ -2304,14 +3761,34 @@ ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, mainte
 ContractFormHandler.prototype.saveSOW = function() {
     var clientName = $('#sowClientName').value.trim();
     var clientEmail = $('#sowClientEmail').value.trim();
+    var clientPhoneRaw = $('#sowClientPhone').value.trim();
     var packageType = $('#sowPackage').value;
     var weeks = $('#sowWeeks').value;
     var startDate = $('#sowStartDate').value;
     var notes = $('#sowNotes').value.trim();
     var maintenancePlan = $('#sowMaintenance').value;
-    
-    if (!clientName || !clientEmail || !packageType || !weeks) {
-        alert('Please fill in all required fields:\n- Client Name\n- Client Email\n- Package Tier\n- Estimated Weeks');
+
+    // Normalize phone to E.164 format (+1XXXXXXXXXX) for Firebase Auth matching
+    var clientPhone = '';
+    if (clientPhoneRaw) {
+        var digits = clientPhoneRaw.replace(/\D/g, '');
+        if (digits.length === 10) {
+            clientPhone = '+1' + digits;
+        } else if (digits.length === 11 && digits.startsWith('1')) {
+            clientPhone = '+' + digits;
+        } else {
+            clientPhone = clientPhoneRaw; // Keep as-is if unusual format
+        }
+    }
+
+    // Validate required fields - require either email OR phone
+    if (!clientName || !packageType || !weeks) {
+        alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
+        return;
+    }
+
+    if (!clientEmail && !clientPhone) {
+        alert('Please provide either a Client Email or Client Phone number.');
         return;
     }
     
@@ -2339,7 +3816,8 @@ ContractFormHandler.prototype.saveSOW = function() {
     
     var sowData = {
         clientName: clientName,
-        clientEmail: clientEmail,
+        clientEmail: clientEmail || '',
+        clientPhone: clientPhone || '',
         packageType: packageType,
         estimatedWeeks: parseInt(weeks),
         startDate: startDate || null,
@@ -2413,9 +3891,12 @@ ContractFormHandler.prototype.renderSOWSigningModal = function(sowData) {
     
     // Check user role
     var currentUser = firebase.auth().currentUser;
-    var isDeveloper = currentUser.email.toLowerCase() === this.DEVELOPER_EMAIL;
-    var isClient = currentUser.email.toLowerCase() === sowData.clientEmail.toLowerCase();
-    
+    var userEmail = currentUser.email ? currentUser.email.toLowerCase() : '';
+    var userPhone = currentUser.phoneNumber || '';
+    var isDeveloper = userEmail === this.DEVELOPER_EMAIL;
+    var isClient = (userEmail && sowData.clientEmail && userEmail === sowData.clientEmail.toLowerCase()) ||
+                   (userPhone && sowData.clientPhone && userPhone === sowData.clientPhone);
+
     if (!isDeveloper && !isClient) {
         alert('You do not have permission to sign this SOW');
         return;
@@ -2496,7 +3977,7 @@ ContractFormHandler.prototype.renderSOWSigningModal = function(sowData) {
     
     // DEVELOPER SIGNATURE BLOCK
     html += '<div class="signature-block" id="sowDevSignatureBlock">' +
-        '<h3>Developer Signature — VistaFly</h3>';
+        '<h3>Developer Signature — Scarlo</h3>';
     
     if (sowData.devSignature) {
         // Already signed
@@ -2766,257 +4247,629 @@ ContractFormHandler.prototype.submitSOWDeveloperSignature = function(sowId, sign
         });
 };
 
+// ============================================================
+// CALIFORNIA LAW COMPLIANT SOW PDF GENERATION
+// ============================================================
 ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
+    var self = this;
+
     // If sowData is provided, use it; otherwise read from form
-    var clientName, clientEmail, packageType, weeks, startDate, notes, maintenancePlan;
-    
+    var clientName, clientContact, packageType, estimatedWeeks, startDate, notes, maintenancePlan, features, sowId;
+    var clientSignature, clientSignerName, clientSignedDate, devSignature, devSignerName, devSignedDate;
+
     if (sowData) {
         // Using saved data
-        clientName = sowData.clientName || '';
-        clientEmail = sowData.clientEmail || '';
-        packageType = sowData.packageType || '';
-        weeks = sowData.estimatedWeeks || '';
-        startDate = sowData.startDate || '';
+        clientName = sowData.clientName || 'Client Name';
+        clientContact = sowData.clientEmail || sowData.clientPhone || 'N/A';
+        packageType = sowData.packageType || 'professional';
+        estimatedWeeks = sowData.estimatedWeeks || 'TBD';
+        startDate = sowData.startDate || null;
         notes = sowData.notes || '';
         maintenancePlan = sowData.maintenancePlan || 'none';
+        features = sowData.features || [];
+        sowId = sowData.id || 'DRAFT';
+        // Signatures
+        clientSignature = sowData.clientSignature || '';
+        clientSignerName = sowData.clientSignerName || clientName;
+        clientSignedDate = sowData.clientSignedDate || '';
+        devSignature = sowData.devSignature || '';
+        devSignerName = sowData.devSignerName || 'Carlos Martin';
+        devSignedDate = sowData.devSignedDate || '';
     } else {
         // Reading from form
         var clientNameField = $('#sowClientName');
         var clientEmailField = $('#sowClientEmail');
+        var clientPhoneField = $('#sowClientPhone');
         var packageField = $('#sowPackage');
         var weeksField = $('#sowWeeks');
         var startDateField = $('#sowStartDate');
         var notesField = $('#sowNotes');
         var maintenanceField = $('#sowMaintenance');
-        
+
         if (!clientNameField || !packageField) {
             alert('Please fill in at least Client Name and Package Tier to generate PDF');
             return;
         }
-        
-        clientName = clientNameField.value.trim();
-        clientEmail = clientEmailField ? clientEmailField.value.trim() : '';
-        packageType = packageField.value;
-        weeks = weeksField ? weeksField.value : '';
-        startDate = startDateField ? startDateField.value : '';
+
+        clientName = clientNameField.value.trim() || 'Client Name';
+        var emailVal = clientEmailField ? clientEmailField.value.trim() : '';
+        var phoneVal = clientPhoneField ? clientPhoneField.value.trim() : '';
+        clientContact = emailVal || phoneVal || 'N/A';
+        packageType = packageField.value || 'professional';
+        estimatedWeeks = weeksField ? weeksField.value : 'TBD';
+        startDate = startDateField ? startDateField.value : null;
         notes = notesField ? notesField.value.trim() : '';
         maintenancePlan = maintenanceField ? maintenanceField.value : 'none';
+        sowId = 'DRAFT';
+        clientSignature = '';
+        clientSignerName = clientName;
+        clientSignedDate = '';
+        devSignature = '';
+        devSignerName = 'Carlos Martin';
+        devSignedDate = '';
+
+        // Get selected features from checkboxes
+        features = [];
+        $$('.sow-checkboxes input[type="checkbox"]:checked').forEach(function(checkbox) {
+            var label = checkbox.parentElement.textContent.trim();
+            features.push(label);
+        });
     }
-    
+
+    // For backward compatibility, also set clientEmail
+    var clientEmail = clientContact;
+
     if (!clientName || !packageType) {
         alert('Client Name and Package Tier are required to generate PDF');
         return;
     }
-    
-    // Get package details
-    var packageDetails = {
+
+    // Package definitions (comprehensive)
+    var packageDefinitions = {
         'starter': {
-            name: 'Tier 1 — Starter',
-            range: '$1,800 - $2,500',
+            name: 'Tier 1 — Starter Package',
+            priceRange: '$1,800 - $2,500',
+            defaultPrice: 2150,
+            timeline: '2-3 weeks',
+            description: 'Perfect for individuals and small businesses needing a professional online presence.',
             includes: [
-                '1-page custom React/Next.js website',
-                'Clean, modern UI/UX',
-                'Mobile responsive',
+                'Single-page custom React/Next.js website',
+                'Clean, modern UI/UX design',
+                'Fully mobile responsive layout',
                 'Light animations and transitions',
-                'Custom contact form',
-                'Simple analytics'
+                'Custom contact form with email integration',
+                'Basic analytics integration (Google Analytics)',
+                'SEO-friendly structure',
+                'Social media links integration',
+                'SSL certificate setup',
+                '2 rounds of revisions per milestone',
+                '30-day post-launch support'
+            ],
+            notIncluded: [
+                'User authentication or login systems',
+                'Database integration',
+                'E-commerce functionality',
+                'Custom backend development',
+                'Ongoing maintenance (available separately)'
             ]
         },
         'professional': {
-            name: 'Tier 2 — Professional',
-            range: '$3,500 - $6,000',
+            name: 'Tier 2 — Professional Package',
+            priceRange: '$3,500 - $6,000',
+            defaultPrice: 4750,
+            timeline: '4-6 weeks',
+            description: 'Ideal for growing businesses requiring dynamic functionality and user engagement features.',
             includes: [
-                'Fully custom UI/UX layout',
-                'Dynamic single-page application flow',
-                'Smooth animations',
-                'Firebase authentication',
-                'Performance optimization',
-                'SEO setup + analytics',
-                'Custom forms & logic',
+                'Multi-section single-page application (SPA)',
+                'Fully custom UI/UX design and layout',
+                'Dynamic content sections',
+                'Smooth scroll animations and micro-interactions',
+                'Firebase Authentication (email/password)',
+                'Basic user session management',
+                'Performance optimization (lazy loading, code splitting)',
+                'Advanced SEO setup with meta tags and sitemap',
+                'Google Analytics and event tracking',
+                'Custom forms with validation and logic',
+                'Integration with one third-party service (e.g., Mailchimp, Calendly)',
                 '4 rounds of revisions',
-                '1 month of support included'
+                '1 month of included support',
+                'Deployment to production environment'
+            ],
+            notIncluded: [
+                'Full user dashboard systems',
+                'Multi-role user permissions',
+                'E-commerce or payment processing',
+                'Complex API integrations (more than 1)',
+                'Mobile app development'
             ]
         },
         'premium': {
-            name: 'Tier 3 — Premium',
-            range: '$6,000 - $10,000',
+            name: 'Tier 3 — Premium Package',
+            priceRange: '$6,000 - $10,000',
+            defaultPrice: 8000,
+            timeline: '6-10 weeks',
+            description: 'Comprehensive solution for businesses requiring user management, booking systems, and advanced functionality.',
             includes: [
-                'Everything in Professional',
-                'Firebase Authentication & Database',
-                'User Profiles (Auth. Limited Multi-User Login)',
-                'Custom booking systems and workflow logic',
+                'Everything in Professional Package',
+                'Full Firebase backend (Auth, Firestore, Storage)',
+                'User profiles with authentication',
+                'Limited multi-user login capability',
+                'Custom booking/scheduling system',
                 'Custom dashboard components',
-                'Advanced UI animations',
-                'API integrations (CRMs, mailing lists, etc.)',
-                'Priority Support',
-                '2 months of maintenance included'
+                'Advanced UI animations and effects',
+                'Multiple API integrations (CRMs, mailing lists, payment gateways)',
+                'File upload functionality',
+                'Email notification system',
+                'Admin panel for content management',
+                'Priority support response (24-48 hours)',
+                '2 months of included maintenance',
+                'Performance monitoring setup'
+            ],
+            notIncluded: [
+                'Full multi-tenant SaaS architecture',
+                'Complex role-based access control (RBAC)',
+                'Custom mobile applications',
+                'Machine learning or AI integrations',
+                'Real-time collaboration features'
             ]
         },
         'elite': {
             name: 'Tier 4 — Elite Web Application',
-            range: '$10,000 - $20,000+',
+            priceRange: '$10,000 - $20,000+',
+            defaultPrice: 15000,
+            timeline: '10-16 weeks',
+            description: 'Enterprise-grade web application with full backend infrastructure, user management, and scalable architecture.',
             includes: [
-                'Multi-page Next.js application',
-                'Full Firebase backend (Auth, Firestore, Storage)',
-                'User Profiles (Auth. Multi-User Login)',
-                'User roles, permissions, dashboards',
-                'Backend automation & API integrations',
-                'Full custom UI/UX',
-                'Scalable architecture',
-                '3 months of premium maintenance included'
+                'Multi-page Next.js application with routing',
+                'Full Firebase backend infrastructure',
+                'Complete authentication system (email, social, phone)',
+                'Multi-user login with full profile management',
+                'Role-based access control (admin, user, etc.)',
+                'Custom user dashboards and analytics',
+                'Backend automation and scheduled tasks',
+                'Comprehensive API integrations',
+                'Full custom UI/UX design system',
+                'Scalable, production-ready architecture',
+                'Database design and optimization',
+                'Security best practices implementation',
+                'Automated testing setup',
+                'CI/CD pipeline configuration',
+                'Documentation and training materials',
+                '3 months of premium maintenance included',
+                'Dedicated support channel'
+            ],
+            notIncluded: [
+                'Native mobile app development (React Native available separately)',
+                'Machine learning model development',
+                'Blockchain integration',
+                '24/7 on-call support (available separately)'
+            ]
+        },
+        'custom': {
+            name: 'Custom Quote',
+            priceRange: 'Custom Pricing',
+            defaultPrice: 0,
+            timeline: 'TBD',
+            description: 'Tailored solution designed to meet your specific requirements.',
+            includes: ['Custom scope to be defined'],
+            notIncluded: []
+        }
+    };
+
+    var maintenanceDefinitions = {
+        'none': {
+            name: 'No Maintenance Plan',
+            price: '$0/month',
+            description: 'No ongoing maintenance. Support ends after the included post-launch period.',
+            includes: []
+        },
+        'basic': {
+            name: 'Basic Maintenance',
+            price: '$100-$150/month',
+            description: 'Ideal for websites requiring occasional updates and minor adjustments.',
+            includes: [
+                'Minor text and image updates (up to 2 hours/month)',
+                'Security updates and patches',
+                'Uptime monitoring',
+                'Monthly backup verification',
+                'Email support (48-72 hour response)',
+                'Bug fixes for existing functionality'
+            ]
+        },
+        'professional': {
+            name: 'Professional Maintenance',
+            price: '$200-$350/month',
+            description: 'For businesses requiring regular updates and more hands-on support.',
+            includes: [
+                'Everything in Basic',
+                'Content updates (up to 5 hours/month)',
+                'Performance optimization',
+                'Analytics review and recommendations',
+                'Priority email support (24-48 hour response)',
+                'Minor feature enhancements',
+                'Third-party integration monitoring',
+                'Monthly status reports'
+            ]
+        },
+        'premium': {
+            name: 'Premium Maintenance',
+            price: '$500-$800/month',
+            description: 'Comprehensive support for mission-critical websites and applications.',
+            includes: [
+                'Everything in Professional',
+                'Priority support (same-day response)',
+                'New component development (up to 8 hours/month)',
+                'SEO optimization and monitoring',
+                'A/B testing setup and analysis',
+                'Dedicated support channel (Slack/Discord)',
+                'Quarterly strategy calls',
+                'Proactive performance improvements',
+                'Database optimization',
+                'Emergency support availability'
             ]
         }
     };
-    
-    var maintenanceDetails = {
-        'none': { name: 'No Maintenance Plan', cost: '$0/month' },
-        'basic': { name: 'Basic Maintenance', cost: '$100-$150/month', desc: 'Minor updates/tweaks/editing of the code' },
-        'professional': { name: 'Professional Maintenance', cost: '$200-$350/month', desc: 'More labor intensive/semi-continuous code edits' },
-        'premium': { name: 'Premium Maintenance', cost: '$500-$800/month', desc: 'Priority support, new components monthly, SEO optimization' }
-    };
-    
+
+    // Get package and maintenance info
+    var packageInfo = packageDefinitions[packageType] || packageDefinitions['custom'];
+    var maintenanceInfo = maintenanceDefinitions[maintenancePlan] || maintenanceDefinitions['none'];
+
     // Calculate pricing
-    var packagePricing = {
-        'starter': { min: 1800, max: 2500, default: 2150 },
-        'professional': { min: 3500, max: 6000, default: 4750 },
-        'premium': { min: 6000, max: 10000, default: 8000 },
-        'elite': { min: 10000, max: 20000, default: 15000 }
-    };
-    
     var totalPrice = 0;
-    if (packageType === 'custom') {
-        if (sowData && sowData.payment) {
-            totalPrice = sowData.payment.total || 0;
-        } else {
-            var customPriceField = $('#sowCustomPrice');
-            totalPrice = customPriceField ? parseFloat(customPriceField.value) || 0 : 0;
-        }
-    } else if (packagePricing[packageType]) {
-        totalPrice = packagePricing[packageType].default;
+    if (sowData && sowData.payment && sowData.payment.total) {
+        totalPrice = sowData.payment.total;
+    } else if (packageType === 'custom' && sowData && sowData.customPrice) {
+        totalPrice = parseFloat(sowData.customPrice) || 0;
+    } else if (packageType === 'custom') {
+        var customPriceField = $('#sowCustomPrice');
+        totalPrice = customPriceField ? parseFloat(customPriceField.value) || 0 : 0;
+    } else {
+        totalPrice = packageInfo.defaultPrice;
     }
-    
+
     var deposit = totalPrice * 0.50;
     var milestone1 = totalPrice * 0.25;
     var finalPayment = totalPrice * 0.25;
-    
-    // Get selected features
-    var selectedFeatures = [];
-    if (sowData && sowData.features) {
-        selectedFeatures = sowData.features;
-    } else {
-        $$('.sow-checkboxes input[type="checkbox"]:checked').forEach(function(checkbox) {
-            var label = checkbox.parentElement.textContent.trim();
-            selectedFeatures.push(label);
-        });
-    }
-    
-    var packageInfo = packageDetails[packageType] || { name: 'Custom Package', range: 'Custom Quote', includes: [] };
-    var maintenanceInfo = maintenanceDetails[maintenancePlan] || maintenanceDetails['none'];
-    
+
+    // Format dates
+    var generatedDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+    });
+
+    var formattedStartDate = startDate ?
+        new Date(startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) :
+        'To be determined upon contract execution';
+
     // Open new window for PDF
     var printWindow = window.open('', '_blank');
-    
+
     if (!printWindow) {
         alert('Please allow popups to download the PDF');
         return;
     }
-    
-    var packageIncludesList = packageInfo.includes.length > 0 
-        ? '<ul>' + packageInfo.includes.map(function(item) { return '<li>' + item + '</li>'; }).join('') + '</ul>'
-        : '<p><em>See selected features below</em></p>';
-    
-    var selectedFeaturesList = selectedFeatures.length > 0 
-        ? '<ul>' + selectedFeatures.map(function(f) { return '<li>' + f + '</li>'; }).join('') + '</ul>'
-        : '<p><em>No additional features selected</em></p>';
-    
+
+    // Build HTML
     var htmlContent = '<!DOCTYPE html>' +
-        '<html><head>' +
-        '<title>Statement of Work - ' + clientName + '</title>' +
-        '<style>' +
-        '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-        'body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in; }' +
-        'h1 { font-size: 22pt; text-align: center; margin-bottom: 10px; font-weight: bold; color: #1f2937; }' +
-        'h2 { font-size: 16pt; margin-top: 25px; margin-bottom: 12px; font-weight: bold; color: #374151; border-bottom: 2px solid #6366f1; padding-bottom: 8px; }' +
-        'h3 { font-size: 14pt; margin-top: 15px; margin-bottom: 8px; font-weight: bold; color: #4b5563; }' +
-        'p { margin-bottom: 10px; text-align: justify; }' +
-        'ul { margin-left: 25px; margin-bottom: 15px; }' +
-        'li { margin-bottom: 6px; }' +
-        '.header { text-align: center; margin-bottom: 35px; border-bottom: 3px solid #6366f1; padding-bottom: 20px; }' +
-        '.subtitle { font-size: 14pt; color: #6b7280; margin-top: 8px; font-weight: 600; }' +
-        '.meta-info { font-size: 11pt; color: #9ca3af; margin-top: 10px; }' +
-        '.info-box { background: #f9fafb; padding: 18px; border-left: 4px solid #6366f1; margin: 20px 0; border-radius: 4px; }' +
-        '.info-box h3 { margin-top: 0; color: #6366f1; }' +
-        '.payment-table { width: 100%; border-collapse: collapse; margin: 15px 0; }' +
-        '.payment-table th, .payment-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }' +
-        '.payment-table th { background: #f3f4f6; font-weight: bold; color: #374151; }' +
-        '.total-row { background: #6366f1; color: white; font-weight: bold; font-size: 14pt; }' +
-        '.section { margin-bottom: 25px; }' +
-        '.footer { margin-top: 50px; text-align: center; font-size: 10pt; color: #6b7280; border-top: 2px solid #e5e7eb; padding-top: 20px; }' +
-        '.highlight { background: #fef3c7; padding: 2px 6px; border-radius: 3px; }' +
-        '@page { margin: 0.75in; }' +
-        '</style>' +
-        '</head><body>' +
-        
-        '<div class="header">' +
-        '<h1>STATEMENT OF WORK</h1>' +
-        '<div class="subtitle">VistaFly — Professional Web Development</div>' +
-        '<div class="meta-info">Generated: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>' +
-        '</div>' +
-        
+    '<html><head>' +
+    '<title>Statement of Work - ' + clientName + '</title>' +
+    '<style>' +
+    '* { margin: 0; padding: 0; box-sizing: border-box; }' +
+    'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.35; color: #000; background: #fff; padding: 0.5in 0.75in; }' +
+    'h1 { font-size: 16pt; text-align: center; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
+    'h2 { font-size: 10pt; margin-top: 12px; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 2px; }' +
+    'h3 { font-size: 10pt; margin-top: 8px; margin-bottom: 4px; font-weight: bold; }' +
+    'p { margin-bottom: 6px; text-align: justify; }' +
+    'ul, ol { margin-left: 20px; margin-bottom: 6px; }' +
+    'li { margin-bottom: 2px; }' +
+    '.header { text-align: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #000; }' +
+    '.subtitle { font-size: 10pt; margin-top: 4px; font-style: italic; }' +
+    '.meta-date { font-size: 8pt; margin-top: 4px; font-style: italic; }' +
+    '.info-box { padding: 8px 12px; border: 1px solid #000; border-left: 3px solid #000; margin: 8px 0; }' +
+    '.info-box h3 { margin-top: 0; }' +
+    '.info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 15px; margin-top: 6px; }' +
+    '.info-item { font-size: 9pt; }' +
+    '.section { margin-bottom: 10px; page-break-inside: avoid; }' +
+    '.package-box { border: 1px solid #000; padding: 8px 12px; margin: 8px 0; }' +
+    '.package-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #000; }' +
+    '.package-name { font-size: 11pt; font-weight: bold; }' +
+    '.package-price { font-size: 10pt; font-weight: bold; }' +
+    '.feature-list { columns: 2; column-gap: 20px; font-size: 9pt; }' +
+    '.feature-list li { break-inside: avoid; margin-bottom: 1px; }' +
+    '.not-included { border-left: 3px solid #000; }' +
+    '.not-included h3 { font-style: italic; }' +
+    '.payment-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9pt; }' +
+    '.payment-table th, .payment-table td { border: 1px solid #000; padding: 5px 8px; text-align: left; }' +
+    '.payment-table th { font-weight: bold; background: #f5f5f5; }' +
+    '.payment-table .total-row { font-weight: bold; font-size: 10pt; border-top: 2px solid #000; }' +
+    '.timeline-box { border: 1px solid #000; padding: 8px 12px; margin: 8px 0; }' +
+    '.timeline-header { font-weight: bold; margin-bottom: 8px; font-size: 10pt; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
+    '.milestone { margin-bottom: 6px; padding-left: 8px; border-left: 2px solid #000; }' +
+    '.milestone:last-child { margin-bottom: 0; }' +
+    '.milestone-title { font-weight: bold; font-size: 9pt; }' +
+    '.milestone-desc { font-size: 9pt; }' +
+    '.assumptions-box { border: 1px solid #000; border-left: 3px solid #000; padding: 8px 12px; margin: 8px 0; }' +
+    '.assumptions-box h3 { margin-top: 0; font-size: 9pt; }' +
+    '.assumptions-box li { font-size: 9pt; }' +
+    '.legal-notice { border: 1px solid #000; padding: 8px 12px; margin: 10px 0; font-size: 9pt; }' +
+    '.signature-section { margin-top: 20px; page-break-before: always; }' +
+    '.signature-grid { display: flex; justify-content: space-between; gap: 30px; margin-top: 15px; }' +
+    '.signature-block { flex: 1; }' +
+    '.signature-block h3 { font-size: 9pt; margin-bottom: 6px; }' +
+    '.signature-line { border-bottom: 1px solid #000; height: 50px; margin: 6px 0; display: flex; align-items: flex-end; justify-content: center; }' +
+    '.signature-line img { max-height: 45px; max-width: 100%; filter: invert(1) grayscale(1); }' +
+    '.signature-label { font-size: 8pt; font-style: italic; margin-top: 3px; }' +
+    '.signature-name { font-weight: bold; margin-top: 6px; font-size: 9pt; }' +
+    '.signature-date { font-size: 9pt; margin-top: 3px; }' +
+    '.footer { margin-top: 20px; text-align: center; font-size: 8pt; border-top: 1px solid #000; padding-top: 10px; }' +
+    '.sow-id { font-size: 7pt; margin-top: 4px; font-style: italic; }' +
+    '.highlight { font-weight: bold; }' +
+    '.maintenance-box { border: 1px solid #000; padding: 8px 12px; margin: 8px 0; }' +
+    '.maintenance-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid #000; margin-bottom: 6px; }' +
+    '.maintenance-name { font-weight: bold; font-size: 10pt; }' +
+    '.maintenance-price { font-weight: bold; }' +
+    '@media print { body { padding: 0.4in 0.6in; } }' +
+    '@page { margin: 0.5in 0.75in; size: letter; }' +
+    '</style>' +
+    '</head><body>' +
+
+    // HEADER
+    '<div class="header">' +
+    '<h1>Statement of Work</h1>' +
+    '<div class="subtitle">Scarlo — Professional Web Development</div>' +
+    '<div class="meta-date">Document Generated: ' + generatedDate + '</div>' +
+    '</div>' +
+
+    // LEGAL INCORPORATION
+    '<div class="legal-notice">' +
+    '<strong>INCORPORATION:</strong> This SOW is incorporated into and governed by the Website Development Agreement between Scarlo and ' + clientName + '. All Agreement terms apply. In case of conflict, the Agreement controls.' +
+    '</div>' +
+
+    // CLIENT INFORMATION
+    '<div class="section">' +
+    '<h2>1. Client Information</h2>' +
+    '<div class="info-box">' +
+    '<div class="info-grid">' +
+    '<div class="info-item"><strong>Client Name:</strong> ' + clientName + '</div>' +
+    '<div class="info-item"><strong>Contact Email:</strong> ' + clientEmail + '</div>' +
+    '<div class="info-item"><strong>Package Selected:</strong> ' + packageInfo.name + '</div>' +
+    '<div class="info-item"><strong>Estimated Timeline:</strong> ' + estimatedWeeks + ' weeks</div>' +
+    '<div class="info-item"><strong>Project Start Date:</strong> ' + formattedStartDate + '</div>' +
+    '<div class="info-item"><strong>SOW Reference:</strong> ' + sowId + '</div>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+
+    // PROJECT OVERVIEW
+    '<div class="section">' +
+    '<h2>2. Project Overview</h2>' +
+    '<div class="package-box">' +
+    '<div class="package-header">' +
+    '<span class="package-name">' + packageInfo.name + '</span>' +
+    '<span class="package-price">' + packageInfo.priceRange + '</span>' +
+    '</div>' +
+    '<p style="margin-bottom: 15px;">' + packageInfo.description + '</p>' +
+    '<h3 style="margin-top: 15px;">Included in This Package:</h3>' +
+    '<ul class="feature-list">';
+
+    packageInfo.includes.forEach(function(item) {
+        htmlContent += '<li>' + item + '</li>';
+    });
+
+    htmlContent += '</ul></div></div>';
+
+    // ADDITIONAL FEATURES
+    if (features && features.length > 0) {
+        htmlContent += '<div class="section">' +
+        '<h2>3. Additional Features</h2>' +
         '<div class="info-box">' +
-        '<h3>Client Information</h3>' +
-        '<p><strong>Client Name:</strong> ' + clientName + '</p>' +
-        '<p><strong>Email:</strong> ' + clientEmail + '</p>' +
-        '<p><strong>Package:</strong> ' + packageInfo.name + ' <span class="highlight">' + packageInfo.range + '</span></p>' +
-        '<p><strong>Estimated Timeline:</strong> ' + (weeks || 'TBD') + ' weeks' + (startDate ? ' (Starting ' + new Date(startDate).toLocaleDateString() + ')' : '') + '</p>' +
-        '</div>' +
-        
-        '<div class="section">' +
-        '<h2>Package Includes</h2>' +
-        packageIncludesList +
-        '</div>' +
-        
-        (selectedFeatures.length > 0 ? '<div class="section"><h2>Additional Features & Deliverables</h2>' + selectedFeaturesList + '</div>' : '') +
-        
-        (notes ? '<div class="section"><h2>Special Requirements</h2><p>' + notes + '</p></div>' : '') +
-        
-        '<div class="section">' +
-        '<h2>Payment Structure</h2>' +
-        '<table class="payment-table">' +
-        '<thead><tr><th>Payment Milestone</th><th>Description</th><th>Amount</th></tr></thead>' +
-        '<tbody>' +
-        '<tr><td><strong>Initial Deposit</strong></td><td>Due before work begins (50%)</td><td><strong>$' + deposit.toFixed(2) + '</strong></td></tr>' +
-        '<tr><td><strong>Milestone 1</strong></td><td>UI/UX Design Approval (25%)</td><td><strong>$' + milestone1.toFixed(2) + '</strong></td></tr>' +
-        '<tr><td><strong>Final Payment</strong></td><td>Prior to deployment (25%)</td><td><strong>$' + finalPayment.toFixed(2) + '</strong></td></tr>' +
-        '<tr class="total-row"><td colspan="2">Total Project Cost</td><td>$' + totalPrice.toFixed(2) + '</td></tr>' +
-        '</tbody></table>' +
-        '</div>' +
-        
-        (maintenancePlan !== 'none' ? '<div class="section">' +
-        '<h2>Ongoing Maintenance</h2>' +
+        '<ul class="feature-list">';
+        features.forEach(function(feature) {
+            htmlContent += '<li>' + feature + '</li>';
+        });
+        htmlContent += '</ul></div></div>';
+    }
+
+    // SPECIAL REQUIREMENTS
+    if (notes && notes.trim()) {
+        htmlContent += '<div class="section">' +
+        '<h2>' + (features && features.length > 0 ? '4' : '3') + '. Special Requirements & Notes</h2>' +
         '<div class="info-box">' +
-        '<h3>' + maintenanceInfo.name + ' — ' + maintenanceInfo.cost + '</h3>' +
-        '<p>' + (maintenanceInfo.desc || '') + '</p>' +
+        '<p style="margin-bottom: 0;">' + notes + '</p>' +
         '</div>' +
-        '</div>' : '') +
-        
-        '<div class="section">' +
-        '<h2>Terms & Conditions</h2>' +
-        '<p>This Statement of Work is subject to the terms outlined in the Website Development Agreement between VistaFly and <strong>' + clientName + '</strong>. All work will be performed using modern technologies including React, Next.js, Firebase, and associated development tools in accordance with industry best practices.</p>' +
-        '<p>The project timeline is an estimate and may be adjusted based on client feedback, content delivery, and scope changes. Any requests beyond the defined scope require a signed Change Order.</p>' +
+        '</div>';
+    }
+
+    var sectionNum = 3 + (features && features.length > 0 ? 1 : 0) + (notes && notes.trim() ? 1 : 0);
+
+    // PROJECT TIMELINE
+    htmlContent += '<div class="section">' +
+    '<h2>' + sectionNum + '. Project Timeline & Milestones</h2>' +
+    '<div class="timeline-box">' +
+    '<div class="timeline-header">Estimated Project Duration: ' + estimatedWeeks + ' Weeks</div>' +
+
+    '<div class="milestone">' +
+    '<div class="milestone-title">1. Discovery & Planning (Week 1)</div>' +
+    '<div class="milestone-desc">Requirements gathering, sitemap, wireframes, project kickoff.</div>' +
+    '</div>' +
+
+    '<div class="milestone">' +
+    '<div class="milestone-title">2. UI/UX Design (Weeks 2-3)</div>' +
+    '<div class="milestone-desc">Visual mockups, component design, approval. <strong>Milestone Payment due.</strong></div>' +
+    '</div>' +
+
+    '<div class="milestone">' +
+    '<div class="milestone-title">3. Development (Weeks 4-' + Math.max(4, parseInt(estimatedWeeks) - 2 || 4) + ')</div>' +
+    '<div class="milestone-desc">Frontend/backend development, feature implementation, testing.</div>' +
+    '</div>' +
+
+    '<div class="milestone">' +
+    '<div class="milestone-title">4. Testing & Deployment (Final Week)</div>' +
+    '<div class="milestone-desc">QA, bug fixes, optimization, deployment. <strong>Final Payment due.</strong></div>' +
+    '</div>' +
+
+    '</div>' +
+    '<p style="font-size: 9pt; font-style: italic; margin-top: 6px;">Timeline is an estimate. See Agreement Section 8 for terms.</p>' +
+    '</div>';
+
+    sectionNum++;
+
+    // PAYMENT STRUCTURE
+    htmlContent += '<div class="section">' +
+    '<h2>' + sectionNum + '. Payment Structure</h2>' +
+
+    '<table class="payment-table">' +
+    '<thead>' +
+    '<tr>' +
+    '<th style="width: 25%;">Payment</th>' +
+    '<th style="width: 45%;">Description</th>' +
+    '<th style="width: 15%;">Percentage</th>' +
+    '<th style="width: 15%;">Amount</th>' +
+    '</tr>' +
+    '</thead>' +
+    '<tbody>' +
+    '<tr>' +
+    '<td><strong>Deposit</strong></td>' +
+    '<td>Before work begins</td>' +
+    '<td>50%</td>' +
+    '<td><strong>$' + deposit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '</tr>' +
+    '<tr>' +
+    '<td><strong>Milestone</strong></td>' +
+    '<td>Upon design approval</td>' +
+    '<td>25%</td>' +
+    '<td><strong>$' + milestone1.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '</tr>' +
+    '<tr>' +
+    '<td><strong>Final</strong></td>' +
+    '<td>Prior to deployment</td>' +
+    '<td>25%</td>' +
+    '<td><strong>$' + finalPayment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '</tr>' +
+    '<tr class="total-row">' +
+    '<td colspan="2"><strong>TOTAL PROJECT COST</strong></td>' +
+    '<td><strong>100%</strong></td>' +
+    '<td><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '</tr>' +
+    '</tbody>' +
+    '</table>' +
+
+    '<p style="font-size: 9pt; font-style: italic;">Late payments subject to interest (Section 3.3). IP rights transfer upon full payment (Section 6.6).</p>' +
+    '</div>';
+
+    sectionNum++;
+
+    // MAINTENANCE PLAN
+    if (maintenancePlan !== 'none') {
+        htmlContent += '<div class="section">' +
+        '<h2>' + sectionNum + '. Ongoing Maintenance Plan</h2>' +
+        '<div class="maintenance-box">' +
+        '<div class="maintenance-header">' +
+        '<span class="maintenance-name">' + maintenanceInfo.name + '</span>' +
+        '<span class="maintenance-price">' + maintenanceInfo.price + '</span>' +
         '</div>' +
-        
-        '<div class="footer">' +
-        '<p><strong>© ' + new Date().getFullYear() + ' VistaFly</strong> — Crafted with precision</p>' +
-        '<p style="margin-top: 8px;">Carlos Martin | Professional Web Development</p>' +
-        '<p style="margin-top: 12px; font-size: 9pt; font-style: italic;">This SOW is valid for 30 days from the date of generation and must be signed with the Development Agreement.</p>' +
-        '</div>' +
-        
-        '<script>' +
-        'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
-        '</script>' +
-        '</body></html>';
-    
+        '<p style="margin: 10px 0;">' + maintenanceInfo.description + '</p>';
+
+        if (maintenanceInfo.includes && maintenanceInfo.includes.length > 0) {
+            htmlContent += '<h3 style="margin-top: 15px;">Maintenance Includes:</h3>' +
+            '<ul>';
+            maintenanceInfo.includes.forEach(function(item) {
+                htmlContent += '<li>' + item + '</li>';
+            });
+            htmlContent += '</ul>';
+        }
+
+        htmlContent += '</div>' +
+        '<p style="font-size: 8pt; font-style: italic;">Begins after post-launch support. Billed monthly. 30-day cancellation notice. See Agreement Section 7.</p>' +
+        '</div>';
+
+        sectionNum++;
+    }
+
+    // ASSUMPTIONS
+    htmlContent += '<div class="section">' +
+    '<h2>' + sectionNum + '. Assumptions & Dependencies</h2>' +
+    '<div class="assumptions-box">' +
+    '<ul>' +
+    '<li><strong>Content:</strong> Client provides all content within 5 business days of request</li>' +
+    '<li><strong>Feedback:</strong> Client provides consolidated feedback within 5 business days</li>' +
+    '<li><strong>Contact:</strong> Client designates one authorized representative for approvals</li>' +
+    '<li><strong>Third-Party:</strong> Required APIs/services remain available throughout project</li>' +
+    '<li><strong>Hosting:</strong> Client provides hosting meeting Developer\'s requirements</li>' +
+    '<li><strong>Rights:</strong> Client has rights to all materials provided</li>' +
+    '<li><strong>Scope:</strong> Project scope remains substantially unchanged</li>' +
+    '</ul>' +
+    '<p style="font-size: 8pt; margin-bottom: 0; margin-top: 6px;">Changes to assumptions may require a Change Order (Section 9).</p>' +
+    '</div>' +
+    '</div>';
+
+    sectionNum++;
+
+    // ACCEPTANCE CRITERIA
+    htmlContent += '<div class="section">' +
+    '<h2>' + sectionNum + '. Acceptance Criteria</h2>' +
+    '<div class="info-box">' +
+    '<p style="margin-bottom: 4px;"><strong>Process:</strong> Client has 5 business days to review deliverables. Acceptance occurs when Client: (a) approves in writing, (b) fails to respond, or (c) uses in production. Acceptance triggers payment.</p>' +
+    '<p style="margin-bottom: 0;"><strong>Final Criteria:</strong> Modern browser compatibility (Chrome, Firefox, Safari, Edge), mobile responsiveness (iOS/Android), all features functional, forms working, page load under 5 seconds.</p>' +
+    '</div>' +
+    '</div>';
+
+    sectionNum++;
+
+    // CHANGE ORDER PROCESS
+    htmlContent += '<div class="section">' +
+    '<h2>' + sectionNum + '. Scope Changes</h2>' +
+    '<div class="info-box">' +
+    '<p style="margin-bottom: 4px;">Any scope modifications require a written Change Order (Agreement Section 9).</p>' +
+    '<p style="margin-bottom: 0;"><strong>Process:</strong> Client submits request → Developer evaluates impact → Change Order issued with revised scope/timeline/pricing → Client signs and pays deposit → Work proceeds.</p>' +
+    '</div>' +
+    '</div>';
+
+    // SIGNATURES
+    htmlContent += '<div class="signature-section">' +
+    '<h2>Signatures</h2>' +
+    '<p style="font-size: 9pt;">By signing, both parties agree to this SOW and confirm it accurately reflects the project scope, deliverables, timeline, and pricing. Subject to the Website Development Agreement.</p>' +
+
+    '<div class="signature-grid">' +
+
+    // Developer Signature
+    '<div class="signature-block">' +
+    '<h3>DEVELOPER: Scarlo</h3>' +
+    '<div class="signature-line">' +
+    (devSignature ? '<img src="' + devSignature + '" alt="Developer Signature" />' : '<span style="font-style: italic;">Awaiting Signature</span>') +
+    '</div>' +
+    '<div class="signature-label">Authorized Signature</div>' +
+    '<div class="signature-name">' + devSignerName + '</div>' +
+    '<div class="signature-date">Date: ' + (devSignedDate || '_______________') + '</div>' +
+    '</div>' +
+
+    // Client Signature
+    '<div class="signature-block">' +
+    '<h3>CLIENT: ' + clientName + '</h3>' +
+    '<div class="signature-line">' +
+    (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Awaiting Signature</span>') +
+    '</div>' +
+    '<div class="signature-label">Authorized Signature</div>' +
+    '<div class="signature-name">' + clientSignerName + '</div>' +
+    '<div class="signature-date">Date: ' + (clientSignedDate || '_______________') + '</div>' +
+    '</div>' +
+
+    '</div>' +
+    '</div>' +
+
+    // FOOTER
+    '<div class="footer">' +
+    '<p><strong>© ' + new Date().getFullYear() + ' Scarlo</strong> — Professional Web Development | Fresno, CA</p>' +
+    '<p class="sow-id">SOW: ' + sowId + ' | Generated: ' + new Date().toLocaleString() + '</p>' +
+    '<p style="font-size: 7pt; font-style: italic;">Valid for 30 days. Must be signed with the Website Development Agreement.</p>' +
+    '</div>' +
+
+    '<script>' +
+    'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
+    '</script>' +
+    '</body></html>';
+
     printWindow.document.write(htmlContent);
     printWindow.document.close();
 };
@@ -3046,6 +4899,10 @@ ContractFormHandler.prototype.editSOW = function(sow) {
         var fields = {
             clientName: $('#sowClientName'),
             clientEmail: $('#sowClientEmail'),
+            clientPhone: $('#sowClientPhone'),
+            clientIdToggle: $('#clientIdTypeToggle'),
+            emailLabel: $('#emailToggleLabel'),
+            phoneLabel: $('#phoneToggleLabel'),
             package: $('#sowPackage'),
             weeks: $('#sowWeeks'),
             startDate: $('#sowStartDate'),
@@ -3054,10 +4911,32 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             customPrice: $('#sowCustomPrice'),
             customSection: $('#customPricingSection')
         };
-        
+
         // Populate basic fields
         if (fields.clientName) fields.clientName.value = sow.clientName || '';
-        if (fields.clientEmail) fields.clientEmail.value = sow.clientEmail || '';
+
+        // Handle email/phone toggle - check which one has data
+        if (sow.clientPhone && !sow.clientEmail) {
+            // Phone mode
+            if (fields.clientIdToggle) fields.clientIdToggle.checked = true;
+            if (fields.clientEmail) fields.clientEmail.style.display = 'none';
+            if (fields.clientPhone) {
+                fields.clientPhone.style.display = 'block';
+                fields.clientPhone.value = formatPhoneNumber(sow.clientPhone);
+            }
+            if (fields.emailLabel) fields.emailLabel.classList.remove('active');
+            if (fields.phoneLabel) fields.phoneLabel.classList.add('active');
+        } else {
+            // Email mode (default)
+            if (fields.clientIdToggle) fields.clientIdToggle.checked = false;
+            if (fields.clientPhone) fields.clientPhone.style.display = 'none';
+            if (fields.clientEmail) {
+                fields.clientEmail.style.display = 'block';
+                fields.clientEmail.value = sow.clientEmail || '';
+            }
+            if (fields.phoneLabel) fields.phoneLabel.classList.remove('active');
+            if (fields.emailLabel) fields.emailLabel.classList.add('active');
+        }
         if (fields.weeks) fields.weeks.value = sow.estimatedWeeks || '';
         if (fields.startDate) fields.startDate.value = sow.startDate || '';
         if (fields.notes) fields.notes.value = sow.notes || '';
@@ -3133,14 +5012,33 @@ ContractFormHandler.prototype.editSOW = function(sow) {
 ContractFormHandler.prototype.updateSOW = function(sowId) {
     var clientName = $('#sowClientName').value.trim();
     var clientEmail = $('#sowClientEmail').value.trim();
+    var clientPhoneRaw = $('#sowClientPhone').value.trim();
     var packageType = $('#sowPackage').value;
     var weeks = $('#sowWeeks').value;
     var startDate = $('#sowStartDate').value;
     var notes = $('#sowNotes').value.trim();
     var maintenancePlan = $('#sowMaintenance').value;
-    
-    if (!clientName || !clientEmail || !packageType || !weeks) {
-        alert('Please fill in all required fields:\n- Client Name\n- Client Email\n- Package Tier\n- Estimated Weeks');
+
+    // Normalize phone to E.164 format (+1XXXXXXXXXX) for Firebase Auth matching
+    var clientPhone = '';
+    if (clientPhoneRaw) {
+        var digits = clientPhoneRaw.replace(/\D/g, '');
+        if (digits.length === 10) {
+            clientPhone = '+1' + digits;
+        } else if (digits.length === 11 && digits.startsWith('1')) {
+            clientPhone = '+' + digits;
+        } else {
+            clientPhone = clientPhoneRaw; // Keep as-is if unusual format
+        }
+    }
+
+    if (!clientName || !packageType || !weeks) {
+        alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
+        return;
+    }
+
+    if (!clientEmail && !clientPhone) {
+        alert('Please provide either a Client Email or Client Phone number.');
         return;
     }
     
@@ -3168,7 +5066,8 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     
     var sowData = {
         clientName: clientName,
-        clientEmail: clientEmail,
+        clientEmail: clientEmail || '',
+        clientPhone: clientPhone || '',
         packageType: packageType,
         estimatedWeeks: parseInt(weeks),
         startDate: startDate || null,
@@ -3183,9 +5082,9 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
         },
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
-    
+
     var self = this;
-    
+
     firebase.firestore().collection('sow_documents').doc(sowId).update(sowData)
         .then(function() {
             console.log('SOW updated successfully');
@@ -3261,7 +5160,7 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
         
         var devHeader = devBlock.querySelector('h3');
         if (devHeader) {
-            devHeader.innerHTML = 'Developer Signature — VistaFly <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
+            devHeader.innerHTML = 'Developer Signature — Scarlo <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
         }
     }
         
@@ -3336,19 +5235,77 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
 
     ContractFormHandler.prototype.setupClientView = function() {
     console.log('Setting up client view - dual signing mode');
-    
+
     var self = this;
-    
+    var user = firebase.auth().currentUser;
+
     // ============= CHECK FOR EXISTING SUBMISSIONS FIRST =============
-    var userEmail = firebase.auth().currentUser.email;
-    
-    // Check if user already has a pending or completed contract
-    firebase.firestore().collection('contracts')
-        .where('clientEmail', '==', userEmail)
-        .where('status', 'in', ['pending_developer', 'completed'])
-        .orderBy('timestamp', 'desc')
-        .limit(1)
-        .get()
+    var userEmail = user.email;
+    var userPhone = user.phoneNumber;
+
+    // Build query based on auth type
+    var contractQuery;
+    if (userEmail) {
+        console.log('Checking existing contracts by email:', userEmail);
+        contractQuery = firebase.firestore().collection('contracts')
+            .where('clientEmail', '==', userEmail)
+            .where('status', 'in', ['pending_developer', 'completed'])
+            .orderBy('timestamp', 'desc')
+            .limit(1);
+    } else if (userPhone) {
+        // Try multiple phone formats since stored format may vary
+        var digits = userPhone.replace(/\D/g, '');
+        var tenDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+        var phoneFormats = [
+            userPhone,                                                    // +15591231010
+            digits,                                                       // 15591231010
+            tenDigits,                                                    // 5591231010
+            '(' + tenDigits.slice(0,3) + ') ' + tenDigits.slice(3,6) + '-' + tenDigits.slice(6)  // (559) 123-1010
+        ];
+        console.log('Checking existing contracts by phone formats:', phoneFormats);
+
+        // Try each format sequentially
+        var tryFormat = function(index) {
+            if (index >= phoneFormats.length) {
+                console.log('No existing contract found for phone user');
+                self.proceedWithClientSetup();
+                return;
+            }
+            firebase.firestore().collection('contracts')
+                .where('clientPhone', '==', phoneFormats[index])
+                .where('status', 'in', ['pending_developer', 'completed'])
+                .orderBy('timestamp', 'desc')
+                .limit(1)
+                .get()
+                .then(function(snapshot) {
+                    if (!snapshot.empty) {
+                        var contractDoc = snapshot.docs[0];
+                        var contractData = contractDoc.data();
+                        contractData.id = contractDoc.id;
+                        console.log('Found existing contract with format:', phoneFormats[index]);
+                        var completedContainer = document.getElementById('dualSigningCompleted');
+                        if (completedContainer) {
+                            completedContainer.style.display = 'block';
+                        } else {
+                            self.showExistingCompletion(contractData);
+                        }
+                    } else {
+                        tryFormat(index + 1);
+                    }
+                })
+                .catch(function() {
+                    tryFormat(index + 1);
+                });
+        };
+        tryFormat(0);
+        return;
+    } else {
+        console.log('No email or phone - proceeding to setup');
+        return self.proceedWithClientSetup();
+    }
+
+    // Check if user already has a pending or completed contract (email path only now)
+    contractQuery.get()
         .then(function(contractSnapshot) {
             if (!contractSnapshot.empty) {
                 // Contract exists - check if it's completed or pending
@@ -3410,13 +5367,68 @@ ContractFormHandler.prototype.proceedWithClientSetup = function() {
     if (downloadBtn) downloadBtn.style.display = 'none';
     
     // ============= CHECK FOR SOW WITHOUT POPUP =============
-    var userEmail = firebase.auth().currentUser.email;
-    
-    firebase.firestore().collection('sow_documents')
-        .where('clientEmail', '==', userEmail)
-        .orderBy('createdAt', 'desc')
-        .limit(1)
-        .get()
+    var user = firebase.auth().currentUser;
+    var userEmail = user.email;
+    var userPhone = user.phoneNumber;
+
+    // Build query based on auth type
+    var sowQuery;
+    if (userEmail) {
+        // Email user - query by email
+        console.log('Querying SOW by email:', userEmail);
+        sowQuery = firebase.firestore().collection('sow_documents')
+            .where('clientEmail', '==', userEmail)
+            .orderBy('createdAt', 'desc')
+            .limit(1);
+    } else if (userPhone) {
+        // Try multiple phone formats since stored format may vary
+        var digits = userPhone.replace(/\D/g, '');
+        var tenDigits = digits.length === 11 && digits.startsWith('1') ? digits.slice(1) : digits;
+        var phoneFormats = [
+            userPhone,                                                    // +15591231010
+            digits,                                                       // 15591231010
+            tenDigits,                                                    // 5591231010
+            '(' + tenDigits.slice(0,3) + ') ' + tenDigits.slice(3,6) + '-' + tenDigits.slice(6)  // (559) 123-1010
+        ];
+        console.log('Querying SOW by phone formats:', phoneFormats);
+
+        // Try each format sequentially
+        var tryFormat = function(index) {
+            if (index >= phoneFormats.length) {
+                console.log('⚠️ No SOW found for client (tried all phone formats)');
+                self.showNoSOWNotification();
+                return;
+            }
+            firebase.firestore().collection('sow_documents')
+                .where('clientPhone', '==', phoneFormats[index])
+                .orderBy('createdAt', 'desc')
+                .limit(1)
+                .get()
+                .then(function(snapshot) {
+                    if (!snapshot.empty) {
+                        var sowDoc = snapshot.docs[0];
+                        var sowData = sowDoc.data();
+                        sowData.id = sowDoc.id;
+                        console.log('✓ SOW found with format:', phoneFormats[index], 'ID:', sowData.id);
+                        self.showDualSigningInterface(sowData);
+                    } else {
+                        tryFormat(index + 1);
+                    }
+                })
+                .catch(function(error) {
+                    console.error('Error querying SOW format', phoneFormats[index], error);
+                    tryFormat(index + 1);
+                });
+        };
+        tryFormat(0);
+        return;
+    } else {
+        console.log('No email or phone found');
+        self.showNoSOWNotification();
+        return;
+    }
+
+    sowQuery.get()
         .then(function(snapshot) {
             if (snapshot.empty) {
                 console.log('⚠️ No SOW found for client');
@@ -3425,7 +5437,7 @@ ContractFormHandler.prototype.proceedWithClientSetup = function() {
                 var sowDoc = snapshot.docs[0];
                 var sowData = sowDoc.data();
                 sowData.id = sowDoc.id;
-                
+
                 self.showDualSigningInterface(sowData);
             }
         })
@@ -3480,14 +5492,25 @@ ContractFormHandler.prototype.showNoSOWNotification = function(errorMsg) {
                     document.body.style.overflow = 'hidden';
                     document.body.classList.add('modal-open');
                     
-                    // Pre-fill email if user is logged in
+                    // Pre-fill contact info if user is logged in
                     var currentUser = firebase.auth().currentUser;
                     if (currentUser) {
-                        var emailField = $('#helpEmail');
-                        if (emailField) {
-                            emailField.value = currentUser.email;
-                            emailField.setAttribute('readonly', 'readonly');
-                            emailField.style.opacity = '0.7';
+                        var contactField = $('#helpContact');
+                        var contactLabel = $('#helpContactLabel');
+                        if (contactField) {
+                            if (currentUser.email) {
+                                contactField.value = currentUser.email;
+                                contactField.type = 'email';
+                                contactField.placeholder = 'your@email.com';
+                                if (contactLabel) contactLabel.textContent = 'Your Email *';
+                            } else if (currentUser.phoneNumber) {
+                                contactField.value = formatPhoneNumber(currentUser.phoneNumber);
+                                contactField.type = 'tel';
+                                contactField.placeholder = '(555) 123-4567';
+                                if (contactLabel) contactLabel.textContent = 'Your Phone Number *';
+                            }
+                            contactField.setAttribute('readonly', 'readonly');
+                            contactField.style.opacity = '0.7';
                         }
                     }
                 }
@@ -3587,6 +5610,12 @@ ContractFormHandler.prototype.showDualSigningInterface = function(sowData) {
     // Load contract content into first tab
     var contractContent = $('#contractSigningContent');
     if (contractContent) {
+        // Add contract header
+        var contractHeader = document.createElement('div');
+        contractHeader.className = 'modal-header';
+        contractHeader.innerHTML = '<h2>Contract</h2>' +
+            '<p class="modal-subtitle">Scarlo - Carlos Martin</p>';
+        contractContent.appendChild(contractHeader);
         contractContent.appendChild(contractForm);
         contractForm.style.display = 'block';
     }
@@ -3721,29 +5750,28 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
     var milestone1 = totalPrice * 0.25;
     var finalPayment = totalPrice * 0.25;
     
-    var html = '<div class="sow-full-document">' +
-        
+    var html = '' +
+
         // HEADER
-        '<div class="sow-document-header">' +
-        '<h1>📋 STATEMENT OF WORK</h1>' +
-        '<p class="sow-subtitle">VistaFly — Professional Web Development</p>' +
-        '<p class="sow-date">Generated: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</p>' +
+        '<div class="modal-header">' +
+        '<h2>STATEMENT OF WORK</h2>' +
+        '<p class="modal-subtitle">Scarlo - Carlos Martin</p>' +
         '</div>' +
-        
+
         // CLIENT INFO BOX
-        '<div class="sow-info-box">' +
+        '<section class="contract-section-inner">' +
         '<h3>Client Information</h3>' +
         '<div class="sow-info-grid">' +
         '<div class="sow-info-item"><strong>Client Name:</strong> ' + sowData.clientName + '</div>' +
-        '<div class="sow-info-item"><strong>Email:</strong> ' + sowData.clientEmail + '</div>' +
+        '<div class="sow-info-item"><strong>Contact:</strong> ' + (sowData.clientEmail || sowData.clientPhone || 'N/A') + '</div>' +
         '<div class="sow-info-item"><strong>Package:</strong> ' + (packageNames[sowData.packageType] || sowData.packageType) + '</div>' +
         '<div class="sow-info-item"><strong>Timeline:</strong> ' + (sowData.estimatedWeeks || 'TBD') + ' weeks</div>' +
         '</div>' +
-        '</div>' +
-        
+        '</section>' +
+
         // PACKAGE INCLUDES
-        '<div class="sow-section">' +
-        '<h2>Package Includes</h2>' +
+        '<section class="contract-section-inner">' +
+        '<h3>Package Includes</h3>' +
         '<ul class="sow-list">';
     
     if (packageInfo.includes && packageInfo.includes.length > 0) {
@@ -3752,32 +5780,32 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         });
     }
     
-    html += '</ul></div>';
-    
+    html += '</ul></section>';
+
     // SELECTED FEATURES
     if (sowData.features && sowData.features.length > 0) {
-        html += '<div class="sow-section">' +
-            '<h2>Additional Features & Deliverables</h2>' +
+        html += '<section class="contract-section-inner">' +
+            '<h3>Additional Features & Deliverables</h3>' +
             '<ul class="sow-list">';
-        
+
         sowData.features.forEach(function(feature) {
             html += '<li>' + feature + '</li>';
         });
-        
-        html += '</ul></div>';
+
+        html += '</ul></section>';
     }
-    
+
     // SPECIAL REQUIREMENTS
     if (sowData.notes) {
-        html += '<div class="sow-section">' +
-            '<h2>Special Requirements</h2>' +
-            '<p class="sow-text">' + sowData.notes + '</p>' +
-            '</div>';
+        html += '<section class="contract-section-inner">' +
+            '<h3>Special Requirements</h3>' +
+            '<p>' + sowData.notes + '</p>' +
+            '</section>';
     }
     
     // PAYMENT STRUCTURE
-    html += '<div class="sow-section">' +
-        '<h2>Payment Structure</h2>' +
+    html += '<section class="contract-section-inner">' +
+        '<h3>Payment Structure</h3>' +
         '<table class="sow-payment-table">' +
         '<thead>' +
         '<tr>' +
@@ -3808,20 +5836,20 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         '</tr>' +
         '</tbody>' +
         '</table>' +
-        '</div>';
+        '</section>';
     
     // TERMS
-    html += '<div class="sow-section">' +
-        '<h2>Terms & Conditions</h2>' +
-        '<p class="sow-text">This Statement of Work is subject to the terms outlined in the Website Development Agreement between VistaFly and <strong>' + sowData.clientName + '</strong>. All work will be performed using modern technologies including React, Next.js, Firebase, and associated development tools in accordance with industry best practices.</p>' +
-        '<p class="sow-text">The project timeline is an estimate and may be adjusted based on client feedback, content delivery, and scope changes. Any requests beyond the defined scope require a signed Change Order.</p>' +
-        '</div>' +
-        
+    html += '<section class="contract-section-inner">' +
+        '<h3>Terms & Conditions</h3>' +
+        '<p>This Statement of Work is subject to the terms outlined in the Website Development Agreement between Scarlo and <strong>' + sowData.clientName + '</strong>. All work will be performed using modern technologies including React, Next.js, Firebase, and associated development tools in accordance with industry best practices.</p>' +
+        '<p>The project timeline is an estimate and may be adjusted based on client feedback, content delivery, and scope changes. Any requests beyond the defined scope require a signed Change Order.</p>' +
+        '</section>' +
+
         // SIGNATURE BLOCK
-        '<div class="sow-signature-section">' +
-        '<h2>Client Signature Required</h2>' +
-        '<p class="sow-text">Please review the above Statement of Work carefully. By signing below, you acknowledge that you have read and agree to the scope, timeline, and payment terms outlined in this document.</p>' +
-        
+        '<section class="contract-section-inner signatures">' +
+        '<h3>Client Signature Required</h3>' +
+        '<p>Please review the above Statement of Work carefully. By signing below, you acknowledge that you have read and agree to the scope, timeline, and payment terms outlined in this document.</p>' +
+
         '<div class="signature-block">' +
         '<h3>Client Signature — ' + sowData.clientName + '</h3>' +
         '<div class="form-group">' +
@@ -3837,10 +5865,9 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         '<button class="clear-btn" data-canvas="sowClientSignaturePad">Clear</button>' +
         '</div>' +
         '</div>' +
-        
-        '</div>' +
-        '</div>';
-    
+
+        '</section>';
+
     sowContent.innerHTML = html;
     
     // Set today's date
@@ -4429,7 +6456,7 @@ ContractFormHandler.prototype.validateContractTab = function() {
             
             var devHeader = devBlock.querySelector('h3');
             if (devHeader) {
-                devHeader.innerHTML = 'Developer Signature — VistaFly <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
+                devHeader.innerHTML = 'Developer Signature — Scarlo <span style="font-size: 12px; color: #f59e0b;">⏳ Sign Below</span>';
             }
         }
         
@@ -4541,8 +6568,10 @@ ContractFormHandler.prototype.validateContractTab = function() {
         submitBtn.innerHTML = '<span>Submitting...</span>';
     }
     
-    var clientEmail = firebase.auth().currentUser.email;
-    
+    var user = firebase.auth().currentUser;
+    var clientEmail = user.email || '';
+    var clientPhone = user.phoneNumber || '';
+
     // Contract data
     var contractData = {
         clientName: $('#clientName').value.trim(),
@@ -4550,6 +6579,7 @@ ContractFormHandler.prototype.validateContractTab = function() {
         clientDate: $('#clientDate').value,
         clientSignature: this.clientSignaturePad.toDataURL(),
         clientEmail: clientEmail,
+        clientPhone: clientPhone,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'pending_developer'
     };
@@ -4577,6 +6607,7 @@ ContractFormHandler.prototype.validateContractTab = function() {
                     clientSignedTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     linkedContract: contractId,
                     linkedContractEmail: clientEmail,
+                    linkedContractPhone: clientPhone,
                     status: 'pending_developer'
                 });
         })
@@ -4643,6 +6674,25 @@ ContractFormHandler.prototype.showExistingCompletion = function(contractData) {
             })
             .catch(function(error) {
                 console.error('Error fetching SOW:', error);
+                self.renderExistingCompletionView(contractData, null, isFullySigned);
+            });
+    } else if (contractData.clientPhone) {
+        // Phone-based lookup - use clientPhone field (matches security rules)
+        firebase.firestore().collection('sow_documents')
+            .where('clientPhone', '==', contractData.clientPhone)
+            .where('linkedContract', '==', contractData.id)
+            .limit(1)
+            .get()
+            .then(function(sowSnapshot) {
+                var sowData = null;
+                if (!sowSnapshot.empty) {
+                    sowData = sowSnapshot.docs[0].data();
+                    sowData.id = sowSnapshot.docs[0].id;
+                }
+                self.renderExistingCompletionView(contractData, sowData, isFullySigned);
+            })
+            .catch(function(error) {
+                console.error('Error fetching SOW by phone:', error);
                 self.renderExistingCompletionView(contractData, null, isFullySigned);
             });
     } else {
@@ -4728,6 +6778,7 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
             sowStatusBadge +
             '</div>' +
             '<div class="doc-card-body">' +
+            '<div class="doc-field-row"><span class="field-label">Client Name:</span><span class="field-value">' + (sowData.clientName || 'N/A') + '</span></div>' +
             '<div class="doc-field-row"><span class="field-label">Package:</span><span class="field-value">' + (sowData.packageType || 'N/A') + '</span></div>' +
             '<div class="doc-field-row"><span class="field-label">Total Cost:</span><span class="field-value">$' + (sowData.payment ? sowData.payment.total.toFixed(2) : '0.00') + '</span></div>' +
             '<div class="doc-field-row"><span class="field-label">Timeline:</span><span class="field-value">' + (sowData.estimatedWeeks || 'TBD') + ' weeks</span></div>' +
@@ -4741,15 +6792,36 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
         
         // Add download button ONLY if fully signed
         if (sowFullySigned) {
-            // Store SOW data globally for PDF generation
+            // Store SOW data globally for PDF generation and change requests
             var sowDataId = 'sowData_' + sowData.id.replace(/[^a-zA-Z0-9]/g, '_');
             window[sowDataId] = sowData;
-            
-            html += '<button class="btn btn-primary download-doc-btn" onclick="window.contractFormHandler.generateSOWPDF(window.' + sowDataId + ')" style="width: 100%; margin-top: 1rem;">' +
-                '<span>📋 Download SOW PDF</span>' +
+
+            html += '<div style="display: flex; gap: 0.75rem; margin-top: 1rem;">' +
+                '<button type="button" class="sow-action-btn sow-download-btn" onclick="window.contractFormHandler.generateSOWPDF(window.' + sowDataId + ')">' +
+                '📋 Download SOW' +
                 '</button>';
+
+            // Show "View Request" button if there's an existing change request, otherwise show "Request Change"
+            if (sowData.hasChangeRequest && sowData.changeRequestId) {
+                var statusColors = {
+                    'pending': { bg: 'linear-gradient(135deg, #f59e0b, #d97706)', text: '💬 View Request' },
+                    'approved': { bg: 'linear-gradient(135deg, #10b981, #059669)', text: '✅ View Approved' },
+                    'rejected': { bg: 'linear-gradient(135deg, #ef4444, #dc2626)', text: '❌ View Response' },
+                    'change_order': { bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', text: '📋 View Order' }
+                };
+                var btnStyle = statusColors[sowData.changeRequestStatus] || statusColors.pending;
+                html += '<button type="button" class="sow-action-btn" style="background: ' + btnStyle.bg + '; color: white; border: none;" onclick="window.contractFormHandler.viewChangeRequest(\'' + sowData.changeRequestId + '\')">' +
+                    btnStyle.text +
+                    '</button>';
+            } else {
+                html += '<button type="button" class="sow-action-btn sow-change-btn" onclick="window.contractFormHandler.showChangeRequestModal(window.' + sowDataId + ')">' +
+                    '📝 Request Change' +
+                    '</button>';
+            }
+
+            html += '</div>';
         }
-        
+
         html += '</div>'; // Close SOW card
     }
     
@@ -4864,11 +6936,11 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div class="doc-card-body">' +
         '<div class="doc-field-row">' +
         '<span class="field-label">Client Name:</span>' +
-        '<span class="field-value">' + sowData.clientName + '</span>' +
+        '<span class="field-value">' + (sowData.clientName || 'N/A') + '</span>' +
         '</div>' +
         '<div class="doc-field-row">' +
         '<span class="field-label">Package:</span>' +
-        '<span class="field-value">' + sowData.packageType + '</span>' +
+        '<span class="field-value">' + (sowData.packageType || 'N/A') + '</span>' +
         '</div>' +
         '<div class="doc-field-row">' +
         '<span class="field-label">Total Cost:</span>' +
@@ -4980,11 +7052,11 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     ContractFormHandler.prototype.showClientSuccessMessage = function() {
         var messageDiv = $('#clientSubmitMessage');
         var emailDisplay = $('#clientEmailDisplay');
-        
+
         if (messageDiv) {
             var user = firebase.auth().currentUser;
             if (user && emailDisplay) {
-                emailDisplay.textContent = user.email;
+                emailDisplay.textContent = user.email || user.phoneNumber || 'your account';
             }
             messageDiv.style.display = 'block';
             messageDiv.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -5031,225 +7103,210 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         alert('Contract uploaded successfully! Click the button to download the PDF.');
     };
 
+    // ============================================================
+    // CALIFORNIA LAW COMPLIANT CONTRACT PDF GENERATION
+    // ============================================================
     ContractFormHandler.prototype.generatePDF = function() {
         var self = this;
         var contractData = this.currentContract ? this.currentContract.data : null;
-        
+        var contractId = this.currentContract ? this.currentContract.id : null;
+
         if (!contractData) {
             alert('No contract data available to generate PDF');
             return;
         }
-        
-        
+
         // Create a new window with the formatted contract
         var printWindow = window.open('', '_blank');
-        
+
         if (!printWindow) {
             alert('Please allow popups to download the PDF');
             return;
         }
-        
+
         var clientDate = contractData.clientDate || 'N/A';
         var devDate = contractData.devDate || 'N/A';
         var clientName = contractData.clientName || 'N/A';
         var clientSignerName = contractData.clientSignerName || 'N/A';
         var clientEmail = contractData.clientEmail || 'N/A';
         var devName = contractData.devName || 'Carlos Martin';
-        var devEmail = contractData.devEmail || 'N/A';
+        var devEmail = contractData.devEmail || 'carlos@scarlo.dev';
         var clientSignature = contractData.clientSignature || '';
         var devSignature = contractData.devSignature || '';
-        
+
         var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
         '<title>Website Development Agreement - ' + clientName + '</title>' +
         '<style>' +
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-        'body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in; }' +
-        'h1 { font-size: 18pt; text-align: center; margin-bottom: 5px; font-weight: bold; }' +
-        'h2 { font-size: 14pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 5px; }' +
-        'h3 { font-size: 12pt; margin-top: 15px; margin-bottom: 8px; font-weight: bold; }' +
+        'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
+        'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
+        'h2 { font-size: 11pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
+        'h3 { font-size: 10.5pt; margin-top: 14px; margin-bottom: 6px; font-weight: bold; }' +
         'p { margin-bottom: 10px; text-align: justify; }' +
-        'ul { margin-left: 25px; margin-bottom: 10px; }' +
+        'ul, ol { margin-left: 30px; margin-bottom: 10px; }' +
         'li { margin-bottom: 5px; }' +
-        '.header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }' +
-        '.subtitle { font-size: 12pt; color: #333; margin-top: 5px; }' +
-        '.parties { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin: 20px 0; }' +
-        '.section { margin-bottom: 20px; page-break-inside: avoid; }' +
+        '.header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000; }' +
+        '.subtitle { font-size: 11pt; margin-top: 6px; font-style: italic; }' +
+        '.parties { padding: 15px 20px; border: 1px solid #000; margin: 20px 0; }' +
+        '.section { margin-bottom: 18px; page-break-inside: avoid; }' +
+        '.caps-section { text-transform: uppercase; font-weight: bold; }' +
+        '.highlight-box { padding: 15px 20px; margin: 15px 0; border: 1px solid #000; border-left: 4px solid #000; }' +
         '.signature-page { page-break-before: always; margin-top: 50px; }' +
         '.signature-block { display: inline-block; width: 45%; vertical-align: top; margin: 20px 2%; }' +
-        '.signature-line { border-bottom: 1px solid #000; height: 80px; margin: 10px 0; display: flex; align-items: flex-end; justify-content: center; }' +
-        '.signature-line img { max-height: 70px; max-width: 100%; filter: invert(1) grayscale(1); }' +
-        '.signature-label { font-size: 10pt; color: #666; margin-top: 5px; }' +
-        '.signature-name { font-weight: bold; margin-top: 10px; }' +
-        '.signature-date { margin-top: 5px; }' +
-        '.signature-email { font-size: 10pt; color: #666; }' +
-        '.footer { margin-top: 50px; text-align: center; font-size: 10pt; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }' +
-        '.contract-id { font-size: 9pt; color: #999; margin-top: 10px; }' +
-        '@media print { body { padding: 0.5in; } .signature-page { page-break-before: always; } }' +
-        '@page { margin: 0.75in; }' +
+        '.signature-line { border-bottom: 1px solid #000; height: 70px; margin: 10px 0; display: flex; align-items: flex-end; justify-content: center; }' +
+        '.signature-line img { max-height: 60px; max-width: 100%; filter: invert(1) grayscale(1); }' +
+        '.signature-label { font-size: 9pt; margin-top: 5px; font-style: italic; }' +
+        '.signature-name { font-weight: bold; margin-top: 10px; font-size: 10pt; }' +
+        '.signature-date { margin-top: 5px; font-size: 10pt; }' +
+        '.signature-email { font-size: 9pt; font-style: italic; }' +
+        '.footer { margin-top: 50px; text-align: center; font-size: 9pt; border-top: 1px solid #000; padding-top: 20px; }' +
+        '.contract-id { font-size: 8pt; margin-top: 10px; font-style: italic; }' +
+        '.important { font-weight: bold; text-transform: uppercase; }' +
+        '.indented { margin-left: 25px; }' +
+        '@media print { body { padding: 0.5in 0.75in; } .signature-page { page-break-before: always; } }' +
+        '@page { margin: 0.75in 1in; size: letter; }' +
         '</style>' +
         '</head><body>' +
-        
+
+        // HEADER
         '<div class="header">' +
-        '<h1>WEBSITE DEVELOPMENT AGREEMENT</h1>' +
-        '<div class="subtitle">VistaFly — Carlos Martin</div>' +
+        '<h1>Website Development Agreement</h1>' +
+        '<div class="subtitle">Scarlo — Professional Web Development Services</div>' +
         '</div>' +
-        
+
+        // PARTIES
         '<div class="section">' +
-        '<h2>PARTIES TO THE AGREEMENT</h2>' +
-        '<p>This Website Development Agreement ("Agreement") is made effective as of <strong>' + clientDate + '</strong> (the "Effective Date") and is entered into by and between:</p>' +
+        '<h2>1. Parties</h2>' +
+        '<p>This Agreement is entered into as of <strong>' + clientDate + '</strong> between:</p>' +
         '<div class="parties">' +
-        '<p><strong>VistaFly</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>' +
-        '<p>and</p>' +
-        '<p><strong>' + clientName + '</strong> (the "Client")</p>' +
-        '<p style="font-size: 10pt; color: #666; margin-top: 10px;">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>' +
+        '<p><strong>Developer:</strong> Scarlo (Carlos Martin), Fresno County, California</p>' +
+        '<p><strong>Client:</strong> ' + clientName + ' (' + clientEmail + ')</p>' +
         '</div>' +
         '</div>' +
-        
+
+        // SCOPE & SOW
         '<div class="section">' +
-        '<h2>1. PROJECT SCOPE</h2>' +
-        '<h3>1.1 Overview</h3>' +
-        '<p>Developer agrees to design, build, and deliver a custom website or web application using modern technologies, which may include but are not limited to: Visual Studio Code, React, Next.js, Firebase, Vite, REST/Graph APIs, and associated development tools.</p>' +
-        '<h3>1.2 Statement of Work (SOW)</h3>' +
-        '<p>All features, functionalities, pages, integrations, and deliverables will be detailed in a separate Proposal or Statement of Work ("SOW") prepared by Developer and approved by Client.</p>' +
-        '<h3>1.3 Scope Limitations</h3>' +
-        '<p>Only items expressly included in the SOW form part of the Project Scope. Any request beyond that scope—whether new features, design changes, additional pages, or system enhancements—requires an approved Change Order (Section 10).</p>' +
+        '<h2>2. Scope of Work</h2>' +
+        '<p>Developer agrees to design, develop, and deliver a custom website as detailed in the attached Statement of Work (SOW). The SOW specifies all features, deliverables, timeline, and pricing. Only items in the approved SOW are included; additional requests require a written Change Order with revised pricing.</p>' +
         '</div>' +
-        
+
+        // PAYMENT
         '<div class="section">' +
-        '<h2>2. PACKAGES & PRICING</h2>' +
-        '<p>Developer offers multiple service tiers, including Starter, Professional, Premium, and Elite website/application packages. The applicable pricing, deliverables, and package level for this Agreement will be specified in the attached SOW, which forms an integral part of this Agreement.</p>' +
-        '</div>' +
-        
-        '<div class="section">' +
-        '<h2>3. PAYMENT TERMS</h2>' +
-        '<p>Unless otherwise specified in the SOW:</p>' +
-        '<h3>3.1 Deposit</h3>' +
-        '<p>A non-refundable deposit of 50% is required before any work begins, unless the Developer chooses to accept a different amount at their discretion.</p>' +
-        '<h3>3.2 Milestone Payments</h3>' +
-        '<p>If no custom timetable is specified in the SOW, the standard schedule is:</p>' +
+        '<h2>3. Payment Terms</h2>' +
+        '<p><strong>Payment Schedule:</strong></p>' +
         '<ul>' +
-        '<li>25% due upon UI/UX design approval</li>' +
-        '<li>25% due at final delivery or prior to deployment, whichever the Developer determines is appropriate</li>' +
+        '<li><strong>50% Deposit</strong> — Due before work begins</li>' +
+        '<li><strong>25% Milestone</strong> — Due upon design approval</li>' +
+        '<li><strong>25% Final</strong> — Due before deployment</li>' +
         '</ul>' +
-        '<h3>3.3 Late Payments</h3>' +
-        '<p>Payments not received within 7 days of the due date may, at the Developer\'s discretion, incur a monthly late fee of up to 5%. The Developer may also pause or delay work until any outstanding balance is paid.</p>' +
+        '<p><strong>Cancellation Policy:</strong> If Client cancels, Developer retains: 15% (before design), 35% (during design), or full deposit (after development starts). These amounts reflect Developer\'s actual estimated damages per California Civil Code §1671.</p>' +
+        '<p><strong>Late Payments:</strong> Payments over 7 days late incur 1.5% monthly interest. Developer may pause work if payment is 14+ days overdue.</p>' +
         '</div>' +
-        
+
+        // IP
         '<div class="section">' +
-        '<h2>4. CLIENT RESPONSIBILITIES</h2>' +
-        '<p>Client agrees to provide all necessary materials—including copy, images, brand assets, credentials, and requested information—within 5 business days of Developer\'s request.</p>' +
-        '<p>Any delays in providing required materials will directly extend the project timeline. Developer is not responsible for delays caused by the Client.</p>' +
+        '<h2>4. Intellectual Property</h2>' +
+        '<p><strong>Upon full payment, Client receives:</strong> The final website design, custom graphics, and production build.</p>' +
+        '<p><strong>Developer retains:</strong> Source code, backend architecture, reusable components, and development tools. Client receives a license to use these as part of the delivered website.</p>' +
+        '<p><strong>Important:</strong> No IP rights transfer until full payment is received.</p>' +
         '</div>' +
-        
+
+        // REVISIONS & CHANGES
         '<div class="section">' +
-        '<h2>5. REVISIONS</h2>' +
-        '<p>Unless otherwise stated in the SOW:</p>' +
-        '<ul>' +
-        '<li>Client receives up to two (2) rounds of revisions per milestone</li>' +
-        '<li>Additional revisions or redesigns require a Change Order and may incur additional charges</li>' +
-        '</ul>' +
+        '<h2>5. Revisions & Changes</h2>' +
+        '<p>Client receives <strong>2 revision rounds per milestone</strong>. Additional revisions or scope changes require a Change Order. Client must provide materials and feedback within 5 business days of request; delays extend the timeline accordingly.</p>' +
         '</div>' +
-        
+
+        // WARRANTY & LIABILITY
         '<div class="section">' +
-        '<h2>6. INTELLECTUAL PROPERTY RIGHTS</h2>' +
-        '<h3>6.1 Developer Ownership</h3>' +
-        '<p>Developer retains full ownership of all proprietary materials, including source code, backend logic and architecture, custom components, scripts, and utilities, and Developer\'s internal systems, tools, libraries, and workflows.</p>' +
-        '<h3>6.2 Client Ownership</h3>' +
-        '<p>Upon full payment, Client gains ownership of the final website design, all content supplied by Client (text, images, media), and the compiled, minified production build of the project.</p>' +
+        '<h2>6. Warranty & Liability</h2>' +
+        '<p><strong>Warranty:</strong> Developer warrants the website will function as specified for 30 days after delivery. This excludes issues from Client modifications, third-party service changes, or hosting problems.</p>' +
+        '<div class="highlight-box">' +
+        '<p class="caps-section"><strong>WARRANTY DISCLAIMER:</strong> EXCEPT FOR THE EXPRESS 30-DAY WARRANTY ABOVE, ALL DELIVERABLES ARE PROVIDED "AS IS" WITHOUT ANY IMPLIED WARRANTIES, INCLUDING WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.</p>' +
+        '<p class="caps-section" style="margin-top: 10px;"><strong>LIMITATION OF LIABILITY:</strong> DEVELOPER\'S TOTAL LIABILITY SHALL NOT EXCEED THE AMOUNT PAID BY CLIENT. DEVELOPER IS NOT LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL, OR LOST PROFIT DAMAGES, EVEN IF ADVISED OF THEIR POSSIBILITY.</p>' +
         '</div>' +
-        
+        '</div>' +
+
+        // INDEMNIFICATION
         '<div class="section">' +
-        '<h2>7. MAINTENANCE & SUPPORT</h2>' +
-        '<p>Maintenance plans (Basic, Professional, Premium) may be purchased separately and will be defined in the SOW. Maintenance plans do not include new pages or sections, new features or functionalities, major redesigns, third-party outages, policy changes from platforms, or fixes related to Client misuse.</p>' +
+        '<h2>7. Indemnification</h2>' +
+        '<p><strong>Client indemnifies Developer</strong> from any claims, damages, or expenses (including attorneys\' fees) arising from: (a) content or materials provided by Client; (b) Client\'s use of deliverables in violation of law; or (c) infringement claims caused by Client-provided materials.</p>' +
+        '<p><strong>Developer indemnifies Client</strong> from IP infringement claims for Developer\'s original work (excluding Client content and third-party materials), limited to fees paid under this Agreement.</p>' +
         '</div>' +
-        
+
+        // TERMINATION
         '<div class="section">' +
-        '<h2>8. TIMELINE & DELIVERY</h2>' +
-        '<p>Developer will provide an estimated project timeline. Client acknowledges these timelines are estimates, not guarantees. Any Client-caused delay automatically extends the project schedule.</p>' +
+        '<h2>8. Termination</h2>' +
+        '<p><strong>By Client:</strong> 14 days written notice; cancellation policy applies.</p>' +
+        '<p><strong>By Developer:</strong> May terminate if Client fails to provide materials for 15+ days, is unresponsive for 30+ days, or engages in abusive behavior.</p>' +
+        '<p><strong>For Cause:</strong> Either party may terminate for material breach not cured within 15 days of notice.</p>' +
         '</div>' +
-        
+
+        // DISPUTE RESOLUTION
         '<div class="section">' +
-        '<h2>9. CHANGE ORDERS</h2>' +
-        '<p>Any request modifying the Project Scope—including added features, redesigns, advanced animations, dashboards, APIs, or system logic—requires a signed Change Order that includes revised pricing and timelines.</p>' +
+        '<h2>9. Dispute Resolution</h2>' +
+        '<p><strong>Process:</strong> Parties shall first negotiate in good faith for 30 days. If unresolved, disputes shall be submitted to mediation in Fresno County, California. If mediation fails, either party may pursue litigation in Fresno County courts.</p>' +
+        '<p><strong>Attorneys\' Fees:</strong> The prevailing party in any dispute shall recover reasonable attorneys\' fees and costs from the other party.</p>' +
         '</div>' +
-        
+
+        // GENERAL TERMS
         '<div class="section">' +
-        '<h2>10. WARRANTY & LIMITATIONS</h2>' +
-        '<h3>10.1 Developer Warranty</h3>' +
-        '<p>Developer warrants that the delivered website will function substantially as described in the SOW for 30 days after deployment.</p>' +
-        '<h3>10.2 Exclusions</h3>' +
-        '<p>This warranty does not apply to issues caused by Client-modified code, third-party service changes, library updates, hosting issues, improper access, or security breaches caused by Client.</p>' +
-        '<h3>10.3 Liability Limitations</h3>' +
-        '<p>Developer\'s total liability under this Agreement is limited to the total amount paid by Client.</p>' +
+        '<h2>10. General Terms</h2>' +
+        '<p><strong>Governing Law:</strong> This Agreement is governed by California law.</p>' +
+        '<p><strong>Force Majeure:</strong> Neither party is liable for delays caused by circumstances beyond reasonable control (natural disasters, pandemic, internet outages, acts of government).</p>' +
+        '<p><strong>Assignment:</strong> Client may not assign this Agreement without Developer\'s written consent. Developer may assign to a successor upon notice.</p>' +
+        '<p><strong>Severability:</strong> If any provision is unenforceable, it shall be modified to the minimum extent necessary; remaining provisions continue in effect.</p>' +
+        '<p><strong>Confidentiality:</strong> Both parties agree to keep confidential information private for 3 years after termination.</p>' +
+        '<p><strong>Independent Contractor:</strong> Developer is not an employee of Client.</p>' +
+        '<p><strong>Entire Agreement:</strong> This Agreement and the attached SOW constitute the complete agreement. Amendments require written consent from both parties. Electronic signatures are valid.</p>' +
         '</div>' +
-        
-        '<div class="section">' +
-        '<h2>11. CONFIDENTIALITY</h2>' +
-        '<p>Both Parties agree to maintain the confidentiality of all proprietary or sensitive information exchanged during the course of this project.</p>' +
-        '</div>' +
-        
-        '<div class="section">' +
-        '<h2>12. INDEMNIFICATION</h2>' +
-        '<p>Client agrees to indemnify and hold Developer harmless from any claims arising out of content supplied by Client, misuse of the website, unauthorized access, or business decisions made using data produced by the website.</p>' +
-        '</div>' +
-        
-        '<div class="section">' +
-        '<h2>13. TERMINATION</h2>' +
-        '<p>Either Party may terminate this Agreement with 7 days written notice. If Client terminates early, all deposits are forfeited, all completed work must be paid for immediately, and Developer retains all rights to unfinished work.</p>' +
-        '</div>' +
-        
-        '<div class="section">' +
-        '<h2>14. GOVERNING LAW</h2>' +
-        '<p>This Agreement shall be governed by and construed in accordance with the laws of the State of California without regard to conflict-of-law principles.</p>' +
-        '</div>' +
-        
-        '<div class="section">' +
-        '<h2>15. ENTIRE AGREEMENT</h2>' +
-        '<p>This Agreement, together with all attached SOWs, proposals, and addenda, constitutes the entire and complete agreement between the Parties and supersedes all prior discussions, negotiations, or understandings.</p>' +
-        '</div>' +
-        
+
+        // SIGNATURE PAGE
         '<div class="signature-page">' +
-        '<h2 style="text-align: center; border: none;">SIGNATURES</h2>' +
-        '<p style="text-align: center; margin-bottom: 30px;">By signing below, both parties acknowledge that they have read, understood, and agree to all terms and conditions outlined in this Agreement.</p>' +
-        
-        '<div style="display: flex; justify-content: space-between; margin-top: 40px;">' +
-        
+        '<h2 style="text-align: center; border: none; margin-bottom: 20px;">Agreement & Signatures</h2>' +
+        '<p style="text-align: center; margin-bottom: 30px;">By signing below, both parties agree to the terms of this Agreement and the attached Statement of Work.</p>' +
+
+        '<div style="display: flex; justify-content: space-between; margin-top: 30px;">' +
+
         '<div class="signature-block">' +
-        '<h3>Developer — VistaFly</h3>' +
+        '<h3 style="font-size: 10pt;">DEVELOPER: Scarlo</h3>' +
         '<div class="signature-line">' +
-        (devSignature ? '<img src="' + devSignature + '" alt="Developer Signature" />' : '<span style="color: #999;">Pending</span>') +
+        (devSignature ? '<img src="' + devSignature + '" alt="Developer Signature" />' : '<span style="font-style: italic;">Awaiting Signature</span>') +
         '</div>' +
-        '<div class="signature-label">Signature</div>' +
+        '<div class="signature-label">Authorized Signature</div>' +
         '<div class="signature-name">' + devName + '</div>' +
         '<div class="signature-date">Date: ' + devDate + '</div>' +
-        '<div class="signature-email">' + devEmail + '</div>' +
+        '<div class="signature-email">Email: ' + devEmail + '</div>' +
         '</div>' +
-        
+
         '<div class="signature-block">' +
-        '<h3>Client — ' + clientName + '</h3>' +
+        '<h3 style="font-size: 10pt;">CLIENT: ' + clientName + '</h3>' +
         '<div class="signature-line">' +
-        (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="color: #999;">Pending</span>') +
+        (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Awaiting Signature</span>') +
         '</div>' +
-        '<div class="signature-label">Signature</div>' +
+        '<div class="signature-label">Authorized Signature</div>' +
         '<div class="signature-name">' + clientSignerName + '</div>' +
         '<div class="signature-date">Date: ' + clientDate + '</div>' +
-        '<div class="signature-email">' + clientEmail + '</div>' +
+        '<div class="signature-email">Email: ' + clientEmail + '</div>' +
         '</div>' +
-        
+
         '</div>' +
-        
+        '</div>' +
+
+        // FOOTER
         '<div class="footer">' +
-        '<p>© ' + new Date().getFullYear() + ' VistaFly. All rights reserved.</p>' +
-        '<p class="contract-id">Contract ID: ' + (self.currentContract ? self.currentContract.id : 'N/A') + '</p>' +
+        '<p><strong>© ' + new Date().getFullYear() + ' Scarlo — Carlos Martin</strong></p>' +
+        '<p>Professional Web Development Services</p>' +
+        '<p class="contract-id">Contract ID: ' + (contractId || 'DRAFT') + '</p>' +
+        '<p class="contract-id">Generated: ' + new Date().toLocaleString() + '</p>' +
         '</div>' +
-        '</div>' +
-        
+
         '<script>' +
         'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
         '</script>' +
         '</body></html>';
-        
+
         printWindow.document.write(htmlContent);
         printWindow.document.close();
     };
@@ -5330,54 +7387,54 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<title>Complete Agreement Package - ' + clientName + '</title>' +
         '<style>' +
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-        'body { font-family: "Times New Roman", Times, serif; font-size: 12pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in; }' +
-        'h1 { font-size: 18pt; text-align: center; margin-bottom: 5px; font-weight: bold; }' +
-        'h2 { font-size: 14pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; border-bottom: 1px solid #000; padding-bottom: 5px; }' +
-        'h3 { font-size: 12pt; margin-top: 15px; margin-bottom: 8px; font-weight: bold; }' +
+        'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
+        'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
+        'h2 { font-size: 11pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
+        'h3 { font-size: 10.5pt; margin-top: 14px; margin-bottom: 6px; font-weight: bold; }' +
         'p { margin-bottom: 10px; text-align: justify; }' +
-        'ul { margin-left: 25px; margin-bottom: 10px; }' +
+        'ul, ol { margin-left: 30px; margin-bottom: 10px; }' +
         'li { margin-bottom: 5px; }' +
-        '.header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #000; padding-bottom: 20px; }' +
-        '.subtitle { font-size: 12pt; color: #333; margin-top: 5px; }' +
-        '.parties { background: #f9f9f9; padding: 15px; border: 1px solid #ddd; margin: 20px 0; }' +
-        '.section { margin-bottom: 20px; page-break-inside: avoid; }' +
+        '.header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000; }' +
+        '.subtitle { font-size: 11pt; margin-top: 6px; font-style: italic; }' +
+        '.parties { padding: 15px 20px; border: 1px solid #000; margin: 20px 0; }' +
+        '.section { margin-bottom: 18px; page-break-inside: avoid; }' +
         '.signature-page { page-break-before: always; margin-top: 50px; }' +
         '.signature-block { display: inline-block; width: 45%; vertical-align: top; margin: 20px 2%; }' +
-        '.signature-line { border-bottom: 1px solid #000; height: 80px; margin: 10px 0; display: flex; align-items: flex-end; justify-content: center; }' +
-        '.signature-line img { max-height: 70px; max-width: 100%; filter: invert(1) grayscale(1); }' +
-        '.signature-label { font-size: 10pt; color: #666; margin-top: 5px; }' +
-        '.signature-name { font-weight: bold; margin-top: 10px; }' +
-        '.signature-date { margin-top: 5px; }' +
-        '.signature-email { font-size: 10pt; color: #666; }' +
-        '.footer { margin-top: 50px; text-align: center; font-size: 10pt; color: #666; border-top: 1px solid #ddd; padding-top: 20px; }' +
-        '.contract-id { font-size: 9pt; color: #999; margin-top: 10px; }' +
+        '.signature-line { border-bottom: 1px solid #000; height: 70px; margin: 10px 0; display: flex; align-items: flex-end; justify-content: center; }' +
+        '.signature-line img { max-height: 60px; max-width: 100%; filter: invert(1) grayscale(1); }' +
+        '.signature-label { font-size: 9pt; margin-top: 5px; font-style: italic; }' +
+        '.signature-name { font-weight: bold; margin-top: 10px; font-size: 10pt; }' +
+        '.signature-date { margin-top: 5px; font-size: 10pt; }' +
+        '.signature-email { font-size: 9pt; font-style: italic; }' +
+        '.footer { margin-top: 50px; text-align: center; font-size: 9pt; border-top: 1px solid #000; padding-top: 20px; }' +
+        '.contract-id { font-size: 8pt; margin-top: 10px; font-style: italic; }' +
         '.page-break { page-break-before: always; }' +
-        '.info-box { background: #f9fafb; padding: 18px; border-left: 4px solid #6366f1; margin: 20px 0; border-radius: 4px; }' +
-        '.info-box h3 { margin-top: 0; color: #6366f1; }' +
-        '.payment-table { width: 100%; border-collapse: collapse; margin: 15px 0; }' +
-        '.payment-table th, .payment-table td { border: 1px solid #e5e7eb; padding: 12px; text-align: left; }' +
-        '.payment-table th { background: #f3f4f6; font-weight: bold; color: #374151; }' +
-        '.total-row { background: #6366f1; color: white; font-weight: bold; font-size: 14pt; }' +
-        '.highlight { background: #fef3c7; padding: 2px 6px; border-radius: 3px; }' +
-        '@media print { body { padding: 0.5in; } .signature-page, .page-break { page-break-before: always; } }' +
-        '@page { margin: 0.75in; }' +
+        '.info-box { padding: 15px 20px; border: 1px solid #000; border-left: 4px solid #000; margin: 20px 0; }' +
+        '.info-box h3 { margin-top: 0; }' +
+        '.payment-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10pt; }' +
+        '.payment-table th, .payment-table td { border: 1px solid #000; padding: 10px 12px; text-align: left; }' +
+        '.payment-table th { font-weight: bold; }' +
+        '.total-row { font-weight: bold; font-size: 11pt; border-top: 2px solid #000; }' +
+        '.highlight { font-weight: bold; }' +
+        '@media print { body { padding: 0.5in 0.75in; } .signature-page, .page-break { page-break-before: always; } }' +
+        '@page { margin: 0.75in 1in; size: letter; }' +
         '</style>' +
         '</head><body>' +
-        
+
         // ==================== CONTRACT SECTION ====================
         '<div class="header">' +
-        '<h1>WEBSITE DEVELOPMENT AGREEMENT</h1>' +
-        '<div class="subtitle">VistaFly — Carlos Martin</div>' +
+        '<h1>Website Development Agreement</h1>' +
+        '<div class="subtitle">Scarlo — Professional Web Development Services</div>' +
         '</div>' +
         
         '<div class="section">' +
         '<h2>PARTIES TO THE AGREEMENT</h2>' +
         '<p>This Website Development Agreement ("Agreement") is made effective as of <strong>' + clientDate + '</strong> (the "Effective Date") and is entered into by and between:</p>' +
         '<div class="parties">' +
-        '<p><strong>VistaFly</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>' +
+        '<p><strong>Scarlo</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>' +
         '<p>and</p>' +
         '<p><strong>' + clientName + '</strong> (the "Client")</p>' +
-        '<p style="font-size: 10pt; color: #666; margin-top: 10px;">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>' +
+        '<p style="font-size: 10pt; font-style: italic; margin-top: 10px;">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>' +
         '</div>' +
         '</div>' +
         
@@ -5492,9 +7549,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div style="display: flex; justify-content: space-between; margin-top: 40px;">' +
         
         '<div class="signature-block">' +
-        '<h3>Developer — VistaFly</h3>' +
+        '<h3>Developer — Scarlo</h3>' +
         '<div class="signature-line">' +
-        (devSignature ? '<img src="' + devSignature + '" alt="Developer Signature" />' : '<span style="color: #999;">Pending</span>') +
+        (devSignature ? '<img src="' + devSignature + '" alt="Developer Signature" />' : '<span style="font-style: italic;">Pending</span>') +
         '</div>' +
         '<div class="signature-label">Signature</div>' +
         '<div class="signature-name">' + devName + '</div>' +
@@ -5505,7 +7562,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div class="signature-block">' +
         '<h3>Client — ' + clientName + '</h3>' +
         '<div class="signature-line">' +
-        (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="color: #999;">Pending</span>') +
+        (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Pending</span>') +
         '</div>' +
         '<div class="signature-label">Signature</div>' +
         '<div class="signature-name">' + clientSignerName + '</div>' +
@@ -5521,14 +7578,14 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         
         '<div class="header">' +
         '<h1>STATEMENT OF WORK</h1>' +
-        '<div class="subtitle">VistaFly — Professional Web Development</div>' +
-        '<div style="font-size: 10pt; color: #666; margin-top: 10px;">Generated: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>' +
+        '<div class="subtitle">Scarlo — Professional Web Development</div>' +
+        '<div style="font-size: 10pt; font-style: italic; margin-top: 10px;">Generated: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>' +
         '</div>' +
         
         '<div class="info-box">' +
         '<h3>Client Information</h3>' +
         '<p><strong>Client Name:</strong> ' + (sowData.clientName || clientName) + '</p>' +
-        '<p><strong>Email:</strong> ' + (sowData.clientEmail || clientEmail) + '</p>' +
+        '<p><strong>Contact:</strong> ' + (sowData.clientEmail || sowData.clientPhone || clientEmail || 'N/A') + '</p>' +
         '<p><strong>Package:</strong> ' + (packageNames[sowData.packageType] || sowData.packageType) + ' <span class="highlight">$' + totalPrice.toFixed(2) + '</span></p>' +
         '<p><strong>Estimated Timeline:</strong> ' + (sowData.estimatedWeeks || 'TBD') + ' weeks' + (sowData.startDate ? ' (Starting ' + new Date(sowData.startDate).toLocaleDateString() + ')' : '') + '</p>' +
         '</div>' +
@@ -5591,7 +7648,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     // Terms
     htmlContent += '<div class="section">' +
         '<h2>Terms & Conditions</h2>' +
-        '<p>This Statement of Work is subject to the terms outlined in the Website Development Agreement between VistaFly and <strong>' + clientName + '</strong>. All work will be performed using modern technologies including React, Next.js, Firebase, and associated development tools in accordance with industry best practices.</p>' +
+        '<p>This Statement of Work is subject to the terms outlined in the Website Development Agreement between Scarlo and <strong>' + clientName + '</strong>. All work will be performed using modern technologies including React, Next.js, Firebase, and associated development tools in accordance with industry best practices.</p>' +
         '<p>The project timeline is an estimate and may be adjusted based on client feedback, content delivery, and scope changes. Any requests beyond the defined scope require a signed Change Order.</p>' +
         '</div>';
     
@@ -5603,9 +7660,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div style="display: flex; justify-content: space-between; margin-top: 40px;">' +
         
         '<div class="signature-block">' +
-        '<h3>Developer — VistaFly</h3>' +
+        '<h3>Developer — Scarlo</h3>' +
         '<div class="signature-line">' +
-        (sowData.devSignature ? '<img src="' + sowData.devSignature + '" alt="Developer Signature" />' : '<span style="color: #999;">Pending</span>') +
+        (sowData.devSignature ? '<img src="' + sowData.devSignature + '" alt="Developer Signature" />' : '<span style="font-style: italic;">Pending</span>') +
         '</div>' +
         '<div class="signature-label">Signature</div>' +
         '<div class="signature-name">' + (sowData.devSignerName || 'Carlos Martin') + '</div>' +
@@ -5615,7 +7672,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div class="signature-block">' +
         '<h3>Client — ' + clientName + '</h3>' +
         '<div class="signature-line">' +
-        (sowData.clientSignature ? '<img src="' + sowData.clientSignature + '" alt="Client Signature" />' : '<span style="color: #999;">Pending</span>') +
+        (sowData.clientSignature ? '<img src="' + sowData.clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Pending</span>') +
         '</div>' +
         '<div class="signature-label">Signature</div>' +
         '<div class="signature-name">' + (sowData.clientSignerName || clientName) + '</div>' +
@@ -5627,7 +7684,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         
         // Footer
         '<div class="footer">' +
-        '<p><strong>© ' + new Date().getFullYear() + ' VistaFly</strong> — Crafted with precision</p>' +
+        '<p><strong>© ' + new Date().getFullYear() + ' Scarlo</strong> — Crafted with precision</p>' +
         '<p style="margin-top: 8px;">Carlos Martin | Professional Web Development</p>' +
         '<p class="contract-id">Contract ID: ' + (self.currentContract ? self.currentContract.id : 'N/A') + ' | SOW ID: ' + sowData.id + '</p>' +
         '</div>' +
@@ -5941,7 +7998,7 @@ var SectionSeparatorGlow = function() {
 };
     // === INITIALIZATION ===
     var init = function() {
-    console.log('VistaFly - Crafted with precision');
+    console.log('Scarlo - Crafted with precision');
     console.log('Device: ' + (DeviceDetector.isMobile() ? 'Mobile' : 'Desktop'));
     console.log('Screen width:', window.innerWidth);
     new HelpRequestHandler();

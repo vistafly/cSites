@@ -1,4 +1,4 @@
-// VISTAFLY — Loading Screen Animation
+// Scarlo — Loading Screen Animation
 // Cursor breaks out, logo vanishes instantly, click effect, done
 
 (function() {
