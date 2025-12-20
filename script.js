@@ -2588,16 +2588,11 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
 // Change Request Card (if pending)
 (sow.hasChangeRequest && sow.changeRequestStatus === 'pending' ?
     '<div class="change-request-card" style="background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 0.75rem; margin-bottom: 0.75rem;">' +
-    '<div style="display: flex; justify-content: space-between; align-items: center;">' +
     '<div>' +
     '<p style="margin: 0; font-weight: 600; color: #fbbf24; font-size: 0.9rem; display: flex; align-items: center;">📝 Client Requested Changes' +
     (sow.changeRequestData && sow.changeRequestData.hasUnreadMessages ? '<span class="unread-badge">New</span>' : '') +
     '</p>' +
     '<p style="margin: 0.25rem 0 0; font-size: 0.8rem; opacity: 0.8;">Review and respond to this change request</p>' +
-    '</div>' +
-    '<button class="btn" style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="window.contractFormHandler.viewChangeRequest(\'' + sow.changeRequestId + '\')">' +
-    'View Request' +
-    '</button>' +
     '</div>' +
     '</div>'
 : '') +
@@ -2611,8 +2606,8 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
 
 // View Change Request button (if there's a change request)
 (sow.hasChangeRequest && sow.changeRequestId ?
-    '<button class="btn" style="background: rgba(251, 191, 36, 0.15); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.2);" onclick="window.contractFormHandler.viewChangeRequest(\'' + sow.changeRequestId + '\')" title="View Change Request">' +
-    '<span>📝 Request</span>' +
+    '<button class="btn-view-request" onclick="window.contractFormHandler.viewChangeRequest(\'' + sow.changeRequestId + '\')" title="View Change Request">' +
+    '<span>📝 View Request' + (sow.changeRequestData && sow.changeRequestData.hasUnreadMessages ? ' <span class="unread-badge">New</span>' : '') + '</span>' +
     '</button>' : '') +
 
 '<button class="btn-edit-sow" onclick="window.contractFormHandler.editSOW(window.' + sowDataId + ')" title="Edit SOW">' +
@@ -2827,6 +2822,7 @@ ContractFormHandler.prototype.submitChangeRequest = function() {
         sowData: {
             clientName: sowData.clientName,
             clientEmail: sowData.clientEmail,
+            clientPhone: sowData.clientPhone,
             packageType: sowData.packageType,
             payment: sowData.payment,
             estimatedWeeks: sowData.estimatedWeeks
@@ -2836,6 +2832,7 @@ ContractFormHandler.prototype.submitChangeRequest = function() {
         priority: priority,
         status: 'pending',
         clientEmail: sowData.clientEmail,
+        clientPhone: sowData.clientPhone || '',
         clientName: sowData.clientName,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2931,17 +2928,19 @@ ContractFormHandler.prototype.showChangeRequestDetailModal = function(request) {
     var conversationHtml = self.renderConversationThread(request.messages || []);
 
     var actionsHtml = '';
-    if (self.isDeveloper && request.status === 'pending') {
-        actionsHtml = '<div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">' +
-            '<button class="btn btn-primary" onclick="window.contractFormHandler.approveChangeRequest(\'' + request.id + '\')">✅ Approve</button>' +
-            '<button class="btn" style="background: rgba(239, 68, 68, 0.2); color: #ef4444;" onclick="window.contractFormHandler.rejectChangeRequest(\'' + request.id + '\')">❌ Reject</button>' +
-            '<button class="btn" style="background: rgba(99, 102, 241, 0.2); color: #6366f1;" onclick="window.contractFormHandler.createChangeOrderFromRequest(\'' + request.id + '\')">📋 Create Change Order</button>' +
-            '</div>';
-    } else if (self.isDeveloper && (request.status === 'approved' || request.status === 'change_order')) {
-        actionsHtml = '<div style="display: flex; gap: 0.75rem;">' +
-            '<button class="btn btn-primary" onclick="window.contractFormHandler.editSOWFromChangeRequest(\'' + request.sowId + '\')">✏️ Edit SOW</button>' +
-            '</div>';
-    }
+if (self.isDeveloper && request.status === 'pending') {
+    actionsHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem; align-items: center;">' +
+        '<div style="display: flex; gap: 0.75rem; width: 100%;">' +
+            '<button class="btn btn-primary" style="flex: 1;" onclick="window.contractFormHandler.approveChangeRequest(\'' + request.id + '\')">✅ Approve</button>' +
+            '<button class="btn" style="flex: 1; background: rgba(239, 68, 68, 0.2); color: #ef4444;" onclick="window.contractFormHandler.rejectChangeRequest(\'' + request.id + '\')">❌ Reject</button>' +
+        '</div>' +
+        '<button class="btn" style="width: 100%; background: rgba(99, 102, 241, 0.2); color: #6366f1;" onclick="window.contractFormHandler.createChangeOrderFromRequest(\'' + request.id + '\')">📋 Create Change Order</button>' +
+    '</div>';
+} else if (self.isDeveloper && (request.status === 'approved' || request.status === 'change_order')) {
+    actionsHtml = '<div style="display: flex; gap: 0.75rem; justify-content: center;">' +
+        '<button class="btn btn-primary" onclick="window.contractFormHandler.editSOWFromChangeRequest(\'' + request.sowId + '\')">✏️ Edit SOW</button>' +
+    '</div>';
+}
 
     var modalHtml = '<div id="changeRequestDetailModal" class="modal-overlay-fixed">' +
         '<div class="modal-content" style="max-width: 700px;">' +
@@ -2949,7 +2948,7 @@ ContractFormHandler.prototype.showChangeRequestDetailModal = function(request) {
         '<h2 style="margin: 0; font-size: 1.25rem;">📝 Change Request Details</h2>' +
         '<button style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'" onclick="document.getElementById(\'changeRequestDetailModal\').remove()">&times;</button>' +
         '</div>' +
-        '<div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: 1.5rem;">' +
+        '<div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: .8rem;">' +
 
         '<div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">' +
         '<div>' +
@@ -3454,9 +3453,10 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">📦</span> Package Tier</h5>' +
         '<select id="sowPackage" class="sow-select">' +
         '<option value="">Select a package tier...</option>' +
-        '<option value="starter">Tier 1 — Starter ($1,800 - $2,500)</option>' +
-        '<option value="professional">Tier 2 — Professional ($3,500 - $6,000)</option>' +
-        '<option value="premium">Tier 3 — Premium ($6,000 - $10,000)</option>' +
+        '<option value="basic">Basic — Landing Page ($400 - $1,000)</option>' +
+        '<option value="starter">Tier 1 — Starter ($2,500 - $3,500)</option>' +
+        '<option value="professional">Tier 2 — Professional ($5,000 - $8,000)</option>' +
+        '<option value="premium">Tier 3 — Premium ($8,000 - $12,000)</option>' +
         '<option value="elite">Tier 4 — Elite Web Application ($10,000 - $20,000+)</option>' +
         '<option value="custom">Custom Quote (Manual Entry)</option>' +
         '</select>' +
@@ -3472,7 +3472,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">⏱️</span> Project Timeline</h5>' +
         '<div class="sow-input-group">' +
         '<input type="number" id="sowWeeks" placeholder="Estimated Weeks *" class="sow-input" min="1" max="52" required />' +
-        '<input type="date" id="sowStartDate" class="sow-input" />' +
+        '<input type="date" id="sowStartDate" class="sow-input" title="Target completion date" />' +
         '</div>' +
         '</div>' +
         
@@ -3495,17 +3495,22 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         // Backend & Auth
         '<div class="feature-group">' +
         '<p class="feature-group-title">Backend & Authentication</p>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="firebase_auth" /> Firebase Authentication</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="firebase_db" /> Firebase Database (Firestore)</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="firebase_auth" /> Firebase Authentication <span class="third-party-note">+ Firebase costs</span></label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="firebase_db" /> Firebase Database (Firestore) <span class="third-party-note">+ Firebase costs</span></label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="user_profiles" /> User Profiles & Dashboards</label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="user_roles" /> User Roles & Permissions</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="file_storage" /> Firebase Storage (File Uploads)</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="file_storage" /> Firebase Storage (File Uploads) <span class="third-party-note">+ Firebase costs</span></label>' +
         '</div>' +
         
         // Advanced Features
         '<div class="feature-group">' +
         '<p class="feature-group-title">Advanced Features</p>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="ecommerce" /> E-Commerce Functionality</label>' +
+        '<div class="ecommerce-radio-group">' +
+        '<p class="radio-group-label">E-Commerce Functionality:</p>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="none" checked /> None</label>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="basic_cart" /> Basic Shopping Cart (+$2,500) <span class="third-party-note">+ Stripe fees</span></label>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="full_store" /> Full E-Commerce Store (+$5,000) <span class="third-party-note">+ Stripe fees</span></label>' +
+        '</div>' +
         '<label class="sow-checkbox"><input type="checkbox" value="booking_system" /> Custom Booking System</label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="api_integration" /> API Integrations (CRM, Mailing, etc.)</label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="cms_integration" /> CMS Integration</label>' +
@@ -3517,16 +3522,16 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<div class="feature-group">' +
         '<p class="feature-group-title">Forms & Communication</p>' +
         '<label class="sow-checkbox"><input type="checkbox" value="contact_forms" /> Custom Contact Forms</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="email_integration" /> Email Integration (SendGrid, etc.)</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="email_integration" /> Email Integration (SendGrid, etc.) <span class="third-party-note">+ SendGrid costs</span></label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="notifications" /> Push Notifications</label>' +
         '</div>' +
         
         // Deployment & Security
         '<div class="feature-group">' +
         '<p class="feature-group-title">Deployment & Security</p>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="hosting" /> Hosting Setup & Deployment</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="hosting" /> Hosting Setup & Deployment <span class="third-party-note">+ Monthly hosting costs</span></label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="ssl" /> SSL Certificate & Security</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="domain" /> Custom Domain Configuration</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="domain" /> Custom Domain Configuration <span class="third-party-note">+ Annual domain costs</span></label>' +
         '</div>' +
         
         '</div>' +
@@ -3541,9 +3546,9 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         // Ongoing Maintenance
         '<div class="sow-form-section">' +
         '<h5><span class="section-icon">🔧</span> Ongoing Maintenance Plan</h5>' +
-        '<select id="sowMaintenance" class="sow-select">' +
-        '<option value="none">No Maintenance Plan</option>' +
-        '<option value="basic">Basic — $100-$150/month (Minor updates/tweaks)</option>' +
+        '<select id="sowMaintenance" class="sow-select" required>' +
+        '<option value="">Select a maintenance plan...</option>' +
+        '<option value="basic" selected>Basic — $100-$150/month (Minor updates/tweaks)</option>' +
         '<option value="professional">Professional — $200-$350/month (Semi-continuous code edits)</option>' +
         '<option value="premium">Premium — $500-$800/month (Priority support, monthly components, SEO)</option>' +
         '</select>' +
@@ -3552,10 +3557,18 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         // Pricing Summary
         '<div class="sow-form-section pricing-summary">' +
         '<h5><span class="section-icon">💰</span> Pricing Summary</h5>' +
+
+        // Itemized breakdown
+        '<div class="pricing-itemized-container">' +
+        '<div id="pricingItemizedList" class="pricing-itemized-list">' +
+        '</div>' +
+        '</div>' +
+
         '<div class="pricing-breakdown">' +
-        '<div class="pricing-row">' +
-        '<span>Project Total:</span>' +
-        '<span id="sowTotalPrice" class="price-value">$0.00</span>' +
+        '<div class="pricing-divider"></div>' +
+        '<div class="pricing-row total-row">' +
+        '<span><strong>Project Total:</strong></span>' +
+        '<span id="sowTotalPrice" class="price-value total-value">$0.00</span>' +
         '</div>' +
         '<div class="pricing-row deposit-row">' +
         '<span>Deposit (50%):</span>' +
@@ -3570,9 +3583,9 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<span id="sowFinalCalc" class="price-value">$0.00</span>' +
         '</div>' +
         '<div class="pricing-divider"></div>' +
-        '<div class="pricing-row maintenance-row" id="maintenanceRow" style="display: none;">' +
+        '<div class="pricing-row maintenance-row" id="maintenanceRow">' +
         '<span>Monthly Maintenance:</span>' +
-        '<span id="sowMaintenanceCalc" class="price-value">$0/month</span>' +
+        '<span id="sowMaintenanceCalc" class="price-value">$100-$150/month</span>' +
         '</div>' +
         '</div>' +
         '</div>' +
@@ -3591,11 +3604,12 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     
     var self = this;
     
-    // Package pricing map
+    // Package pricing map (updated to match 2025 pricing guide)
     var packagePricing = {
-        'starter': { min: 1800, max: 2500, default: 2150 },
-        'professional': { min: 3500, max: 6000, default: 4750 },
-        'premium': { min: 6000, max: 10000, default: 8000 },
+        'basic': { min: 400, max: 1000, default: 700 },
+        'starter': { min: 2500, max: 3500, default: 3000 },
+        'professional': { min: 5000, max: 8000, default: 6500 },
+        'premium': { min: 8000, max: 12000, default: 10000 },
         'elite': { min: 10000, max: 20000, default: 15000 }
     };
     
@@ -3605,38 +3619,143 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         'professional': 275,
         'premium': 650
     };
-    
+
+    // Feature pricing based on complexity
+    var featurePricing = {
+        // Core Features
+        'responsive_design': { default: 250, thirdParty: false },
+        'custom_ui': { default: 500, thirdParty: false },
+        'animations': { default: 325, thirdParty: false },
+        'seo_optimization': { default: 250, thirdParty: false },
+        'analytics': { default: 200, thirdParty: false },
+        'performance': { default: 275, thirdParty: false },
+        // Backend & Auth
+        'firebase_auth': { default: 425, thirdParty: true, note: 'Firebase costs' },
+        'firebase_db': { default: 500, thirdParty: true, note: 'Firebase costs' },
+        'user_profiles': { default: 650, thirdParty: false },
+        'user_roles': { default: 500, thirdParty: false },
+        'file_storage': { default: 375, thirdParty: true, note: 'Firebase Storage costs' },
+        // Advanced
+        'booking_system': { default: 1150, thirdParty: false },
+        'api_integration': { default: 550, thirdParty: false },
+        'cms_integration': { default: 650, thirdParty: false },
+        'blog': { default: 500, thirdParty: false },
+        'gallery': { default: 400, thirdParty: false },
+        // Forms & Communication
+        'contact_forms': { default: 275, thirdParty: false },
+        'email_integration': { default: 400, thirdParty: true, note: 'SendGrid costs' },
+        'notifications': { default: 425, thirdParty: false },
+        // Deployment
+        'hosting': { default: 275, thirdParty: true, note: 'Monthly hosting costs' },
+        'ssl': { default: 200, thirdParty: false },
+        'domain': { default: 150, thirdParty: true, note: 'Annual domain costs' }
+    };
+
+    // E-Commerce radio options (updated to match 2025 pricing guide)
+    var ecommercePricing = {
+        'none': { price: 0, label: 'No E-Commerce' },
+        'basic_cart': { price: 2500, label: 'Basic Shopping Cart', thirdParty: true, note: 'Stripe fees' },
+        'full_store': { price: 5000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }
+    };
+
+    // Package-feature mapping (what's included in each package)
+    var packageIncludedFeatures = {
+        'basic': ['responsive_design'],
+        'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms', 'ssl'],
+        'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'contact_forms', 'ssl', 'hosting'],
+        'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_system', 'api_integration', 'contact_forms', 'email_integration', 'hosting', 'ssl', 'domain'],
+        'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'hosting', 'ssl', 'domain'],
+        'custom': []
+    };
+
+    // Helper to update pricing with all required data
+    var updatePricing = function() {
+        self.updateSOWPricing(packagePricing, maintenancePricing, featurePricing, ecommercePricing, packageIncludedFeatures);
+    };
+
     // Update pricing when package changes
     var packageSelect = $('#sowPackage');
     var customPricingSection = $('#customPricingSection');
     var customPriceInput = $('#sowCustomPrice');
-    
+
     if (packageSelect) {
         packageSelect.addEventListener('change', function() {
             if (this.value === 'custom') {
                 customPricingSection.style.display = 'block';
+                // Clear all feature checkboxes for custom
+                self.autoCheckPackageFeatures('custom', packageIncludedFeatures);
             } else {
                 customPricingSection.style.display = 'none';
-                self.updateSOWPricing(packagePricing, maintenancePricing);
+                // Auto-check features included in selected package
+                self.autoCheckPackageFeatures(this.value, packageIncludedFeatures);
             }
+            updatePricing();
         });
     }
-    
+
     // Update pricing when custom price changes
     if (customPriceInput) {
         customPriceInput.addEventListener('input', function() {
-            self.updateSOWPricing(packagePricing, maintenancePricing);
+            updatePricing();
         });
     }
-    
+
     // Update maintenance pricing
     var maintenanceSelect = $('#sowMaintenance');
     if (maintenanceSelect) {
         maintenanceSelect.addEventListener('change', function() {
-            self.updateSOWPricing(packagePricing, maintenancePricing);
+            updatePricing();
         });
     }
-    
+
+    // Update pricing when feature checkboxes change
+    var featureCheckboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]');
+    featureCheckboxes.forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            updatePricing();
+        });
+    });
+
+    // Update pricing when e-commerce radio changes
+    var ecommerceRadios = document.querySelectorAll('input[name="ecommerce_option"]');
+    ecommerceRadios.forEach(function(radio) {
+        radio.addEventListener('change', function() {
+            updatePricing();
+        });
+    });
+
+    // Auto-sync weeks and date fields
+    var weeksInput = $('#sowWeeks');
+    var dateInput = $('#sowStartDate');
+
+    // When weeks changes, update the date (today + weeks)
+    if (weeksInput) {
+        weeksInput.addEventListener('input', function() {
+            var weeks = parseInt(this.value);
+            if (weeks && weeks > 0 && dateInput) {
+                var endDate = new Date();
+                endDate.setDate(endDate.getDate() + (weeks * 7));
+                dateInput.value = endDate.toISOString().split('T')[0];
+            }
+        });
+    }
+
+    // When date changes, update the weeks (date - today)
+    if (dateInput) {
+        dateInput.addEventListener('change', function() {
+            var selectedDate = new Date(this.value);
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            if (selectedDate && selectedDate > today && weeksInput) {
+                var diffTime = selectedDate - today;
+                var diffDays = diffTime / (1000 * 60 * 60 * 24);
+                var weeks = Math.round(diffDays / 7);
+                weeksInput.value = Math.max(1, Math.min(52, weeks));
+            }
+        });
+    }
+
     // Close button
     var closeBtn = $('.btn-close-sow');
     if (closeBtn) {
@@ -3699,26 +3818,215 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     }
 };
 
-// New function to update pricing calculations
-ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, maintenancePricing) {
+// Feature-based pricing calculation
+ContractFormHandler.prototype.calculateFeatureBasedPricing = function(packagePricing, featurePricing, ecommercePricing, packageIncludedFeatures) {
     var packageSelect = $('#sowPackage');
     var customPriceInput = $('#sowCustomPrice');
-    var maintenanceSelect = $('#sowMaintenance');
-    
-    var totalPrice = 0;
-    
-    if (packageSelect.value === 'custom') {
-        totalPrice = parseFloat(customPriceInput.value) || 0;
-    } else if (packageSelect.value && packagePricing[packageSelect.value]) {
-        totalPrice = packagePricing[packageSelect.value].default;
+    var packageType = packageSelect ? packageSelect.value : '';
+
+    var result = {
+        basePrice: 0,
+        packageType: packageType,
+        addOns: [],
+        discounts: [],
+        ecommerceOption: 'none',
+        ecommercePrice: 0,
+        total: 0
+    };
+
+    if (!packageType) return result;
+
+    // Get base package price
+    if (packageType === 'custom') {
+        result.basePrice = parseFloat(customPriceInput.value) || 0;
+    } else if (packagePricing[packageType]) {
+        result.basePrice = packagePricing[packageType].default;
     }
-    
+
+    var includedFeatures = packageIncludedFeatures[packageType] || [];
+
+    // Check each feature checkbox
+    var checkboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]');
+    checkboxes.forEach(function(checkbox) {
+        var featureKey = checkbox.value;
+        var isChecked = checkbox.checked;
+        var isIncluded = includedFeatures.indexOf(featureKey) !== -1;
+        var pricing = featurePricing[featureKey];
+
+        if (!pricing) return;
+
+        // Get feature label text
+        var labelText = checkbox.parentElement.textContent.trim();
+        // Remove third-party note from label
+        var thirdPartyNote = checkbox.parentElement.querySelector('.third-party-note');
+        if (thirdPartyNote) {
+            labelText = labelText.replace(thirdPartyNote.textContent, '').trim();
+        }
+
+        if (isChecked && !isIncluded) {
+            // Add-on: checked but not included in package
+            result.addOns.push({
+                key: featureKey,
+                label: labelText,
+                price: pricing.default,
+                thirdParty: pricing.thirdParty,
+                note: pricing.note || ''
+            });
+        } else if (!isChecked && isIncluded && packageType !== 'custom') {
+            // Discount: unchecked but included in package (50% refund)
+            result.discounts.push({
+                key: featureKey,
+                label: labelText,
+                price: Math.round(pricing.default * 0.5)
+            });
+        }
+    });
+
+    // E-Commerce radio selection
+    var ecommerceRadio = document.querySelector('input[name="ecommerce_option"]:checked');
+    if (ecommerceRadio) {
+        result.ecommerceOption = ecommerceRadio.value;
+        if (ecommercePricing[result.ecommerceOption]) {
+            result.ecommercePrice = ecommercePricing[result.ecommerceOption].price;
+            if (result.ecommercePrice > 0) {
+                result.addOns.push({
+                    key: 'ecommerce_' + result.ecommerceOption,
+                    label: ecommercePricing[result.ecommerceOption].label,
+                    price: result.ecommercePrice,
+                    thirdParty: ecommercePricing[result.ecommerceOption].thirdParty,
+                    note: ecommercePricing[result.ecommerceOption].note || ''
+                });
+            }
+        }
+    }
+
+    // Calculate total
+    var addOnTotal = result.addOns.reduce(function(sum, item) { return sum + item.price; }, 0);
+    var discountTotal = result.discounts.reduce(function(sum, item) { return sum + item.price; }, 0);
+
+    result.total = Math.max(0, result.basePrice + addOnTotal - discountTotal);
+
+    return result;
+};
+
+// Render itemized pricing breakdown
+ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, packagePricing) {
+    var container = document.getElementById('pricingItemizedList');
+    if (!container) {
+        console.warn('pricingItemizedList container not found');
+        return;
+    }
+
+    console.log('Rendering pricing breakdown:', pricingData);
+
+    var html = '';
+    var packageType = pricingData.packageType;
+
+    // Base package line
+    if (packageType) {
+        var packageLabel = packageType.charAt(0).toUpperCase() + packageType.slice(1);
+        if (packageType === 'custom') {
+            packageLabel = 'Custom Quote';
+        } else {
+            packageLabel += ' Package';
+        }
+        html += '<div class="pricing-line-item base-package">' +
+            '<span class="item-label">' + packageLabel + '</span>' +
+            '<span class="item-price">$' + pricingData.basePrice.toFixed(2) + '</span>' +
+            '</div>';
+    }
+
+    // Add-ons (excluding e-commerce, show it separately)
+    var nonEcommerceAddOns = pricingData.addOns.filter(function(item) {
+        return item.key.indexOf('ecommerce_') !== 0;
+    });
+    var ecommerceAddOn = pricingData.addOns.find(function(item) {
+        return item.key.indexOf('ecommerce_') === 0;
+    });
+
+    if (nonEcommerceAddOns.length > 0) {
+        html += '<div class="pricing-section-header">Add-Ons</div>';
+        nonEcommerceAddOns.forEach(function(item) {
+            html += '<div class="pricing-line-item add-on">' +
+                '<span class="item-label">' + item.label +
+                (item.thirdParty ? ' <span class="third-party-note">+ ' + item.note + '</span>' : '') +
+                '</span>' +
+                '<span class="item-price">+$' + item.price.toFixed(2) + '</span>' +
+                '</div>';
+        });
+    }
+
+    // E-commerce (if selected)
+    if (ecommerceAddOn) {
+        html += '<div class="pricing-line-item add-on ecommerce-item">' +
+            '<span class="item-label">' + ecommerceAddOn.label +
+            (ecommerceAddOn.thirdParty ? ' <span class="third-party-note">+ ' + ecommerceAddOn.note + '</span>' : '') +
+            '</span>' +
+            '<span class="item-price">+$' + ecommerceAddOn.price.toFixed(2) + '</span>' +
+            '</div>';
+    }
+
+    // Discounts
+    if (pricingData.discounts.length > 0) {
+        html += '<div class="pricing-section-header">Removed Features (50% Credit)</div>';
+        pricingData.discounts.forEach(function(item) {
+            html += '<div class="pricing-line-item discount">' +
+                '<span class="item-label">' + item.label + '</span>' +
+                '<span class="item-price discount-value">-$' + item.price.toFixed(2) + '</span>' +
+                '</div>';
+        });
+    }
+
+    // Show placeholder if no package selected
+    if (!html) {
+        html = '<div class="pricing-empty-state">Select a package to see pricing breakdown</div>';
+    }
+
+    container.innerHTML = html;
+};
+
+// Auto-check features when package is selected
+ContractFormHandler.prototype.autoCheckPackageFeatures = function(packageType, packageIncludedFeatures) {
+    var includedFeatures = packageIncludedFeatures[packageType] || [];
+
+    var checkboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]');
+    checkboxes.forEach(function(checkbox) {
+        var featureKey = checkbox.value;
+        var isIncluded = includedFeatures.indexOf(featureKey) !== -1;
+
+        checkbox.checked = isIncluded;
+
+        // Mark as "included" visually
+        var label = checkbox.parentElement;
+        if (isIncluded) {
+            label.classList.add('feature-included');
+        } else {
+            label.classList.remove('feature-included');
+        }
+    });
+
+    // Reset e-commerce to none
+    var ecommerceNone = document.querySelector('input[name="ecommerce_option"][value="none"]');
+    if (ecommerceNone) ecommerceNone.checked = true;
+};
+
+// New function to update pricing calculations
+ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, maintenancePricing, featurePricing, ecommercePricing, packageIncludedFeatures) {
+    var maintenanceSelect = $('#sowMaintenance');
+
+    // Calculate feature-based pricing
+    var pricingData = this.calculateFeatureBasedPricing(packagePricing, featurePricing, ecommercePricing, packageIncludedFeatures);
+
+    // Render itemized breakdown
+    this.renderItemizedPricing(pricingData, packagePricing);
+
+    var totalPrice = pricingData.total;
     var deposit = totalPrice * 0.50;
     var milestone1 = totalPrice * 0.25;
     var finalPayment = totalPrice * 0.25;
-    
+
     var maintenanceCost = maintenancePricing[maintenanceSelect.value] || 0;
-    
+
     // Update DOM
     var totalPriceEl = $('#sowTotalPrice');
     var depositEl = $('#sowDepositCalc');
@@ -3726,18 +4034,22 @@ ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, mainte
     var finalEl = $('#sowFinalCalc');
     var maintenanceEl = $('#sowMaintenanceCalc');
     var maintenanceRow = $('#maintenanceRow');
-    
+
     if (totalPriceEl) totalPriceEl.textContent = '$' + totalPrice.toFixed(2);
     if (depositEl) depositEl.textContent = '$' + deposit.toFixed(2);
     if (milestone1El) milestone1El.textContent = '$' + milestone1.toFixed(2);
     if (finalEl) finalEl.textContent = '$' + finalPayment.toFixed(2);
-    
-    if (maintenanceSelect.value !== 'none') {
-        if (maintenanceRow) maintenanceRow.style.display = 'flex';
+
+    // Always show maintenance row (maintenance is required)
+    if (maintenanceRow) maintenanceRow.style.display = 'flex';
+    if (maintenanceSelect.value && maintenanceSelect.value !== '') {
         if (maintenanceEl) maintenanceEl.textContent = '$' + maintenanceCost + '/month';
     } else {
-        if (maintenanceRow) maintenanceRow.style.display = 'none';
+        if (maintenanceEl) maintenanceEl.textContent = 'Select plan';
     }
+
+    // Store pricing data for save
+    this.currentPricingData = pricingData;
 };
 
 ContractFormHandler.prototype.saveSOW = function() {
@@ -3776,26 +4088,34 @@ ContractFormHandler.prototype.saveSOW = function() {
     
     // Get selected features
     var features = [];
-    $$('.sow-checkboxes input[type="checkbox"]:checked').forEach(function(checkbox) {
+    var checkboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]:checked');
+    checkboxes.forEach(function(checkbox) {
         var label = checkbox.parentElement.textContent.trim();
+        // Remove third-party note from label
+        var thirdPartyNote = checkbox.parentElement.querySelector('.third-party-note');
+        if (thirdPartyNote) {
+            label = label.replace(thirdPartyNote.textContent, '').trim();
+        }
         features.push(label);
     });
-    
-    // Calculate pricing
-    var packagePricing = {
-        'starter': { min: 1800, max: 2500, default: 2150 },
-        'professional': { min: 3500, max: 6000, default: 4750 },
-        'premium': { min: 6000, max: 10000, default: 8000 },
-        'elite': { min: 10000, max: 20000, default: 15000 }
+
+    // Get e-commerce selection
+    var ecommerceRadio = document.querySelector('input[name="ecommerce_option"]:checked');
+    var ecommerceOption = ecommerceRadio ? ecommerceRadio.value : 'none';
+
+    // Use stored pricing data from real-time calculation
+    var pricingData = this.currentPricingData || {
+        basePrice: 0,
+        packageType: packageType,
+        addOns: [],
+        discounts: [],
+        ecommerceOption: ecommerceOption,
+        ecommercePrice: 0,
+        total: 0
     };
-    
-    var totalPrice = 0;
-    if (packageType === 'custom') {
-        totalPrice = parseFloat($('#sowCustomPrice').value) || 0;
-    } else if (packagePricing[packageType]) {
-        totalPrice = packagePricing[packageType].default;
-    }
-    
+
+    var totalPrice = pricingData.total;
+
     var sowData = {
         clientName: clientName,
         clientEmail: clientEmail || '',
@@ -3810,7 +4130,14 @@ ContractFormHandler.prototype.saveSOW = function() {
             total: totalPrice,
             deposit: totalPrice * 0.50,
             milestone1: totalPrice * 0.25,
-            final: totalPrice * 0.25
+            final: totalPrice * 0.25,
+            breakdown: {
+                basePrice: pricingData.basePrice,
+                addOns: pricingData.addOns,
+                discounts: pricingData.discounts,
+                ecommerceOption: pricingData.ecommerceOption,
+                ecommercePrice: pricingData.ecommercePrice
+            }
         },
         createdBy: firebase.auth().currentUser.email,
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -4310,8 +4637,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     var packageDefinitions = {
         'starter': {
             name: 'Tier 1 — Starter Package',
-            priceRange: '$1,800 - $2,500',
-            defaultPrice: 2150,
+            priceRange: '$2,500 - $3,500',
+            defaultPrice: 3000,
             timeline: '2-3 weeks',
             description: 'Perfect for individuals and small businesses needing a professional online presence.',
             includes: [
@@ -4337,8 +4664,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'professional': {
             name: 'Tier 2 — Professional Package',
-            priceRange: '$3,500 - $6,000',
-            defaultPrice: 4750,
+            priceRange: '$5,000 - $8,000',
+            defaultPrice: 6500,
             timeline: '4-6 weeks',
             description: 'Ideal for growing businesses requiring dynamic functionality and user engagement features.',
             includes: [
@@ -4367,8 +4694,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'premium': {
             name: 'Tier 3 — Premium Package',
-            priceRange: '$6,000 - $10,000',
-            defaultPrice: 8000,
+            priceRange: '$8,000 - $12,000',
+            defaultPrice: 10000,
             timeline: '6-10 weeks',
             description: 'Comprehensive solution for businesses requiring user management, booking systems, and advanced functionality.',
             includes: [
@@ -4742,9 +5069,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     sectionNum++;
 
-    // MAINTENANCE PLAN
-    if (maintenancePlan !== 'none') {
-        htmlContent += '<div class="section">' +
+    // MAINTENANCE PLAN (Required for all projects)
+    htmlContent += '<div class="section">' +
         '<h2>' + sectionNum + '. Ongoing Maintenance Plan</h2>' +
         '<div class="maintenance-box">' +
         '<div class="maintenance-header">' +
@@ -4763,11 +5089,10 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         }
 
         htmlContent += '</div>' +
-        '<p style="font-size: 8pt; font-style: italic;">Begins after post-launch support. Billed monthly. 30-day cancellation notice. See Agreement Section 7.</p>' +
-        '</div>';
+    '<p style="font-size: 8pt; font-style: italic;">Begins after post-launch support. Billed monthly. 30-day cancellation notice. See Agreement Section 7.</p>' +
+    '</div>';
 
-        sectionNum++;
-    }
+    sectionNum++;
 
     // ASSUMPTIONS
     htmlContent += '<div class="section">' +
@@ -4939,33 +5264,100 @@ ContractFormHandler.prototype.editSOW = function(sow) {
         if (fields.maintenance) {
             fields.maintenance.value = sow.maintenancePlan || 'none';
         }
-        
-        // Update pricing display
-        setTimeout(function() {
-            self.updateSOWPricing({
-                'starter': { min: 1800, max: 2500, default: 2150 },
-                'professional': { min: 3500, max: 6000, default: 4750 },
-                'premium': { min: 6000, max: 10000, default: 8000 },
-                'elite': { min: 10000, max: 20000, default: 15000 }
-            }, {
-                'none': 0,
-                'basic': 125,
-                'professional': 275,
-                'premium': 650
-            });
-        }, 100);
-        
-        // Check selected features
+
+        // Pricing data structures
+        var packagePricing = {
+            'basic': { min: 400, max: 1000, default: 700 },
+            'starter': { min: 2500, max: 3500, default: 3000 },
+            'professional': { min: 5000, max: 8000, default: 6500 },
+            'premium': { min: 8000, max: 12000, default: 10000 },
+            'elite': { min: 10000, max: 20000, default: 15000 }
+        };
+        var maintenancePricing = {
+            'none': 0,
+            'basic': 125,
+            'professional': 275,
+            'premium': 650
+        };
+        var featurePricing = {
+            'responsive_design': { default: 250, thirdParty: false },
+            'custom_ui': { default: 500, thirdParty: false },
+            'animations': { default: 325, thirdParty: false },
+            'seo_optimization': { default: 250, thirdParty: false },
+            'analytics': { default: 200, thirdParty: false },
+            'performance': { default: 275, thirdParty: false },
+            'firebase_auth': { default: 425, thirdParty: true, note: 'Firebase costs' },
+            'firebase_db': { default: 500, thirdParty: true, note: 'Firebase costs' },
+            'user_profiles': { default: 650, thirdParty: false },
+            'user_roles': { default: 500, thirdParty: false },
+            'file_storage': { default: 375, thirdParty: true, note: 'Firebase Storage costs' },
+            'booking_system': { default: 1150, thirdParty: false },
+            'api_integration': { default: 550, thirdParty: false },
+            'cms_integration': { default: 650, thirdParty: false },
+            'blog': { default: 500, thirdParty: false },
+            'gallery': { default: 400, thirdParty: false },
+            'contact_forms': { default: 275, thirdParty: false },
+            'email_integration': { default: 400, thirdParty: true, note: 'SendGrid costs' },
+            'notifications': { default: 425, thirdParty: false },
+            'hosting': { default: 275, thirdParty: true, note: 'Monthly hosting costs' },
+            'ssl': { default: 200, thirdParty: false },
+            'domain': { default: 150, thirdParty: true, note: 'Annual domain costs' }
+        };
+        var ecommercePricing = {
+            'none': { price: 0, label: 'No E-Commerce' },
+            'basic_cart': { price: 2500, label: 'Basic Shopping Cart', thirdParty: true, note: 'Stripe fees' },
+            'full_store': { price: 5000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }
+        };
+        var packageIncludedFeatures = {
+            'basic': ['responsive_design'],
+            'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms', 'ssl'],
+            'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'contact_forms', 'ssl', 'hosting'],
+            'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_system', 'api_integration', 'contact_forms', 'email_integration', 'hosting', 'ssl', 'domain'],
+            'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'hosting', 'ssl', 'domain'],
+            'custom': []
+        };
+
+        // Check selected features and apply included markers
+        var packageType = sow.packageType || '';
+        var includedFeatures = packageIncludedFeatures[packageType] || [];
+
         if (sow.features && sow.features.length > 0) {
             console.log('Checking', sow.features.length, 'features');
-            $$('.sow-checkboxes input[type="checkbox"]').forEach(function(checkbox) {
+            var checkboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]');
+            checkboxes.forEach(function(checkbox) {
                 checkbox.checked = false; // Uncheck all first
+                checkbox.parentElement.classList.remove('feature-included');
+
                 var label = checkbox.parentElement.textContent.trim();
+                // Remove third-party note from label for comparison
+                var thirdPartyNote = checkbox.parentElement.querySelector('.third-party-note');
+                if (thirdPartyNote) {
+                    label = label.replace(thirdPartyNote.textContent, '').trim();
+                }
+
                 if (sow.features.some(function(f) { return f.indexOf(label) !== -1 || label.indexOf(f) !== -1; })) {
                     checkbox.checked = true;
                 }
+
+                // Mark as included if in package
+                if (includedFeatures.indexOf(checkbox.value) !== -1) {
+                    checkbox.parentElement.classList.add('feature-included');
+                }
             });
         }
+
+        // Restore e-commerce selection
+        var ecommerceOption = 'none';
+        if (sow.payment && sow.payment.breakdown && sow.payment.breakdown.ecommerceOption) {
+            ecommerceOption = sow.payment.breakdown.ecommerceOption;
+        }
+        var ecommerceRadio = document.querySelector('input[name="ecommerce_option"][value="' + ecommerceOption + '"]');
+        if (ecommerceRadio) ecommerceRadio.checked = true;
+
+        // Update pricing display with all parameters
+        setTimeout(function() {
+            self.updateSOWPricing(packagePricing, maintenancePricing, featurePricing, ecommercePricing, packageIncludedFeatures);
+        }, 100);
         
         // Update form title
         var formHeader = $('.sow-form-header h4');
@@ -5026,26 +5418,34 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     
     // Get selected features
     var features = [];
-    $$('.sow-checkboxes input[type="checkbox"]:checked').forEach(function(checkbox) {
+    var checkboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]:checked');
+    checkboxes.forEach(function(checkbox) {
         var label = checkbox.parentElement.textContent.trim();
+        // Remove third-party note from label
+        var thirdPartyNote = checkbox.parentElement.querySelector('.third-party-note');
+        if (thirdPartyNote) {
+            label = label.replace(thirdPartyNote.textContent, '').trim();
+        }
         features.push(label);
     });
-    
-    // Calculate pricing
-    var packagePricing = {
-        'starter': { min: 1800, max: 2500, default: 2150 },
-        'professional': { min: 3500, max: 6000, default: 4750 },
-        'premium': { min: 6000, max: 10000, default: 8000 },
-        'elite': { min: 10000, max: 20000, default: 15000 }
+
+    // Get e-commerce selection
+    var ecommerceRadio = document.querySelector('input[name="ecommerce_option"]:checked');
+    var ecommerceOption = ecommerceRadio ? ecommerceRadio.value : 'none';
+
+    // Use stored pricing data from real-time calculation
+    var pricingData = this.currentPricingData || {
+        basePrice: 0,
+        packageType: packageType,
+        addOns: [],
+        discounts: [],
+        ecommerceOption: ecommerceOption,
+        ecommercePrice: 0,
+        total: 0
     };
-    
-    var totalPrice = 0;
-    if (packageType === 'custom') {
-        totalPrice = parseFloat($('#sowCustomPrice').value) || 0;
-    } else if (packagePricing[packageType]) {
-        totalPrice = packagePricing[packageType].default;
-    }
-    
+
+    var totalPrice = pricingData.total;
+
     var sowData = {
         clientName: clientName,
         clientEmail: clientEmail || '',
@@ -5060,7 +5460,14 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
             total: totalPrice,
             deposit: totalPrice * 0.50,
             milestone1: totalPrice * 0.25,
-            final: totalPrice * 0.25
+            final: totalPrice * 0.25,
+            breakdown: {
+                basePrice: pricingData.basePrice,
+                addOns: pricingData.addOns,
+                discounts: pricingData.discounts,
+                ecommerceOption: pricingData.ecommerceOption,
+                ecommercePrice: pricingData.ecommercePrice
+            }
         },
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     };
@@ -5702,16 +6109,20 @@ ContractFormHandler.prototype.showDualSigningInterface = function(sowData) {
 ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
     var sowContent = $('#sowSigningContent');
     if (!sowContent) return;
-    
+
     var packageNames = {
+        'basic': 'Basic — Landing Page',
         'starter': 'Tier 1 — Starter',
         'professional': 'Tier 2 — Professional',
         'premium': 'Tier 3 — Premium',
         'elite': 'Tier 4 — Elite',
         'custom': 'Custom Quote'
     };
-    
+
     var packageDetails = {
+        'basic': {
+            includes: ['Single-page landing page', 'Mobile responsive design', 'Clean, modern layout']
+        },
         'starter': {
             includes: ['1-page custom React/Next.js website', 'Clean, modern UI/UX', 'Mobile responsive', 'Light animations and transitions', 'Custom contact form', 'Simple analytics']
         },
@@ -5725,12 +6136,18 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
             includes: ['Multi-page Next.js application', 'Full Firebase backend (Auth, Firestore, Storage)', 'User Profiles (Auth. Multi-User Login)', 'User roles, permissions, dashboards', 'Backend automation & API integrations', 'Full custom UI/UX', 'Scalable architecture', '3 months of premium maintenance included']
         }
     };
-    
+
     var packageInfo = packageDetails[sowData.packageType] || { includes: [] };
     var totalPrice = sowData.payment ? sowData.payment.total : 0;
     var deposit = totalPrice * 0.50;
     var milestone1 = totalPrice * 0.25;
     var finalPayment = totalPrice * 0.25;
+
+    // Extract pricing breakdown if available
+    var breakdown = (sowData.payment && sowData.payment.breakdown) ? sowData.payment.breakdown : null;
+    var basePrice = breakdown ? breakdown.basePrice : totalPrice;
+    var addOns = breakdown ? breakdown.addOns : [];
+    var discounts = breakdown ? breakdown.discounts : [];
     
     var html = '' +
 
@@ -5784,10 +6201,65 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
             '<p>' + sowData.notes + '</p>' +
             '</section>';
     }
-    
+
+    // PRICING BREAKDOWN (show itemized costs)
+    html += '<section class="contract-section-inner">' +
+        '<h3>Pricing Breakdown</h3>' +
+        '<table class="sow-payment-table pricing-breakdown-table">' +
+        '<thead>' +
+        '<tr>' +
+        '<th>Item</th>' +
+        '<th>Description</th>' +
+        '<th>Amount</th>' +
+        '</tr>' +
+        '</thead>' +
+        '<tbody>' +
+        '<tr class="base-package-row">' +
+        '<td><strong>' + (packageNames[sowData.packageType] || 'Package') + '</strong></td>' +
+        '<td>Base package price</td>' +
+        '<td><strong>$' + basePrice.toFixed(2) + '</strong></td>' +
+        '</tr>';
+
+    // Add-ons (features added beyond package)
+    if (addOns && addOns.length > 0) {
+        addOns.forEach(function(addon) {
+            var thirdPartyNote = addon.thirdParty ? ' <span class="third-party-indicator">*</span>' : '';
+            html += '<tr class="addon-row">' +
+                '<td>' + addon.label + thirdPartyNote + '</td>' +
+                '<td>Additional feature</td>' +
+                '<td class="addon-price">+$' + addon.price.toFixed(2) + '</td>' +
+                '</tr>';
+        });
+    }
+
+    // Discounts (features removed from package)
+    if (discounts && discounts.length > 0) {
+        discounts.forEach(function(discount) {
+            html += '<tr class="discount-row">' +
+                '<td>' + discount.label + '</td>' +
+                '<td>Feature removed (50% credit)</td>' +
+                '<td class="discount-price">-$' + discount.price.toFixed(2) + '</td>' +
+                '</tr>';
+        });
+    }
+
+    html += '<tr class="sow-total-row">' +
+        '<td colspan="2"><strong>Total Project Cost</strong></td>' +
+        '<td><strong>$' + totalPrice.toFixed(2) + '</strong></td>' +
+        '</tr>' +
+        '</tbody>' +
+        '</table>';
+
+    // Third-party costs note
+    if (addOns && addOns.some(function(a) { return a.thirdParty; })) {
+        html += '<p class="third-party-note-text"><span class="third-party-indicator">*</span> These features may incur additional third-party costs (e.g., Firebase, Stripe, hosting, domain) which are billed separately by the respective providers.</p>';
+    }
+
+    html += '</section>';
+
     // PAYMENT STRUCTURE
     html += '<section class="contract-section-inner">' +
-        '<h3>Payment Structure</h3>' +
+        '<h3>Payment Schedule</h3>' +
         '<table class="sow-payment-table">' +
         '<thead>' +
         '<tr>' +
@@ -5811,10 +6283,6 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         '<td><strong>Final Payment</strong></td>' +
         '<td>Prior to deployment (25%)</td>' +
         '<td><strong>$' + finalPayment.toFixed(2) + '</strong></td>' +
-        '</tr>' +
-        '<tr class="sow-total-row">' +
-        '<td colspan="2"><strong>Total Project Cost</strong></td>' +
-        '<td><strong>$' + totalPrice.toFixed(2) + '</strong></td>' +
         '</tr>' +
         '</tbody>' +
         '</table>' +
