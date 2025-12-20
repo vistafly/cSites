@@ -702,6 +702,18 @@ RotatingText.prototype.rotate = function() {
             devDashboard.remove();
         }
 
+        // Remove dual signing completed container from DOM
+        var dualSigningCompleted = document.getElementById('dualSigningCompleted');
+        if (dualSigningCompleted) {
+            dualSigningCompleted.remove();
+        }
+
+        // Reset modal header visibility (developer view hides it)
+        var modalHeader = document.querySelector('.modal-header');
+        if (modalHeader) {
+            modalHeader.style.display = '';
+        }
+
         // Reset contract form visibility and clear fields
         var contractForm = document.getElementById('contractForm');
         if (contractForm) {
