@@ -616,7 +616,7 @@ body {
 .nav-menu {
     display: flex;
     list-style: none;
-    gap: 6rem;
+    gap: 4.9rem;
     align-items: center;
     position: absolute;
     left: 50%;
@@ -1459,7 +1459,7 @@ section {
 }
 
 .modal-header {
-    padding: 1rem 1rem 2rem;
+    padding: .5rem .5rem 1rem;
     text-align: center;
     margin-bottom: 20px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
@@ -1691,6 +1691,7 @@ section {
     cursor: pointer;
     transition: all 0.3s var(--ease-smooth);
     font-family: var(--font-text);
+    margin-bottom: 1rem;
 }
 
 .btn-primary:hover {
@@ -1763,7 +1764,6 @@ section {
     text-align: center;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
     color: var(--medium-gray);
-    margin-top: 1rem;
 }
 
 /* === AUTH MODAL === */
@@ -2456,7 +2456,7 @@ section {
     background: linear-gradient(135deg, var(--near-black) 0%, var(--dark-gray) 100%);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1.5rem;
-    padding: 3rem;
+    padding: 2rem 1.5rem;
     max-width: 480px;
     width: 90%;
     max-height: 90vh;
@@ -2646,7 +2646,6 @@ section {
 /* === AUTH PANELS === */
 .auth-panels {
     position: relative;
-    min-height: 200px;
 }
 
 .auth-panel {
@@ -2996,7 +2995,7 @@ body.modal-open .custom-cursor {
    ============================================ */
 
 .developer-dashboard {
-    padding: 2rem;
+    padding: 1rem;
     background: linear-gradient(180deg, rgba(10, 10, 10, 0.98) 0%, rgba(20, 20, 20, 0.98) 100%);
     height: 100%;
     overflow-y: auto;
@@ -3101,7 +3100,6 @@ body.modal-open .custom-cursor {
 .quick-stats {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 2rem;
 }
 
 @media (max-width: 480px) {
@@ -3721,6 +3719,14 @@ body.modal-open .custom-cursor {
    HELP REQUEST MODAL STYLES
    ============================================ */
 
+/* Help Tab Header */
+.help-tab-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px
+}
+
 /* Help Modal Base */
 .help-modal {
     position: fixed;
@@ -3746,7 +3752,7 @@ body.modal-open .custom-cursor {
 
 /* Help Form */
 .help-form {
-    padding: 2rem 2rem;
+    padding: .5rem 1rem;
 }
 
 .help-form .form-group {
@@ -3846,8 +3852,7 @@ body.modal-open .custom-cursor {
     display: flex;
     gap: 1rem;
     justify-content: center;
-    margin-top: 2rem;
-    padding-top: 2rem;
+    padding-top: .7rem;
     border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
@@ -4197,7 +4202,7 @@ body.modal-open .custom-cursor {
     position: sticky;
     top: 0;
     background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%);
-    padding: 2rem 3rem;
+    padding: 1rem 1.5rem;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     justify-content: space-between;
@@ -4752,7 +4757,7 @@ body.modal-open .custom-cursor {
 
 /* Dashboard Tabs Container */
 .dashboard-tabs {
-    margin-top: 2rem;
+    margin-top: .8rem;
 }
 
 @media (max-width: 480px) {
@@ -4766,7 +4771,7 @@ body.modal-open .custom-cursor {
 .tab-buttons {
     display: flex;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
+    margin-bottom: 1rem;
     background: rgba(255, 255, 255, 0.03);
     padding: 0.5rem;
     border-radius: 12px;
@@ -5502,7 +5507,7 @@ body.modal-open .custom-cursor {
 }
 
 .completion-icon {
-    font-size: 4rem;
+    font-size: 2rem;
     margin-bottom: 0rem;
     animation: bounceIn 0.6s ease-out;
 }
@@ -5664,7 +5669,6 @@ body.modal-open .custom-cursor {
 .completion-actions {
     text-align: center;
     padding-top: 2rem;
-    border-top: 2px solid rgba(172, 172, 172, 0.2);
 }
 
 .info-text {
@@ -5770,6 +5774,12 @@ body.modal-open .custom-cursor {
     transform: rotate(90deg);
 }
 
+@media (max-width: 768px) {
+.modal-close {
+    right: .5rem;
+    top: .5rem;
+}
+}
     .btn-submit {
         display: flex;
         margin: 1rem auto 0 auto;
@@ -6849,14 +6859,14 @@ section.separator-visible::after {
     position: relative;
 }
 
-.conversation-message.client {
+.conversation-message.other {
     align-self: flex-start;
     background: rgba(99, 102, 241, 0.15);
     border: 1px solid rgba(99, 102, 241, 0.3);
     border-bottom-left-radius: 4px;
 }
 
-.conversation-message.developer {
+.conversation-message.self {
     align-self: flex-end;
     background: rgba(16, 185, 129, 0.15);
     border: 1px solid rgba(16, 185, 129, 0.3);
@@ -6870,11 +6880,11 @@ section.separator-visible::after {
     opacity: 0.8;
 }
 
-.conversation-message.client .message-sender {
+.conversation-message.other .message-sender {
     color: #a5b4fc;
 }
 
-.conversation-message.developer .message-sender {
+.conversation-message.self .message-sender {
     color: #6ee7b7;
 }
 
@@ -6904,6 +6914,8 @@ section.separator-visible::after {
     resize: none;
     min-height: 44px;
     max-height: 120px;
+    height: auto;
+    overflow-y: hidden;
     padding: 0.75rem 1rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.1);
@@ -6911,7 +6923,7 @@ section.separator-visible::after {
     color: #fff;
     font-size: 0.9rem;
     font-family: inherit;
-    transition: border-color 0.2s ease, background 0.2s ease;
+    transition: border-color 0.2s ease, background 0.2s ease, height 0.1s ease;
 }
 
 .conversation-input:focus {

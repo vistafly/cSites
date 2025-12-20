@@ -635,7 +635,6 @@ RotatingText.prototype.rotate = function() {
         var authText = $('#authStatusText');
 
         if (user) {
-            console.log('User signed in:', user.email || user.phoneNumber);
             if (authBtn) authBtn.classList.add('logged-in');
 
             // Display email or formatted phone number
@@ -696,6 +695,39 @@ RotatingText.prototype.rotate = function() {
         }
     };
 
+    FirebaseAuthHandler.prototype.resetContractModalState = function() {
+        // Remove developer dashboard from DOM
+        var devDashboard = document.getElementById('developerDashboard');
+        if (devDashboard) {
+            devDashboard.remove();
+        }
+
+        // Reset contract form visibility and clear fields
+        var contractForm = document.getElementById('contractForm');
+        if (contractForm) {
+            contractForm.style.display = '';
+            contractForm.reset();
+        }
+
+        // Reset signature blocks
+        var clientSigBlock = document.getElementById('clientSignatureBlock');
+        var devSigBlock = document.getElementById('developerSignatureBlock');
+        if (clientSigBlock) clientSigBlock.style.display = '';
+        if (devSigBlock) devSigBlock.style.display = '';
+
+        // Clear signature canvases
+        var clientCanvas = document.getElementById('clientSignaturePad');
+        var devCanvas = document.getElementById('devSignaturePad');
+        if (clientCanvas) {
+            var ctx = clientCanvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, clientCanvas.width, clientCanvas.height);
+        }
+        if (devCanvas) {
+            var ctx = devCanvas.getContext('2d');
+            if (ctx) ctx.clearRect(0, 0, devCanvas.width, devCanvas.height);
+        }
+    };
+
     FirebaseAuthHandler.prototype.handleLogin = function() {
         var email = $('#loginEmail').value.trim();
         var password = $('#loginPassword').value;
@@ -735,6 +767,7 @@ RotatingText.prototype.rotate = function() {
         firebase.auth().signOut()
             .then(function() {
                 console.log('Logged out successfully');
+                self.resetContractModalState();
                 self.closeContractModal();
             })
             .catch(function(error) {
@@ -776,7 +809,8 @@ RotatingText.prototype.rotate = function() {
             'auth/invalid-verification-id': 'Session expired. Please request a new code.',
             'auth/session-expired': 'Session expired. Please request a new verification code.',
             'auth/credential-already-in-use': 'This phone number is already linked to another account.',
-            'auth/operation-not-allowed': 'Phone authentication is not enabled.'
+            'auth/operation-not-allowed': 'Phone authentication is not enabled.',
+            'auth/billing-not-enabled': 'This phone number is not authorized.'
         };
 
         return messages[errorCode] || 'Authentication error. Please try again.';
@@ -845,7 +879,17 @@ RotatingText.prototype.rotate = function() {
 
         if (resendBtn) {
             resendBtn.addEventListener('click', function() {
-                self.handleResendCode();
+                // Open help modal and select Verification Code issue
+                var helpModal = $('#helpModal');
+                var helpIssue = $('#helpIssue');
+                if (helpModal) {
+                    helpModal.classList.add('show');
+                    document.body.style.overflow = 'hidden';
+                    document.body.classList.add('modal-open');
+                    if (helpIssue) {
+                        helpIssue.value = 'verification_code';
+                    }
+                }
             });
         }
 
@@ -913,18 +957,14 @@ RotatingText.prototype.rotate = function() {
                 // Update UI to show verification step
                 self.showVerificationStep();
 
-                // Display the number code was sent to
-                var sentToEl = $('#sentToNumber');
-                if (sentToEl) {
-                    sentToEl.textContent = self.formatPhoneDisplay(fullPhoneNumber);
-                }
-
                 // Start resend timer
                 self.startResendTimer();
             })
             .catch(function(error) {
                 console.error('SMS send error:', error);
                 self.showError(errorEl, self.getErrorMessage(error.code));
+                // Reset reCAPTCHA verifier so it can be recreated for next attempt
+                self.recaptchaVerifier = null;
             })
             .finally(function() {
                 self.setPhoneLoadingState(submitBtn, false);
@@ -1007,6 +1047,15 @@ RotatingText.prototype.rotate = function() {
         var verifyError = $('#verifyError');
         if (phoneError) phoneError.classList.remove('show');
         if (verifyError) verifyError.classList.remove('show');
+
+        // Reset loading states on both buttons
+        var sendCodeBtn = $('#sendCodeBtn');
+        var verifyCodeBtn = $('#verifyCodeBtn');
+        this.setPhoneLoadingState(sendCodeBtn, false);
+        this.setPhoneLoadingState(verifyCodeBtn, false);
+
+        // Reset reCAPTCHA verifier so a fresh one is created on next attempt
+        this.recaptchaVerifier = null;
 
         // Stop resend timer
         this.stopResendTimer();
@@ -1122,18 +1171,31 @@ RotatingText.prototype.rotate = function() {
         function resize() {
             var rect = canvas.getBoundingClientRect();
             var dpr = window.devicePixelRatio || 1;
-            
+
+            // Guard against 0 dimensions - don't resize if canvas isn't visible yet
+            if (rect.width <= 0 || rect.height <= 0) {
+                console.log('Signature canvas not visible yet, will retry...', rect.width, 'x', rect.height);
+                // Schedule a retry after a short delay
+                setTimeout(function() {
+                    var retryRect = canvas.getBoundingClientRect();
+                    if (retryRect.width > 0 && retryRect.height > 0) {
+                        resize();
+                    }
+                }, 100);
+                return;
+            }
+
             canvas.width = rect.width * dpr;
             canvas.height = rect.height * dpr;
             ctx.scale(dpr, dpr);
-            
+
             // Set styles
             ctx.strokeStyle = '#ffffff';
             ctx.fillStyle = '#ffffff';
             ctx.lineWidth = 2.5;
             ctx.lineCap = 'round';
             ctx.lineJoin = 'round';
-            
+
             console.log('Signature canvas sized:', rect.width, 'x', rect.height);
         }
         
@@ -1680,7 +1742,6 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
                     self.currentUserEmail = user.email ? user.email.trim().toLowerCase() : '';
                     self.isDeveloper = self.currentUserEmail && self.currentUserEmail === self.DEVELOPER_EMAIL;
 
-                    console.log('Auth state changed - User:', self.currentUserEmail || user.phoneNumber);
                     console.log('isDeveloper:', self.isDeveloper);
                     
                     self.setupForm();
@@ -2839,10 +2900,12 @@ ContractFormHandler.prototype.submitChangeRequest = function() {
     };
 
     // Save to Firebase
+    var changeRequestId = null;
     firebase.firestore().collection('change_requests')
         .add(changeRequest)
         .then(function(docRef) {
             console.log('Change request submitted:', docRef.id);
+            changeRequestId = docRef.id;
 
             // Update SOW document to flag it has a pending change request
             return firebase.firestore().collection('sow_documents')
@@ -2854,6 +2917,27 @@ ContractFormHandler.prototype.submitChangeRequest = function() {
                 });
         })
         .then(function() {
+            // Update the button in real-time to show "View Request"
+            var btn = document.getElementById('changeRequestBtn-' + sowData.id);
+            if (btn) {
+                btn.className = 'sow-action-btn';
+                btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                btn.style.color = 'white';
+                btn.style.border = 'none';
+                btn.innerHTML = '💬 View Request';
+                btn.onclick = function() {
+                    window.contractFormHandler.viewChangeRequest(changeRequestId);
+                };
+            }
+
+            // Update the global sowData object so it reflects the change
+            var sowDataKey = 'sowData_' + sowData.id.replace(/[^a-zA-Z0-9]/g, '_');
+            if (window[sowDataKey]) {
+                window[sowDataKey].hasChangeRequest = true;
+                window[sowDataKey].changeRequestId = changeRequestId;
+                window[sowDataKey].changeRequestStatus = 'pending';
+            }
+
             self.closeChangeRequestModal();
             alert('✓ Change request submitted successfully!\n\nThe developer will review your request and respond shortly.');
         })
@@ -2946,7 +3030,7 @@ if (self.isDeveloper && request.status === 'pending') {
         '<div class="modal-content" style="max-width: 700px;">' +
         '<div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">' +
         '<h2 style="margin: 0; font-size: 1.25rem;">📝 Change Request Details</h2>' +
-        '<button style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'" onclick="document.getElementById(\'changeRequestDetailModal\').remove()">&times;</button>' +
+        '<button style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'" onclick="window.contractFormHandler.closeChangeRequestDetailModal()">&times;</button>' +
         '</div>' +
         '<div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: .8rem;">' +
 
@@ -3017,12 +3101,69 @@ if (self.isDeveloper && request.status === 'pending') {
         thread.scrollTop = thread.scrollHeight;
     }
 
+    // Auto-resize textarea as user types
+    var conversationInput = document.getElementById('conversationInput');
+    if (conversationInput) {
+        conversationInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.overflowY = 'hidden';
+            if (this.scrollHeight > 150) {
+                this.style.height = '150px';
+                this.style.overflowY = 'auto';
+            } else {
+                this.style.height = this.scrollHeight + 'px';
+            }
+        });
+    }
+
     // Update last viewed timestamp for current user
     self.updateChangeRequestLastViewed(request.id);
+
+    // Set up real-time listener for conversation updates
+    self.conversationUnsubscribe = firebase.firestore().collection('change_requests')
+        .doc(request.id)
+        .onSnapshot(function(doc) {
+            if (!doc.exists) return;
+
+            var updatedRequest = doc.data();
+            var messages = updatedRequest.messages || [];
+
+            // Update the conversation thread
+            var threadEl = document.getElementById('conversationThread');
+            if (threadEl) {
+                threadEl.innerHTML = self.renderConversationThread(messages);
+                threadEl.scrollTop = threadEl.scrollHeight;
+            }
+
+            // Update stored request with latest messages
+            self.currentChangeRequest.messages = messages;
+        }, function(error) {
+            console.error('Error listening to conversation:', error);
+        });
+};
+
+// Close change request detail modal and clean up listener
+ContractFormHandler.prototype.closeChangeRequestDetailModal = function() {
+    // Unsubscribe from real-time listener
+    if (this.conversationUnsubscribe) {
+        this.conversationUnsubscribe();
+        this.conversationUnsubscribe = null;
+    }
+
+    // Clear current request
+    this.currentChangeRequest = null;
+
+    // Remove modal
+    var modal = document.getElementById('changeRequestDetailModal');
+    if (modal) {
+        modal.remove();
+    }
 };
 
 // Render conversation thread HTML
 ContractFormHandler.prototype.renderConversationThread = function(messages) {
+    var self = this;
+
     if (!messages || messages.length === 0) {
         return '<div class="conversation-empty">No messages yet. Start the conversation!</div>';
     }
@@ -3037,7 +3178,9 @@ ContractFormHandler.prototype.renderConversationThread = function(messages) {
                 timestamp = new Date(msg.timestamp).toLocaleString();
             }
         }
-        var senderClass = msg.sender === 'developer' ? 'developer' : 'client';
+        // Determine if this is the current user's message (show on right) or other party's (show on left)
+        var isOwnMessage = (self.isDeveloper && msg.sender === 'developer') || (!self.isDeveloper && msg.sender === 'client');
+        var senderClass = isOwnMessage ? 'self' : 'other';
         return '<div class="conversation-message ' + senderClass + '">' +
             '<div class="message-sender">' + (msg.senderName || msg.sender) + '</div>' +
             '<div class="message-text">' + msg.text + '</div>' +
@@ -3092,7 +3235,7 @@ ContractFormHandler.prototype.sendChangeRequestMessage = function(changeRequestI
                     emptyState.remove();
                 }
 
-                var msgHtml = '<div class="conversation-message ' + senderType + '">' +
+                var msgHtml = '<div class="conversation-message self">' +
                     '<div class="message-sender">' + senderName + '</div>' +
                     '<div class="message-text">' + text + '</div>' +
                     '<div class="message-time">Just now</div>' +
@@ -3170,7 +3313,7 @@ ContractFormHandler.prototype.approveChangeRequest = function(changeRequestId) {
                 });
         })
         .then(function() {
-            document.getElementById('changeRequestDetailModal').remove();
+            self.closeChangeRequestDetailModal();
             alert('Change request approved! You can now edit the SOW with the requested changes.');
             self.loadSOWDocuments();
         })
@@ -3217,7 +3360,7 @@ ContractFormHandler.prototype.rejectChangeRequest = function(changeRequestId) {
                 });
         })
         .then(function() {
-            document.getElementById('changeRequestDetailModal').remove();
+            self.closeChangeRequestDetailModal();
             alert('Change request rejected. The client has been notified.');
             self.loadSOWDocuments();
         })
@@ -7260,11 +7403,11 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
                     'change_order': { bg: 'linear-gradient(135deg, #6366f1, #4f46e5)', text: '📋 View Order' }
                 };
                 var btnStyle = statusColors[sowData.changeRequestStatus] || statusColors.pending;
-                html += '<button type="button" class="sow-action-btn" style="background: ' + btnStyle.bg + '; color: white; border: none;" onclick="window.contractFormHandler.viewChangeRequest(\'' + sowData.changeRequestId + '\')">' +
+                html += '<button type="button" id="changeRequestBtn-' + sowData.id + '" class="sow-action-btn" style="background: ' + btnStyle.bg + '; color: white; border: none;" onclick="window.contractFormHandler.viewChangeRequest(\'' + sowData.changeRequestId + '\')">' +
                     btnStyle.text +
                     '</button>';
             } else {
-                html += '<button type="button" class="sow-action-btn sow-change-btn" onclick="window.contractFormHandler.showChangeRequestModal(window.' + sowDataId + ')">' +
+                html += '<button type="button" id="changeRequestBtn-' + sowData.id + '" class="sow-action-btn sow-change-btn" onclick="window.contractFormHandler.showChangeRequestModal(window.' + sowDataId + ')">' +
                     '📝 Request Change' +
                     '</button>';
             }
@@ -7407,16 +7550,16 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' +
         '<div class="doc-signature-preview">' +
         '<p class="signature-label">Your Signature:</p>' +
-        '<canvas id="completedSOWSignature" class="signature-image" width="300" height="100"></canvas>' +
+        '<img src="' + sowData.clientSignature + '" alt="Your SOW signature" class="signature-image" />' +
         '</div>' +
         '</div>' +
-        
+
         '</div>' +
-        
+
         '<div class="completion-actions">' +
 '<p class="info-text">📧 A confirmation email has been sent to <strong>' + contractData.clientEmail + '</strong></p>' +
 '</div>';
-    
+
     // Insert completed view
     var modalHeader = $('.modal-header');
     if (modalHeader && modalHeader.nextSibling) {
@@ -7424,19 +7567,6 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     } else {
         modalContent.appendChild(completedContainer);
     }
-    
-   // Draw SOW signature on canvas
-    setTimeout(function() {
-        var sowSigCanvas = document.getElementById('completedSOWSignature');
-        if (sowSigCanvas && sowData.clientSignature) {
-            var ctx = sowSigCanvas.getContext('2d');
-            var img = new Image();
-            img.onload = function() {
-                ctx.drawImage(img, 0, 0, 300, 100);
-            };
-            img.src = sowData.clientSignature;
-        }
-    }, 100);
     
     // Show success alert
     alert('✓ Success!\n\nBoth your Contract and Statement of Work have been submitted.\n\nThe developer will review and sign shortly.');

@@ -487,7 +487,7 @@
                     <!-- Step 2: Verification Code Input -->
                     <form id="verifyCodeForm" class="auth-form phone-step" data-step="verify" style="display: none;">
                         <div class="verify-header">
-                            <p class="verify-message">Enter the 6-digit code sent to <span id="sentToNumber"></span></p>
+                            <p class="verify-message">Enter the 6-digit code provided by the developer</p>
                         </div>
                         <div class="form-group">
                             <label for="verificationCode">Verification Code</label>
@@ -497,7 +497,7 @@
                         </div>
                         <div class="resend-wrapper">
                             <span id="resendTimer" class="resend-timer">Resend code in <span id="countdown">60</span>s</span>
-                            <button type="button" id="resendCodeBtn" class="btn-resend" style="display: none;">Resend Code</button>
+                            <button type="button" id="resendCodeBtn" class="btn-resend" style="display: none;">Get Help</button>
                         </div>
                         <button type="submit" class="btn-auth" id="verifyCodeBtn">
                             <span class="btn-text">Verify & Sign In</span>
@@ -975,6 +975,7 @@
                     <label for="helpIssue">What do you need help with? *</label>
                     <select id="helpIssue" name="helpIssue" required>
                         <option value="">Select an issue...</option>
+                        <option value="verification_code">Verification Code Issues</option>
                         <option value="contract_not_showing">Contract not showing</option>
                         <option value="sow_not_showing">SOW not showing</option>
                         <option value="problems_submitting">Problems submitting contract</option>

@@ -17,11 +17,6 @@ const firebaseConfig = {
 // ============================================================
 window.VITE_DEVELOPER_EMAIL = import.meta.env.VITE_DEVELOPER_EMAIL || '';
 
-console.log('=== FIREBASE CONFIG ===');
-console.log('Project ID:', firebaseConfig.projectId || 'Not set');
-console.log('Developer Email:', window.VITE_DEVELOPER_EMAIL || 'NOT SET - Add VITE_DEVELOPER_EMAIL to .env');
-console.log('=======================');
-
 // Validate configuration
 if (!firebaseConfig.apiKey) {
     console.error('❌ Firebase configuration error: Missing environment variables!');
