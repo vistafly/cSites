@@ -41,28 +41,45 @@
         };
     };
 
-    // Format phone number to (xxx) xxx-xxxx - handles partial input for live formatting
+    // Format phone number to (xxx) xxx-xxxx or +1 (xxx) xxx-xxxx
     var formatPhoneNumber = function(phone) {
         if (!phone) return '';
-        // Remove all non-digits
-        var cleaned = phone.replace(/\D/g, '');
-        // Handle +1 country code
-        if (cleaned.length === 11 && cleaned.startsWith('1')) {
-            cleaned = cleaned.slice(1);
-        }
-        // Limit to 10 digits
-        cleaned = cleaned.slice(0, 10);
 
-        // Progressive formatting as user types
-        if (cleaned.length === 0) {
-            return '';
-        } else if (cleaned.length <= 3) {
-            return '(' + cleaned;
-        } else if (cleaned.length <= 6) {
-            return '(' + cleaned.slice(0, 3) + ') ' + cleaned.slice(3);
-        } else {
-            return '(' + cleaned.slice(0, 3) + ') ' + cleaned.slice(3, 6) + '-' + cleaned.slice(6);
+        // Check if user typed + at the start
+        var wantsCountryCode = phone.indexOf('+') !== -1;
+
+        // Remove all non-digits
+        var digits = phone.replace(/\D/g, '');
+
+        // If 11 digits starting with 1, treat as country code
+        if (digits.length === 11 && digits.charAt(0) === '1') {
+            wantsCountryCode = true;
+            digits = digits.substring(1);
         }
+
+        // Limit to 10 digits
+        if (digits.length > 10) {
+            digits = digits.substring(0, 10);
+        }
+
+        // Build formatted number
+        var result = '';
+        if (digits.length > 0) {
+            result = '(' + digits.substring(0, Math.min(3, digits.length));
+        }
+        if (digits.length > 3) {
+            result += ') ' + digits.substring(3, Math.min(6, digits.length));
+        }
+        if (digits.length > 6) {
+            result += '-' + digits.substring(6, 10);
+        }
+
+        // Add +1 prefix if requested
+        if (wantsCountryCode && digits.length > 0) {
+            result = '+1 ' + result;
+        }
+
+        return result;
     };
 
     // Normalize phone number to E.164 format (+1XXXXXXXXXX) for Firestore storage
@@ -646,12 +663,43 @@ RotatingText.prototype.rotate = function() {
                     authText.textContent = '***' + user.phoneNumber.slice(-4);
                 }
             }
+
+            // Save/update user info in Firestore users collection
+            this.saveUserToFirestore(user);
         } else {
             console.log('User signed out');
             if (authBtn) authBtn.classList.remove('logged-in');
             if (authText) authText.textContent = 'Sign In';
             this.closeContractModal();
         }
+    };
+
+    // Save user info to Firestore users collection
+    FirebaseAuthHandler.prototype.saveUserToFirestore = function(user) {
+        if (!user || !user.uid) return;
+
+        // Skip developer email - they don't need to be in the users dropdown
+        var developerEmail = window.VITE_DEVELOPER_EMAIL || 'vistafly.services@gmail.com';
+        if (user.email && user.email.toLowerCase() === developerEmail.toLowerCase()) {
+            return;
+        }
+
+        var userData = {
+            uid: user.uid,
+            email: user.email || null,
+            phoneNumber: user.phoneNumber || null,
+            displayName: user.displayName || null,
+            lastLogin: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        // Use set with merge to create or update
+        firebase.firestore().collection('users').doc(user.uid).set(userData, { merge: true })
+            .then(function() {
+                console.log('User info saved to Firestore');
+            })
+            .catch(function(error) {
+                console.error('Error saving user to Firestore:', error);
+            });
     };
 
     FirebaseAuthHandler.prototype.showAuthModal = function() {
@@ -2844,6 +2892,7 @@ ContractFormHandler.prototype.showChangeRequestModal = function(sowData) {
             '.change-request-badge.approved { background: rgba(16, 185, 129, 0.2); color: #10b981; }' +
             '.change-request-badge.rejected { background: rgba(239, 68, 68, 0.2); color: #ef4444; }' +
             '.change-request-badge.change-order { background: rgba(99, 102, 241, 0.2); color: #6366f1; }' +
+            '.change-request-badge.completed { background: rgba(16, 185, 129, 0.2); color: #10b981; }' +
             '.change-request-card { background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 8px; padding: 1rem; margin-top: 1rem; }' +
             '.change-request-card.approved { background: rgba(16, 185, 129, 0.1); border-color: rgba(16, 185, 129, 0.3); }' +
             '.change-request-card.rejected { background: rgba(239, 68, 68, 0.1); border-color: rgba(239, 68, 68, 0.3); }' +
@@ -2974,7 +3023,18 @@ ContractFormHandler.prototype.viewChangeRequest = function(changeRequestId) {
 
             var request = doc.data();
             request.id = doc.id;
-            self.showChangeRequestDetailModal(request);
+
+            // Fetch fresh SOW data to show current totals
+            return firebase.firestore().collection('sow_documents')
+                .doc(request.sowId)
+                .get()
+                .then(function(sowDoc) {
+                    if (sowDoc.exists) {
+                        request.sowData = sowDoc.data();
+                        request.sowData.id = sowDoc.id;
+                    }
+                    self.showChangeRequestDetailModal(request);
+                });
         })
         .catch(function(error) {
             console.error('Error loading change request:', error);
@@ -3007,7 +3067,8 @@ ContractFormHandler.prototype.showChangeRequestDetailModal = function(request) {
         'pending': { bg: 'rgba(251, 191, 36, 0.2)', color: '#fbbf24', label: '⏳ Pending Review' },
         'approved': { bg: 'rgba(16, 185, 129, 0.2)', color: '#10b981', label: '✅ Approved' },
         'rejected': { bg: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', label: '❌ Rejected' },
-        'change_order': { bg: 'rgba(99, 102, 241, 0.2)', color: '#6366f1', label: '📋 Change Order Created' }
+        'change_order': { bg: 'rgba(99, 102, 241, 0.2)', color: '#6366f1', label: '📋 Change Order Created' },
+        'completed': { bg: 'rgba(16, 185, 129, 0.2)', color: '#10b981', label: '✅ Completed' }
     };
 
     var sectionsHtml = request.sections.map(function(sectionId) {
@@ -3025,23 +3086,21 @@ ContractFormHandler.prototype.showChangeRequestDetailModal = function(request) {
 
     var actionsHtml = '';
 if (self.isDeveloper && request.status === 'pending') {
-    actionsHtml = '<div style="display: flex; flex-direction: column; gap: 0.75rem; align-items: center;">' +
-        '<div style="display: flex; gap: 0.75rem; width: 100%;">' +
-            '<button class="btn btn-primary" style="flex: 1;" onclick="window.contractFormHandler.approveChangeRequest(\'' + request.id + '\')">✅ Approve</button>' +
-            '<button class="btn" style="flex: 1; background: rgba(239, 68, 68, 0.2); color: #ef4444;" onclick="window.contractFormHandler.rejectChangeRequest(\'' + request.id + '\')">❌ Reject</button>' +
-        '</div>' +
-        '<button class="btn" style="width: 100%; background: rgba(99, 102, 241, 0.2); color: #6366f1;" onclick="window.contractFormHandler.createChangeOrderFromRequest(\'' + request.id + '\')">📋 Create Change Order</button>' +
+    actionsHtml = '<div style="display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap;">' +
+        '<button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="window.contractFormHandler.approveChangeRequest(\'' + request.id + '\')">✅ Approve</button>' +
+        '<button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: rgba(239, 68, 68, 0.2); color: #ef4444;" onclick="window.contractFormHandler.rejectChangeRequest(\'' + request.id + '\')">❌ Reject</button>' +
+        '<button class="btn" style="padding: 0.5rem 1rem; font-size: 0.85rem; background: rgba(99, 102, 241, 0.2); color: #6366f1;" onclick="window.contractFormHandler.createChangeOrderFromRequest(\'' + request.id + '\')">📋 Change Order</button>' +
     '</div>';
 } else if (self.isDeveloper && (request.status === 'approved' || request.status === 'change_order')) {
-    actionsHtml = '<div style="display: flex; gap: 0.75rem; justify-content: center;">' +
-        '<button class="btn btn-primary" onclick="window.contractFormHandler.editSOWFromChangeRequest(\'' + request.sowId + '\')">✏️ Edit SOW</button>' +
+    actionsHtml = '<div style="display: flex; gap: 0.5rem; justify-content: center;">' +
+        '<button class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.85rem;" onclick="window.contractFormHandler.editSOWFromChangeRequest(\'' + request.sowId + '\')">✏️ Edit SOW</button>' +
     '</div>';
 }
 
     var modalHtml = '<div id="changeRequestDetailModal" class="modal-overlay-fixed">' +
         '<div class="modal-content" style="max-width: 700px;">' +
         '<div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; padding: 1.5rem; border-bottom: 1px solid rgba(255,255,255,0.1);">' +
-        '<h2 style="margin: 0; font-size: 1.25rem;">📝 Change Request Details</h2>' +
+        '<h2 style="margin: 0; font-size: 1.25rem; display: flex; align-items: center; gap: 0.5rem;"><img src="/images/morph-logo14.png" alt="Logo" style="height: 2rem; width: auto;"> Change Request Details</h2>' +
         '<button style="background: rgba(255,255,255,0.1); border: none; color: #fff; width: 36px; height: 36px; border-radius: 50%; font-size: 1.5rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background=\'rgba(255,255,255,0.2)\'" onmouseout="this.style.background=\'rgba(255,255,255,0.1)\'" onclick="window.contractFormHandler.closeChangeRequestDetailModal()">&times;</button>' +
         '</div>' +
         '<div class="modal-body" style="max-height: 70vh; overflow-y: auto; padding: .8rem;">' +
@@ -3099,7 +3158,7 @@ if (self.isDeveloper && request.status === 'pending') {
         '</div>' +
 
         '</div>' +
-        '<div class="modal-footer" style="padding: 1.5rem; border-top: 1px solid rgba(255,255,255,0.1);">' +
+        '<div class="modal-footer" style="padding: 0rem; border-top: 0px solid rgba(255, 255, 255, 0);">' +
         actionsHtml +
         '</div>' +
         '</div>' +
@@ -3401,11 +3460,47 @@ ContractFormHandler.prototype.createChangeOrderFromRequest = function(changeRequ
             var detailModal = document.getElementById('changeRequestDetailModal');
             if (detailModal) detailModal.remove();
 
-            // Show Change Order creation modal
-            self.showChangeOrderModal(request);
+            // Update change request status to 'change_order'
+            return firebase.firestore().collection('change_requests')
+                .doc(changeRequestId)
+                .update({
+                    status: 'change_order',
+                    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                })
+                .then(function() {
+                    // Update SOW status
+                    return firebase.firestore().collection('sow_documents')
+                        .doc(request.sowId)
+                        .update({
+                            changeRequestStatus: 'change_order',
+                            hasChangeOrder: true
+                        });
+                })
+                .then(function() {
+                    // Load the SOW and open editor
+                    return firebase.firestore().collection('sow_documents')
+                        .doc(request.sowId)
+                        .get();
+                })
+                .then(function(sowDoc) {
+                    if (sowDoc.exists) {
+                        var sowData = sowDoc.data();
+                        sowData.id = sowDoc.id;
+                        // Store reference to change request for context
+                        sowData.editingFromChangeRequest = {
+                            id: changeRequestId,
+                            description: request.description,
+                            sections: request.sections,
+                            clientName: request.clientName
+                        };
+                        self.editSOW(sowData);
+                    } else {
+                        alert('SOW not found');
+                    }
+                });
         })
         .catch(function(error) {
-            console.error('Error loading change request:', error);
+            console.error('Error creating change order:', error);
             alert('Error: ' + error.message);
         });
 };
@@ -3581,13 +3676,25 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     
     var html = '<div class="sow-creator-form">' +
         '<div class="sow-form-header">' +
-        '<h4>📋 Create Statement of Work</h4>' +
+        '<h4 style="display: flex; align-items: center; gap: 0.5rem;"><img src="/images/morph-logo14.png" alt="Logo" style="height: 2rem; width: auto;"> Create Statement of Work</h4>' +
         '<button class="btn-close-sow">×</button>' +
         '</div>' +
         
         // Client Information
         '<div class="sow-form-section client-info-section">' +
         '<h5><span class="section-icon">👤</span> Client Information</h5>' +
+
+        // Searchable User Dropdown (users without SOW)
+        '<div class="sow-user-search-container">' +
+        '<label class="sow-search-label">Quick Select: Existing User (without SOW)</label>' +
+        '<div class="sow-search-wrapper">' +
+        '<input type="text" id="sowUserSearch" placeholder="Search by name, email, or phone..." class="sow-input sow-search-input" autocomplete="off" />' +
+        '<div class="sow-search-icon">🔍</div>' +
+        '<div id="sowUserDropdown" class="sow-user-dropdown" style="display: none;"></div>' +
+        '</div>' +
+        '<p class="sow-search-hint">Or enter client details manually below</p>' +
+        '</div>' +
+
         '<div class="client-id-toggle">' +
         '<span class="toggle-label" id="emailToggleLabel">Email</span>' +
         '<label class="toggle-switch">' +
@@ -3955,6 +4062,203 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         // Set initial state
         emailLabel.classList.add('active');
     }
+
+    // Format phone number as user types
+    if (phoneInput) {
+        phoneInput.setAttribute('maxlength', '17'); // +1 (xxx) xxx-xxxx = 17 chars
+        phoneInput.addEventListener('input', function() {
+            var formatted = formatPhoneNumber(this.value);
+            if (formatted !== this.value) {
+                this.value = formatted;
+            }
+        });
+    }
+
+    // ============================================
+    // SEARCHABLE USER DROPDOWN LOGIC
+    // ============================================
+
+    var userSearchInput = $('#sowUserSearch');
+    var userDropdown = $('#sowUserDropdown');
+    var usersWithoutSOW = []; // Cache for fetched users
+
+    // Fetch users without SOW when form opens (using Firestore)
+    var fetchUsersWithoutSOW = function() {
+        // Show loading state
+        if (userSearchInput) {
+            userSearchInput.placeholder = 'Loading users...';
+            userSearchInput.disabled = true;
+        }
+
+        // Fetch all users and all SOWs in parallel
+        Promise.all([
+            firebase.firestore().collection('users').get(),
+            firebase.firestore().collection('sow_documents').get()
+        ])
+        .then(function(results) {
+            var usersSnapshot = results[0];
+            var sowsSnapshot = results[1];
+
+            // Build sets of emails and phones that have SOWs
+            var sowEmails = new Set();
+            var sowPhones = new Set();
+
+            sowsSnapshot.forEach(function(doc) {
+                var data = doc.data();
+                if (data.clientEmail) {
+                    sowEmails.add(data.clientEmail.toLowerCase().trim());
+                }
+                if (data.clientPhone) {
+                    sowPhones.add(normalizeToE164(data.clientPhone));
+                }
+            });
+
+            // Filter users who don't have a SOW
+            usersWithoutSOW = [];
+            usersSnapshot.forEach(function(doc) {
+                var user = doc.data();
+                var userEmail = user.email ? user.email.toLowerCase().trim() : null;
+                var userPhone = user.phoneNumber ? normalizeToE164(user.phoneNumber) : null;
+
+                // Check if user has a SOW (by email OR phone)
+                var hasSOWByEmail = userEmail && sowEmails.has(userEmail);
+                var hasSOWByPhone = userPhone && sowPhones.has(userPhone);
+
+                if (!hasSOWByEmail && !hasSOWByPhone) {
+                    usersWithoutSOW.push({
+                        uid: user.uid,
+                        email: user.email || null,
+                        phoneNumber: user.phoneNumber || null,
+                        displayName: user.displayName || null
+                    });
+                }
+            });
+
+            if (userSearchInput) {
+                userSearchInput.placeholder = 'Search by name, email, or phone...';
+                userSearchInput.disabled = false;
+            }
+            console.log('Loaded ' + usersWithoutSOW.length + ' users without SOW');
+        })
+        .catch(function(error) {
+            console.error('Error fetching users:', error);
+            if (userSearchInput) {
+                userSearchInput.placeholder = 'Search unavailable - enter manually';
+                userSearchInput.disabled = false;
+            }
+        });
+    };
+
+    // Filter and display matching users (show all if no search term)
+    var filterUsers = function(searchTerm) {
+        var matches;
+
+        if (!searchTerm || searchTerm.length === 0) {
+            // Show all users when no search term
+            matches = usersWithoutSOW;
+        } else {
+            // Filter by search term
+            var term = searchTerm.toLowerCase();
+            matches = usersWithoutSOW.filter(function(user) {
+                var nameMatch = user.displayName && user.displayName.toLowerCase().includes(term);
+                var emailMatch = user.email && user.email.toLowerCase().includes(term);
+                var phoneMatch = user.phoneNumber && user.phoneNumber.includes(term);
+                return nameMatch || emailMatch || phoneMatch;
+            });
+        }
+
+        if (matches.length === 0) {
+            userDropdown.innerHTML = '<div class="sow-dropdown-empty">No users without SOW found</div>';
+            userDropdown.style.display = 'block';
+            return;
+        }
+
+        var html = matches.slice(0, 10).map(function(user) {
+            var displayText = user.displayName || 'Unknown';
+            var subText = user.email || (user.phoneNumber ? formatPhoneNumber(user.phoneNumber) : '') || '';
+            var hasEmail = !!user.email;
+            var hasPhone = !!user.phoneNumber;
+
+            return '<div class="sow-dropdown-item" ' +
+                   'data-email="' + (user.email || '') + '" ' +
+                   'data-phone="' + (user.phoneNumber || '') + '" ' +
+                   'data-name="' + (user.displayName || '') + '">' +
+                   '<span class="sow-dropdown-name">' + displayText + '</span>' +
+                   '<span class="sow-dropdown-contact">' + subText + '</span>' +
+                   '<span class="sow-dropdown-badges">' +
+                   (hasEmail ? '<span class="badge-email">Email</span>' : '') +
+                   (hasPhone ? '<span class="badge-phone">Phone</span>' : '') +
+                   '</span>' +
+                   '</div>';
+        }).join('');
+
+        userDropdown.innerHTML = html;
+        userDropdown.style.display = 'block';
+    };
+
+    // Handle user selection
+    var selectUser = function(item) {
+        var email = item.getAttribute('data-email');
+        var phone = item.getAttribute('data-phone');
+
+        // Decide whether to use email or phone
+        // Priority: email if available, otherwise phone
+        if (email) {
+            // Set to email mode
+            clientIdToggle.checked = false;
+            emailInput.style.display = 'block';
+            phoneInput.style.display = 'none';
+            emailInput.value = email;
+            phoneInput.value = '';
+            emailLabel.classList.add('active');
+            phoneLabel.classList.remove('active');
+        } else if (phone) {
+            // Set to phone mode
+            clientIdToggle.checked = true;
+            phoneInput.style.display = 'block';
+            emailInput.style.display = 'none';
+            phoneInput.value = formatPhoneNumber(phone);
+            emailInput.value = '';
+            phoneLabel.classList.add('active');
+            emailLabel.classList.remove('active');
+        }
+
+        // Clear search and hide dropdown
+        userSearchInput.value = '';
+        userDropdown.style.display = 'none';
+    };
+
+    // Event listeners for search
+    if (userSearchInput) {
+        userSearchInput.addEventListener('input', function() {
+            filterUsers(this.value);
+        });
+
+        userSearchInput.addEventListener('focus', function() {
+            // Show all users when focused (or filter if there's text)
+            filterUsers(this.value);
+        });
+    }
+
+    // Event delegation for dropdown clicks
+    if (userDropdown) {
+        userDropdown.addEventListener('click', function(e) {
+            var item = e.target.closest('.sow-dropdown-item');
+            if (item) {
+                selectUser(item);
+            }
+        });
+    }
+
+    // Close dropdown when clicking outside
+    document.addEventListener('click', function(e) {
+        if (userDropdown && !e.target.closest('.sow-search-wrapper')) {
+            userDropdown.style.display = 'none';
+        }
+    });
+
+    // Fetch users when form opens
+    fetchUsersWithoutSOW();
 
     // Save button
     var saveBtn = $('.btn-save-sow');
@@ -5519,6 +5823,44 @@ ContractFormHandler.prototype.editSOW = function(sow) {
         if (formHeader) {
             formHeader.innerHTML = '✏️ Edit Statement of Work';
         }
+
+        // Add change request context banner if editing from a change request
+        if (sow.editingFromChangeRequest) {
+            var changeReq = sow.editingFromChangeRequest;
+            var sectionLabels = {
+                'package': '📦 Package Tier',
+                'features': '✨ Features & Deliverables',
+                'timeline': '⏱️ Timeline',
+                'payment': '💰 Payment Structure',
+                'maintenance': '🔧 Maintenance Plan',
+                'other': '📝 Other'
+            };
+            var sectionsHtml = changeReq.sections.map(function(s) {
+                return '<span style="background: rgba(251, 191, 36, 0.2); color: #fbbf24; padding: 3px 8px; border-radius: 4px; font-size: 0.75rem; margin-right: 4px;">' + (sectionLabels[s] || s) + '</span>';
+            }).join('');
+
+            var bannerHtml = '<div id="changeRequestBanner" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(245, 158, 11, 0.1) 100%); border: 1px solid rgba(251, 191, 36, 0.4); border-radius: 12px; padding: 1rem; margin-bottom: 1.25rem;">' +
+                '<div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.75rem;">' +
+                '<h5 style="margin: 0; color: #fbbf24; font-size: 0.95rem; display: flex; align-items: center; gap: 6px;">📝 Change Request from ' + changeReq.clientName + '</h5>' +
+                '<button onclick="document.getElementById(\'changeRequestBanner\').remove()" style="background: none; border: none; color: rgba(255,255,255,0.5); cursor: pointer; font-size: 1.25rem; line-height: 1; padding: 0;">&times;</button>' +
+                '</div>' +
+                '<div style="margin-bottom: 0.75rem;">' + sectionsHtml + '</div>' +
+                '<div style="background: rgba(0,0,0,0.2); border-radius: 8px; padding: 0.75rem; max-height: 120px; overflow-y: auto;">' +
+                '<p style="margin: 0; font-size: 0.85rem; color: rgba(255,255,255,0.9); white-space: pre-wrap; line-height: 1.5;">' + changeReq.description + '</p>' +
+                '</div>' +
+                '</div>';
+
+            var formBody = document.querySelector('.sow-creator-form');
+            if (formBody) {
+                var firstSection = formBody.querySelector('.sow-form-section');
+                if (firstSection) {
+                    firstSection.insertAdjacentHTML('beforebegin', bannerHtml);
+                }
+            }
+
+            // Store change request ID for later status update
+            self.currentEditChangeRequestId = changeReq.id;
+        }
         
         // Replace save button with update button
         var saveBtn = $('.btn-save-sow');
@@ -5632,7 +5974,34 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     firebase.firestore().collection('sow_documents').doc(sowId).update(sowData)
         .then(function() {
             console.log('SOW updated successfully');
-            alert('✓ SOW updated successfully!');
+
+            // If editing from a change request, mark it as completed
+            if (self.currentEditChangeRequestId) {
+                return firebase.firestore().collection('change_requests')
+                    .doc(self.currentEditChangeRequestId)
+                    .update({
+                        status: 'completed',
+                        completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+                        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    })
+                    .then(function() {
+                        // Also update SOW to reflect completed change request
+                        return firebase.firestore().collection('sow_documents')
+                            .doc(sowId)
+                            .update({
+                                changeRequestStatus: 'completed',
+                                lastChangeOrderApplied: firebase.firestore.FieldValue.serverTimestamp()
+                            });
+                    })
+                    .then(function() {
+                        self.currentEditChangeRequestId = null; // Clear the reference
+                        alert('✓ SOW updated and change request completed!');
+                    });
+            } else {
+                alert('✓ SOW updated successfully!');
+            }
+        })
+        .then(function() {
             $('#sowCreatorContainer').style.display = 'none';
             self.loadSOWDocuments(); // Refresh the list
         })
@@ -8305,12 +8674,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
   // === ULTRA-RESPONSIVE CUSTOM CURSOR (FIXED) ===
 var CustomCursor = function() {
-    if (!DeviceDetector.isLaptopOrLarger()) {
-        console.log('Custom cursor disabled - screen too small');
-        return;
-    }
-
-    console.log('Custom cursor enabled - OPTIMIZED & FIXED');
+    console.log('Custom cursor enabled - ALWAYS VISIBLE');
 
     // Create cursor element with GPU-accelerated styles
     this.cursor = document.createElement('div');
@@ -8404,9 +8768,9 @@ CustomCursor.prototype.init = function() {
             self.animate();
         }
         
-        // 🎯 OPTIMIZED HOVER CHECK - Every 4th frame (~67ms at 60fps)
+        // 🎯 OPTIMIZED HOVER CHECK - Every 2nd frame (~33ms at 60fps)
         self.hoverCheckFrame++;
-        if (self.hoverCheckFrame % 4 === 0) {
+        if (self.hoverCheckFrame % 2 === 0) {
             var element = document.elementFromPoint(e.clientX, e.clientY);
             self.checkHoverState(element);
         }
@@ -8427,19 +8791,7 @@ CustomCursor.prototype.init = function() {
 };
 
 CustomCursor.prototype.handleResize = function() {
-    var self = this;
-    window.addEventListener('resize', throttle(function() {
-        if (!DeviceDetector.isLaptopOrLarger()) {
-            if (self.cursor) {
-                self.cursor.style.display = 'none';
-                self.isAnimating = false;
-            }
-        } else {
-            if (self.cursor) {
-                self.cursor.style.display = 'block';
-            }
-        }
-    }, 250));
+    // Cursor always visible - no hiding on resize
 };
 
 CustomCursor.prototype.checkHoverState = function(element) {
@@ -8483,9 +8835,9 @@ CustomCursor.prototype.animate = function() {
     
     var self = this;
     
-    // ⚡ ULTRA-FAST LERP - 0.4 factor for instant response
-    var lerpFactor = 0.4;
-    var snapThreshold = 0.3;  // Stop animating if within 0.3px for faster snapping
+    // ⚡ ULTRA-FAST LERP - 0.65 factor for instant response
+    var lerpFactor = 0.65;
+    var snapThreshold = 0.5;  // Stop animating if within 0.5px for faster snapping
     
     // Calculate distance to target
     var dx = this.target.x - this.position.x;

@@ -804,9 +804,15 @@
                         <!-- Client Signature (only shown to client) -->
                         <div class="signature-block" id="clientSignatureBlock" style="display: none;">
                             <h4>Client – <span id="clientNameDisplay">Client Name</span></h4>
-                            <div class="form-group">
-                                <label for="clientSignerName">Name *</label>
-                                <input type="text" id="clientSignerName" name="clientSignerName" placeholder="Full name of person signing">
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="clientSignerName">Name *</label>
+                                    <input type="text" id="clientSignerName" name="clientSignerName" placeholder="Full name of person signing">
+                                </div>
+                                <div class="form-group">
+                                    <label for="clientDate">Date *</label>
+                                    <input type="date" id="clientDate" name="clientDate">
+                                </div>
                             </div>
                             <div class="form-group">
                                 <label>Signature *</label>
@@ -814,10 +820,6 @@
                                     <canvas id="clientSignaturePad" class="signature-pad"></canvas>
                                     <button type="button" class="clear-btn" data-canvas="clientSignaturePad">Clear</button>
                                 </div>
-                            </div>
-                            <div class="form-group">
-                                <label for="clientDate">Date *</label>
-                                <input type="date" id="clientDate" name="clientDate">
                             </div>
                         </div>
                         
@@ -841,15 +843,7 @@
                         <p>The developer will review and sign the agreement. You will receive the fully executed contract via email at <strong id="clientEmailDisplay"></strong> within 24-48 hours.</p>
                     </div>
                 </section>
-
-                <!-- Submit Buttons -->
-                <div class="action-buttons">
-                    <button type="button" id="downloadBtn" class="btn btn-secondary" style="display: none;">Download PDF</button>
-                    <button type="button" class="btn btn-primary" id="submitBtn">
-                       <span id="submitBtnText">Submit Agreement</span>
-                    </button>
-                </div>
-            </form>
+                           </form>
 
             <div class="modal-footer">
                 <p>&copy; 2025 Scarlo. All rights reserved.</p>
