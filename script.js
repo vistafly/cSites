@@ -8674,7 +8674,13 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
   // === ULTRA-RESPONSIVE CUSTOM CURSOR (FIXED) ===
 var CustomCursor = function() {
-    console.log('Custom cursor enabled - ALWAYS VISIBLE');
+    // Skip on touch-only devices (no mouse)
+    if ('ontouchstart' in window && !window.matchMedia('(pointer: fine)').matches) {
+        console.log('Custom cursor disabled - touch-only device');
+        return;
+    }
+
+    console.log('Custom cursor enabled - mouse devices only');
 
     // Create cursor element with GPU-accelerated styles
     this.cursor = document.createElement('div');
@@ -8730,8 +8736,18 @@ CustomCursor.prototype.init = function() {
 
     // Use pointermove for better performance than mousemove
     document.addEventListener('pointermove', function(e) {
+        // Only respond to mouse input, not touch or pen
+        if (e.pointerType !== 'mouse') {
+            if (self.isVisible) {
+                self.cursor.style.opacity = '0';
+                self.isVisible = false;
+                self.isAnimating = false;
+            }
+            return;
+        }
+
         var isModalOpen = document.body.classList.contains('modal-open');
-        
+
         // Check if modal just closed
         if (wasModalOpen && !isModalOpen) {
             self.isVisible = true;
@@ -8748,7 +8764,7 @@ CustomCursor.prototype.init = function() {
             document.body.classList.add('custom-cursor-hidden');
             return;
         }
-        
+
         // ⚡ INSTANT UPDATE - Set target position immediately
         self.target.x = e.clientX;
         self.target.y = e.clientY;

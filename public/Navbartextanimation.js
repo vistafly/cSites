@@ -39,11 +39,16 @@
         }
 
         init() {
-            // Set all frames to hidden, show first
+            // Set all frames to hidden except first (which should already be visible from HTML)
+            // Avoid removing 'visible' from first frame to prevent flicker
             this.texts.forEach((text, i) => {
-                text.classList.remove('visible');
                 if (i === 0) {
-                    text.classList.add('visible');
+                    // Ensure first frame is visible without toggling
+                    if (!text.classList.contains('visible')) {
+                        text.classList.add('visible');
+                    }
+                } else {
+                    text.classList.remove('visible');
                 }
             });
 
