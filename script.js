@@ -676,13 +676,28 @@ RotatingText.prototype.rotate = function() {
 
     // Save user info to Firestore users collection
     FirebaseAuthHandler.prototype.saveUserToFirestore = function(user) {
-        if (!user || !user.uid) return;
+
+        if (!user || !user.uid) {
+            console.log('⚠️ No user or uid, skipping save');
+            return;
+        }
 
         // Skip developer email - they don't need to be in the users dropdown
         var developerEmail = window.VITE_DEVELOPER_EMAIL || 'vistafly.services@gmail.com';
         if (user.email && user.email.toLowerCase() === developerEmail.toLowerCase()) {
+            console.log('⚠️ Developer email, skipping save');
             return;
         }
+
+        var normalizedEmail = user.email ? user.email.trim().toLowerCase() : null;
+        var normalizedPhone = user.phoneNumber || null;
+
+        // Check if there's a manually-added record to merge with
+        var manualDocId = normalizedEmail
+            ? 'email_' + normalizedEmail.replace(/[^a-z0-9]/g, '_')
+            : normalizedPhone
+                ? 'phone_' + normalizedPhone.replace(/[^0-9+]/g, '')
+                : null;
 
         var userData = {
             uid: user.uid,
@@ -692,14 +707,51 @@ RotatingText.prototype.rotate = function() {
             lastLogin: firebase.firestore.FieldValue.serverTimestamp()
         };
 
-        // Use set with merge to create or update
-        firebase.firestore().collection('users').doc(user.uid).set(userData, { merge: true })
-            .then(function() {
-                console.log('User info saved to Firestore');
-            })
-            .catch(function(error) {
-                console.error('Error saving user to Firestore:', error);
-            });
+        console.log('💾 Saving user data to Firestore:', userData);
+
+        var usersRef = firebase.firestore().collection('users');
+
+        // If there might be a manual record, check and merge
+        if (manualDocId) {
+            usersRef.doc(manualDocId).get()
+                .then(function(doc) {
+                    if (doc.exists && doc.data().manuallyAdded) {
+                        console.log('🔄 Found manually-added record, merging...');
+                        var manualData = doc.data();
+
+                        // Preserve displayName from manual record if not set by auth
+                        if (!userData.displayName && manualData.displayName) {
+                            userData.displayName = manualData.displayName;
+                        }
+
+                        // Delete the manual record
+                        return usersRef.doc(manualDocId).delete()
+                            .then(function() {
+                                console.log('🗑️ Deleted manual record:', manualDocId);
+                                // Create the real record with Firebase Auth UID
+                                return usersRef.doc(user.uid).set(userData, { merge: true });
+                            });
+                    } else {
+                        // No manual record, just save with real UID
+                        return usersRef.doc(user.uid).set(userData, { merge: true });
+                    }
+                })
+                .then(function() {
+                    console.log('✅ User info saved to Firestore successfully');
+                })
+                .catch(function(error) {
+                    console.error('❌ Error saving user to Firestore:', error);
+                });
+        } else {
+            // No email or phone, just save with real UID
+            usersRef.doc(user.uid).set(userData, { merge: true })
+                .then(function() {
+                    console.log('✅ User info saved to Firestore successfully');
+                })
+                .catch(function(error) {
+                    console.error('❌ Error saving user to Firestore:', error);
+                });
+        }
     };
 
     FirebaseAuthHandler.prototype.showAuthModal = function() {
@@ -736,6 +788,11 @@ RotatingText.prototype.rotate = function() {
     };
 
     FirebaseAuthHandler.prototype.closeContractModal = function() {
+        // Cleanup realtime listeners for user search
+        if (window.unsubscribeFromUsers) {
+            window.unsubscribeFromUsers();
+        }
+
         if (this.contractModal) {
             this.contractModal.classList.remove('show');
             document.body.style.overflow = '';
@@ -1002,8 +1059,44 @@ RotatingText.prototype.rotate = function() {
         var fullPhoneNumber = countryCode + phoneNumber;
         this.currentPhoneNumber = fullPhoneNumber;
 
+        // Reset test phone flag
+        this.isTestPhone = false;
+
         // Show loading state
         this.setPhoneLoadingState(submitBtn, true);
+
+        // First, check if this is a test phone number
+        var normalizedPhone = normalizeToE164(fullPhoneNumber);
+        var docId = normalizedPhone.replace(/[^0-9+]/g, '');
+
+        firebase.firestore().collection('test_phone_numbers').doc(docId).get()
+            .then(function(doc) {
+                if (doc.exists) {
+                    // This is a test phone number - skip real SMS
+                    console.log('Test phone number detected, skipping SMS');
+                    self.isTestPhone = true;
+                    self.confirmationResult = null; // No real confirmation result for test phones
+
+                    // Update UI to show verification step
+                    self.showVerificationStep();
+
+                    // No resend timer for test phones (code is fixed)
+                    self.setPhoneLoadingState(submitBtn, false);
+                } else {
+                    // Not a test phone - use normal Firebase Phone Auth
+                    self.proceedWithRealPhoneAuth(fullPhoneNumber, errorEl, submitBtn);
+                }
+            })
+            .catch(function(error) {
+                console.error('Error checking test phone:', error);
+                // Fall back to real phone auth if we can't check
+                self.proceedWithRealPhoneAuth(fullPhoneNumber, errorEl, submitBtn);
+            });
+    };
+
+    // Helper to proceed with real Firebase Phone Auth
+    FirebaseAuthHandler.prototype.proceedWithRealPhoneAuth = function(fullPhoneNumber, errorEl, submitBtn) {
+        var self = this;
 
         // Initialize reCAPTCHA (required by Firebase API, but verification is disabled)
         this.initRecaptcha();
@@ -1044,37 +1137,93 @@ RotatingText.prototype.rotate = function() {
             errorEl.textContent = '';
         }
 
-        // Validate code
-        if (!code || code.length !== 6) {
-            this.showError(errorEl, 'Please enter the 6-digit verification code');
-            return;
-        }
-
-        if (!this.confirmationResult) {
-            this.showError(errorEl, 'Session expired. Please request a new code.');
+        // Validate code (4-6 digits for test phones, 6 digits for real)
+        var minLength = this.isTestPhone ? 4 : 6;
+        var maxLength = 6;
+        if (!code || code.length < minLength || code.length > maxLength) {
+            var msg = this.isTestPhone ?
+                'Please enter your verification code (4-6 digits)' :
+                'Please enter the 6-digit verification code';
+            this.showError(errorEl, msg);
             return;
         }
 
         // Show loading state
         this.setPhoneLoadingState(submitBtn, true);
 
-        // Verify the code
-        this.confirmationResult.confirm(code)
-            .then(function(result) {
-                console.log('Phone auth successful:', result.user);
-                self.closeAuthModal();
-                self.resetPhoneAuthState();
-                setTimeout(function() {
-                    self.showContractModal();
-                }, 300);
-            })
-            .catch(function(error) {
-                console.error('Code verification error:', error);
-                self.showError(errorEl, self.getErrorMessage(error.code));
-            })
-            .finally(function() {
-                self.setPhoneLoadingState(submitBtn, false);
-            });
+        // Check if this is a test phone verification
+        if (this.isTestPhone) {
+            // Use Cloud Function for test phone verification
+            this.verifyTestPhone(code, errorEl, submitBtn);
+        } else {
+            // Normal Firebase verification
+            if (!this.confirmationResult) {
+                this.showError(errorEl, 'Session expired. Please request a new code.');
+                this.setPhoneLoadingState(submitBtn, false);
+                return;
+            }
+
+            this.confirmationResult.confirm(code)
+                .then(function(result) {
+                    console.log('Phone auth successful:', result.user);
+                    self.closeAuthModal();
+                    self.resetPhoneAuthState();
+                    setTimeout(function() {
+                        self.showContractModal();
+                    }, 300);
+                })
+                .catch(function(error) {
+                    console.error('Code verification error:', error);
+                    self.showError(errorEl, self.getErrorMessage(error.code));
+                })
+                .finally(function() {
+                    self.setPhoneLoadingState(submitBtn, false);
+                });
+        }
+    };
+
+    // Verify test phone number using Cloud Function
+    FirebaseAuthHandler.prototype.verifyTestPhone = function(code, errorEl, submitBtn) {
+        var self = this;
+
+        console.log('Verifying test phone:', this.currentPhoneNumber);
+
+        var verifyTestPhoneNumber = firebase.functions().httpsCallable('verifyTestPhoneNumber');
+
+        verifyTestPhoneNumber({
+            phoneNumber: this.currentPhoneNumber,
+            verificationCode: code
+        })
+        .then(function(result) {
+            if (result.data.success && result.data.customToken) {
+                console.log('Test phone verification successful, signing in with custom token');
+                // Sign in with the custom token
+                return firebase.auth().signInWithCustomToken(result.data.customToken);
+            } else {
+                throw new Error('Verification failed');
+            }
+        })
+        .then(function(userCredential) {
+            console.log('Signed in with custom token:', userCredential.user);
+            self.closeAuthModal();
+            self.resetPhoneAuthState();
+            setTimeout(function() {
+                self.showContractModal();
+            }, 300);
+        })
+        .catch(function(error) {
+            console.error('Test phone verification error:', error);
+            var message = error.message || 'Invalid verification code';
+            if (error.code === 'functions/invalid-argument') {
+                message = 'Invalid phone number or verification code.';
+            } else if (error.code === 'functions/internal') {
+                message = 'Server error. Please try again.';
+            }
+            self.showError(errorEl, message);
+        })
+        .finally(function() {
+            self.setPhoneLoadingState(submitBtn, false);
+        });
     };
 
     FirebaseAuthHandler.prototype.showVerificationStep = function() {
@@ -1124,6 +1273,7 @@ RotatingText.prototype.rotate = function() {
     FirebaseAuthHandler.prototype.resetPhoneAuthState = function() {
         this.confirmationResult = null;
         this.currentPhoneNumber = '';
+        this.isTestPhone = false;
         this.resetPhoneAuthToStep1();
 
         // Clear phone form
@@ -3692,7 +3842,31 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<div class="sow-search-icon">🔍</div>' +
         '<div id="sowUserDropdown" class="sow-user-dropdown" style="display: none;"></div>' +
         '</div>' +
+        '<div class="sow-search-actions">' +
         '<p class="sow-search-hint">Or enter client details manually below</p>' +
+        '<button type="button" id="btnAddUser" class="btn-add-user">+ Add User</button>' +
+        '</div>' +
+        // Add User inline form (hidden by default)
+        '<div id="addUserForm" class="add-user-form" style="display: none;">' +
+        '<div class="add-user-form-inner">' +
+        '<input type="text" id="addUserName" placeholder="Display Name (optional)" class="sow-input" />' +
+        '<div class="add-user-auth-section">' +
+        '<div class="add-user-auth-row">' +
+        '<input type="email" id="addUserEmail" placeholder="Email" class="sow-input" oninput="window.toggleAuthFields()" />' +
+        '<input type="password" id="addUserPassword" placeholder="Password (min 6 chars)" class="sow-input" style="display: none;" />' +
+        '</div>' +
+        '<div class="add-user-auth-divider"><span>OR</span></div>' +
+        '<div class="add-user-auth-row">' +
+        '<input type="tel" id="addUserPhone" placeholder="Phone Number" class="sow-input" oninput="window.toggleAuthFields()" />' +
+        '<input type="text" id="addUserCode" placeholder="Verification Code (4-6 digits)" class="sow-input" style="display: none;" maxlength="6" />' +
+        '</div>' +
+        '</div>' +
+        '<div class="add-user-buttons">' +
+        '<button type="button" id="btnSaveUser" class="btn-save-user">Save User</button>' +
+        '<button type="button" id="btnCancelAddUser" class="btn-cancel-add-user">Cancel</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>' +
         '</div>' +
 
         '<div class="client-id-toggle">' +
@@ -4081,29 +4255,30 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     var userSearchInput = $('#sowUserSearch');
     var userDropdown = $('#sowUserDropdown');
     var usersWithoutSOW = []; // Cache for fetched users
+    var unsubscribeUsers = null; // Realtime listener cleanup
+    var unsubscribeSows = null;  // Realtime listener cleanup
+    var cachedUsersSnapshot = null; // Cache for recalculation
+    var cachedSowsSnapshot = null;  // Cache for recalculation
 
-    // Fetch users without SOW when form opens (using Firestore)
-    var fetchUsersWithoutSOW = function() {
+    // Subscribe to users without SOW in realtime (using Firestore onSnapshot)
+    var subscribeToUsersWithoutSOW = function() {
+        console.log('🔄 Starting realtime subscription for users without SOW...');
+
         // Show loading state
         if (userSearchInput) {
             userSearchInput.placeholder = 'Loading users...';
             userSearchInput.disabled = true;
         }
 
-        // Fetch all users and all SOWs in parallel
-        Promise.all([
-            firebase.firestore().collection('users').get(),
-            firebase.firestore().collection('sow_documents').get()
-        ])
-        .then(function(results) {
-            var usersSnapshot = results[0];
-            var sowsSnapshot = results[1];
+        // Process users without SOW when either collection updates
+        var processUsersWithoutSOW = function() {
+            if (!cachedUsersSnapshot || !cachedSowsSnapshot) return;
 
             // Build sets of emails and phones that have SOWs
             var sowEmails = new Set();
             var sowPhones = new Set();
 
-            sowsSnapshot.forEach(function(doc) {
+            cachedSowsSnapshot.forEach(function(doc) {
                 var data = doc.data();
                 if (data.clientEmail) {
                     sowEmails.add(data.clientEmail.toLowerCase().trim());
@@ -4115,7 +4290,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
 
             // Filter users who don't have a SOW
             usersWithoutSOW = [];
-            usersSnapshot.forEach(function(doc) {
+            cachedUsersSnapshot.forEach(function(doc) {
                 var user = doc.data();
                 var userEmail = user.email ? user.email.toLowerCase().trim() : null;
                 var userPhone = user.phoneNumber ? normalizeToE164(user.phoneNumber) : null;
@@ -4138,16 +4313,132 @@ ContractFormHandler.prototype.showSOWCreator = function() {
                 userSearchInput.placeholder = 'Search by name, email, or phone...';
                 userSearchInput.disabled = false;
             }
-            console.log('Loaded ' + usersWithoutSOW.length + ' users without SOW');
+            console.log('Realtime: Loaded ' + usersWithoutSOW.length + ' users without SOW');
+
+            // Refresh dropdown if visible
+            if (userDropdown && userDropdown.style.display === 'block') {
+                filterUsers(userSearchInput ? userSearchInput.value : '');
+            }
+        };
+
+        // Subscribe to users collection
+        console.log('📡 Subscribing to users collection...');
+        unsubscribeUsers = firebase.firestore().collection('users')
+            .onSnapshot(function(snapshot) {
+                console.log('👥 Users snapshot received:', snapshot.size, 'users');
+                cachedUsersSnapshot = snapshot;
+                processUsersWithoutSOW();
+            }, function(error) {
+                console.error('❌ Error listening to users:', error);
+                if (userSearchInput) {
+                    userSearchInput.placeholder = 'Search unavailable - enter manually';
+                    userSearchInput.disabled = false;
+                }
+            });
+
+        // Subscribe to sow_documents collection
+        console.log('📡 Subscribing to sow_documents collection...');
+        unsubscribeSows = firebase.firestore().collection('sow_documents')
+            .onSnapshot(function(snapshot) {
+                console.log('📄 SOW documents snapshot received:', snapshot.size, 'documents');
+                cachedSowsSnapshot = snapshot;
+                processUsersWithoutSOW();
+            }, function(error) {
+                console.error('❌ Error listening to SOWs:', error);
+            });
+    };
+
+    // Cleanup function to unsubscribe from realtime listeners
+    var unsubscribeFromUsers = function() {
+        if (unsubscribeUsers) {
+            unsubscribeUsers();
+            unsubscribeUsers = null;
+        }
+        if (unsubscribeSows) {
+            unsubscribeSows();
+            unsubscribeSows = null;
+        }
+        cachedUsersSnapshot = null;
+        cachedSowsSnapshot = null;
+    };
+
+    // Toggle password/code fields based on email/phone input
+    var toggleAuthFields = function() {
+        var emailInput = $('#addUserEmail');
+        var passwordInput = $('#addUserPassword');
+        var phoneInput = $('#addUserPhone');
+        var codeInput = $('#addUserCode');
+
+        if (emailInput && passwordInput) {
+            var hasEmail = emailInput.value && emailInput.value.trim().length > 0;
+            passwordInput.style.display = hasEmail ? 'block' : 'none';
+            if (hasEmail) {
+                passwordInput.required = true;
+            } else {
+                passwordInput.required = false;
+                passwordInput.value = '';
+            }
+        }
+
+        if (phoneInput && codeInput) {
+            var hasPhone = phoneInput.value && phoneInput.value.replace(/\D/g, '').length >= 10;
+            codeInput.style.display = hasPhone ? 'block' : 'none';
+            if (hasPhone) {
+                codeInput.required = true;
+            } else {
+                codeInput.required = false;
+                codeInput.value = '';
+            }
+        }
+    };
+
+    // Expose toggleAuthFields globally for oninput handlers
+    window.toggleAuthFields = toggleAuthFields;
+
+    // Function to add a user via Cloud Function (creates Firebase Auth user)
+    var addUserToFirestore = function(displayName, email, password, phone, verificationCode) {
+        // Validate - need at least email+password OR phone+code
+        var hasEmail = email && email.trim();
+        var hasPhone = phone && phone.trim();
+
+        if (!hasEmail && !hasPhone) {
+            alert('Please enter either an email or phone number.');
+            return Promise.reject('No email or phone provided');
+        }
+
+        if (hasEmail && (!password || password.length < 6)) {
+            alert('Password must be at least 6 characters for email authentication.');
+            return Promise.reject('Password too short');
+        }
+
+        if (hasPhone && (!verificationCode || !/^\d{4,6}$/.test(verificationCode))) {
+            alert('Verification code must be 4-6 digits for phone authentication.');
+            return Promise.reject('Invalid verification code');
+        }
+
+        console.log('Adding user via Cloud Function...');
+
+        var addAuthUser = firebase.functions().httpsCallable('addAuthUser');
+
+        return addAuthUser({
+            displayName: displayName ? displayName.trim() : null,
+            email: hasEmail ? email.trim() : null,
+            password: hasEmail ? password : null,
+            phoneNumber: hasPhone ? phone.trim() : null,
+            verificationCode: hasPhone ? verificationCode : null
+        })
+        .then(function(result) {
+            console.log('User added successfully:', result.data);
+            return result.data;
         })
         .catch(function(error) {
-            console.error('Error fetching users:', error);
-            if (userSearchInput) {
-                userSearchInput.placeholder = 'Search unavailable - enter manually';
-                userSearchInput.disabled = false;
-            }
+            console.error('Error adding user:', error);
+            throw error;
         });
     };
+
+    // Expose cleanup function globally for modal close
+    window.unsubscribeFromUsers = unsubscribeFromUsers;
 
     // Filter and display matching users (show all if no search term)
     var filterUsers = function(searchTerm) {
@@ -4200,6 +4491,13 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     var selectUser = function(item) {
         var email = item.getAttribute('data-email');
         var phone = item.getAttribute('data-phone');
+        var name = item.getAttribute('data-name');
+
+        // Fill in Client Name if available
+        var clientNameInput = $('#sowClientName');
+        if (clientNameInput && name) {
+            clientNameInput.value = name;
+        }
 
         // Decide whether to use email or phone
         // Priority: email if available, otherwise phone
@@ -4258,7 +4556,96 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     });
 
     // Fetch users when form opens
-    fetchUsersWithoutSOW();
+    subscribeToUsersWithoutSOW();
+
+    // Add User button handlers
+    var btnAddUser = $('#btnAddUser');
+    var addUserForm = $('#addUserForm');
+    var btnSaveUser = $('#btnSaveUser');
+    var btnCancelAddUser = $('#btnCancelAddUser');
+    var addUserName = $('#addUserName');
+    var addUserEmail = $('#addUserEmail');
+    var addUserPassword = $('#addUserPassword');
+    var addUserPhone = $('#addUserPhone');
+    var addUserCode = $('#addUserCode');
+
+    if (btnAddUser) {
+        btnAddUser.addEventListener('click', function() {
+            addUserForm.style.display = 'block';
+            btnAddUser.style.display = 'none';
+            addUserEmail.focus();
+        });
+    }
+
+    if (btnCancelAddUser) {
+        btnCancelAddUser.addEventListener('click', function() {
+            addUserForm.style.display = 'none';
+            btnAddUser.style.display = 'inline-block';
+            // Clear form
+            addUserName.value = '';
+            addUserEmail.value = '';
+            addUserPassword.value = '';
+            addUserPhone.value = '';
+            addUserCode.value = '';
+            // Reset field visibility
+            addUserPassword.style.display = 'none';
+            addUserCode.style.display = 'none';
+        });
+    }
+
+    if (btnSaveUser) {
+        btnSaveUser.addEventListener('click', function() {
+            var name = addUserName.value.trim();
+            var email = addUserEmail.value.trim();
+            var password = addUserPassword.value;
+            var phone = addUserPhone.value.trim();
+            var verificationCode = addUserCode.value.trim();
+
+            // Disable button while saving
+            btnSaveUser.disabled = true;
+            btnSaveUser.textContent = 'Saving...';
+
+            addUserToFirestore(name, email, password, phone, verificationCode)
+                .then(function(userData) {
+                    // Clear and hide form
+                    addUserName.value = '';
+                    addUserEmail.value = '';
+                    addUserPassword.value = '';
+                    addUserPhone.value = '';
+                    addUserCode.value = '';
+                    addUserPassword.style.display = 'none';
+                    addUserCode.style.display = 'none';
+                    addUserForm.style.display = 'none';
+                    btnAddUser.style.display = 'inline-block';
+
+                    // Reset button
+                    btnSaveUser.disabled = false;
+                    btnSaveUser.textContent = 'Save User';
+
+                    // The realtime listener will automatically update the dropdown
+                    alert('User added successfully! They can now sign in and will appear in the dropdown.');
+                })
+                .catch(function(error) {
+                    // Reset button
+                    btnSaveUser.disabled = false;
+                    btnSaveUser.textContent = 'Save User';
+
+                    if (error !== 'No email or phone provided' && error !== 'Password too short' && error !== 'Invalid verification code') {
+                        alert('Error adding user: ' + (error.message || error));
+                    }
+                });
+        });
+    }
+
+    // Format phone number in add user form
+    if (addUserPhone) {
+        addUserPhone.addEventListener('input', function() {
+            var formatted = formatPhoneNumber(this.value);
+            if (formatted !== this.value) {
+                this.value = formatted;
+            }
+        });
+    }
 
     // Save button
     var saveBtn = $('.btn-save-sow');

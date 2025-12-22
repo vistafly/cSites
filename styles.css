@@ -3468,7 +3468,7 @@ body.modal-open .custom-cursor {
    ============================================ */
 
 .developer-dashboard {
-    padding: 1rem;
+    padding: .8rem;
     background: linear-gradient(180deg, rgba(10, 10, 10, 0.98) 0%, rgba(20, 20, 20, 0.98) 100%);
     height: 100%;
     overflow-y: auto;
@@ -3873,7 +3873,7 @@ body.modal-open .custom-cursor {
 
 /* Dashboard Footer */
 .dashboard-footer {
-    margin-top: 1rem;
+    margin-top: 0rem;
     padding-top: 0rem;
     text-align: center;
 }
@@ -4899,8 +4899,134 @@ body.modal-open .custom-cursor {
 .sow-search-hint {
     color: rgba(255, 255, 255, 0.4);
     font-size: 0.75rem;
-    margin: 0.5rem 0 0 0;
+    margin: 0;
     font-style: italic;
+}
+
+/* Search Actions Row */
+.sow-search-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 0.5rem;
+    gap: 1rem;
+}
+
+/* Add User Button */
+.btn-add-user {
+    background: rgba(59, 130, 246, 0.2);
+    color: #60a5fa;
+    border: 1px solid rgba(59, 130, 246, 0.3);
+    padding: 0.35rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.btn-add-user:hover {
+    background: rgba(59, 130, 246, 0.3);
+    border-color: rgba(59, 130, 246, 0.5);
+}
+
+/* Add User Form */
+.add-user-form {
+    margin-top: 0.75rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 0.5rem;
+}
+
+.add-user-form-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.add-user-form .sow-input {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.add-user-buttons {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.btn-save-user {
+    flex: 1;
+    background: linear-gradient(135deg, #10b981, #059669);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-save-user:hover {
+    background: linear-gradient(135deg, #059669, #047857);
+    transform: translateY(-1px);
+}
+
+.btn-cancel-add-user {
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.7);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem 1rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.btn-cancel-add-user:hover {
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+}
+
+.btn-save-user:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Add User Auth Section */
+.add-user-auth-section {
+    margin-top: 0.5rem;
+}
+
+.add-user-auth-row {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.add-user-auth-row .sow-input {
+    flex: 1;
+}
+
+.add-user-auth-divider {
+    display: flex;
+    align-items: center;
+    margin: 0.75rem 0;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.75rem;
+}
+
+.add-user-auth-divider::before,
+.add-user-auth-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.add-user-auth-divider span {
+    padding: 0 0.75rem;
 }
 
 /* Dropdown Container */
@@ -5438,7 +5564,9 @@ body.modal-open .custom-cursor {
 
 /* Dashboard Tabs Container */
 .dashboard-tabs {
-    margin-top: .8rem;
+    margin-top: .55rem;
+    margin-bottom: 1.5rem;
+
 }
 
 @media (max-width: 480px) {
@@ -5597,6 +5725,13 @@ body.modal-open .custom-cursor {
 }
 .btn-create-sow .btn-icon {
     font-size: 1rem;
+}
+
+.empty-state-small {
+    padding: 1rem;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.4);
+    font-size: 0.875rem;
 }
 
 /* SOW List Grid */
@@ -5765,7 +5900,7 @@ body.modal-open .custom-cursor {
 /* Empty States */
 .empty-state {
     text-align: center;
-    padding: 3rem 2rem;
+    padding: 1rem 1.5rem;
     background: rgba(255, 255, 255, 0.02);
     border-radius: 12px;
     border: 1px dashed rgba(255, 255, 255, 0.1);
