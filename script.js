@@ -5776,6 +5776,14 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     var milestone1 = totalPrice * 0.25;
     var finalPayment = totalPrice * 0.25;
 
+    // Extract pricing breakdown if available
+    var breakdown = (sowData && sowData.payment && sowData.payment.breakdown) ? sowData.payment.breakdown : null;
+    var basePrice = breakdown ? breakdown.basePrice : totalPrice;
+    var addOns = breakdown ? breakdown.addOns : [];
+    var discounts = breakdown ? breakdown.discounts : [];
+    var ecommerceOption = breakdown ? breakdown.ecommerceOption : null;
+    var ecommercePrice = breakdown ? breakdown.ecommercePrice : 0;
+
     // Format dates
     var generatedDate = new Date().toLocaleDateString('en-US', {
         year: 'numeric',
@@ -5785,7 +5793,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     var formattedStartDate = startDate ?
         new Date(startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) :
-        'To be determined upon contract execution';
+        'To be determined';
 
     // Open new window for PDF
     var printWindow = window.open('', '_blank');
@@ -5802,15 +5810,16 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<style>' +
     '* { margin: 0; padding: 0; box-sizing: border-box; }' +
     'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.35; color: #000; background: #fff; padding: 0.5in 0.75in; }' +
-    'h1 { font-size: 16pt; text-align: center; margin-bottom: 4px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
+    '.sow-container { max-width: 750px; margin: 0 auto; }' +
+    'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
     'h2 { font-size: 10pt; margin-top: 12px; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 2px; }' +
     'h3 { font-size: 10pt; margin-top: 8px; margin-bottom: 4px; font-weight: bold; }' +
     'p { margin-bottom: 6px; text-align: justify; }' +
     'ul, ol { margin-left: 20px; margin-bottom: 6px; }' +
     'li { margin-bottom: 2px; }' +
-    '.header { text-align: center; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid #000; }' +
-    '.subtitle { font-size: 10pt; margin-top: 4px; font-style: italic; }' +
-    '.meta-date { font-size: 8pt; margin-top: 4px; font-style: italic; }' +
+    '.header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000; }' +
+    '.subtitle { font-size: 11pt; margin-top: 6px; font-style: italic; }' +
+    '.meta-date { font-size: 9pt; margin-top: 6px; font-style: italic; }' +
     '.info-box { padding: 8px 12px; border: 1px solid #000; border-left: 3px solid #000; margin: 8px 0; }' +
     '.info-box h3 { margin-top: 0; }' +
     '.info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 15px; margin-top: 6px; }' +
@@ -5854,11 +5863,12 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '.maintenance-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid #000; margin-bottom: 6px; }' +
     '.maintenance-name { font-weight: bold; font-size: 10pt; }' +
     '.maintenance-price { font-weight: bold; }' +
-    '.logo { max-width: 180px; max-height: 60px; margin-bottom: 10px; }' +
+    '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
     '@media print { body { padding: 0.4in 0.6in; } }' +
     '@page { margin: 0.5in 0.75in; size: letter; }' +
     '</style>' +
     '</head><body>' +
+    '<div class="sow-container">' +
 
     // HEADER
     '<div class="header">' +
@@ -5882,7 +5892,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<div class="info-item"><strong>Contact Email:</strong> ' + clientEmail + '</div>' +
     '<div class="info-item"><strong>Package Selected:</strong> ' + packageInfo.name + '</div>' +
     '<div class="info-item"><strong>Estimated Timeline:</strong> ' + estimatedWeeks + ' weeks</div>' +
-    '<div class="info-item"><strong>Project Start Date:</strong> ' + formattedStartDate + '</div>' +
+    '<div class="info-item"><strong>Estimated Final Revision:</strong> ' + formattedStartDate + '</div>' +
     '<div class="info-item"><strong>SOW Reference:</strong> ' + sowId + '</div>' +
     '</div>' +
     '</div>' +
@@ -5958,6 +5968,61 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     '</div>' +
     '<p style="font-size: 9pt; font-style: italic; margin-top: 6px;">Timeline is an estimate. See Agreement Section 8 for terms.</p>' +
+    '</div>';
+
+    sectionNum++;
+
+    // PRICING SUMMARY (individualized breakdown)
+    htmlContent += '<div class="section">' +
+    '<h2>' + sectionNum + '. Pricing Summary</h2>' +
+    '<table class="payment-table" style="width: 100%;">' +
+    '<tbody>';
+
+    // Base package
+    htmlContent += '<tr>' +
+    '<td style="width: 70%;"><strong>' + packageInfo.name + '</strong></td>' +
+    '<td style="width: 30%; text-align: right;"><strong>$' + basePrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '</tr>';
+
+    // Add-ons
+    if (addOns && addOns.length > 0) {
+        addOns.forEach(function(addon) {
+            htmlContent += '<tr>' +
+            '<td>' + addon.label + '</td>' +
+            '<td style="text-align: right; color: #2e7d32;">+$' + addon.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+            '</tr>';
+        });
+    }
+
+    // E-commerce option
+    if (ecommerceOption && ecommerceOption !== 'none' && ecommercePrice > 0) {
+        var ecommerceLabels = {
+            'basic_cart': 'Basic E-Commerce Setup',
+            'full_store': 'Full E-Commerce Store'
+        };
+        htmlContent += '<tr>' +
+        '<td>' + (ecommerceLabels[ecommerceOption] || 'E-Commerce') + '</td>' +
+        '<td style="text-align: right; color: #2e7d32;">+$' + ecommercePrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+        '</tr>';
+    }
+
+    // Discounts (removed features)
+    if (discounts && discounts.length > 0) {
+        discounts.forEach(function(discount) {
+            htmlContent += '<tr>' +
+            '<td>' + discount.label + ' <span style="font-size: 8pt; color: #666;">(removed)</span></td>' +
+            '<td style="text-align: right; color: #c62828;">-$' + discount.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+            '</tr>';
+        });
+    }
+
+    // Total row
+    htmlContent += '<tr style="border-top: 2px solid #333;">' +
+    '<td><strong>TOTAL</strong></td>' +
+    '<td style="text-align: right;"><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '</tr>' +
+    '</tbody>' +
+    '</table>' +
     '</div>';
 
     sectionNum++;
@@ -6109,6 +6174,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<p class="sow-id">SOW: ' + sowId + ' | Generated: ' + new Date().toLocaleString() + '</p>' +
     '<p style="font-size: 7pt; font-style: italic;">Valid for 30 days. Must be signed with the Website Development Agreement.</p>' +
     '</div>' +
+
+    '</div>' + // Close sow-container
 
     '<script>' +
     'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
@@ -8595,6 +8662,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<style>' +
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
         'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
+        '.contract-container { max-width: 750px; margin: 0 auto; }' +
         'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
         'h2 { font-size: 11pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
         'h3 { font-size: 10.5pt; margin-top: 14px; margin-bottom: 6px; font-weight: bold; }' +
@@ -8624,6 +8692,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '@page { margin: 0.75in 1in; size: letter; }' +
         '</style>' +
         '</head><body>' +
+        '<div class="contract-container">' +
 
         // HEADER
         '<div class="header">' +
@@ -8758,6 +8827,8 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<p class="contract-id">Contract ID: ' + (contractId || 'DRAFT') + '</p>' +
         '<p class="contract-id">Generated: ' + new Date().toLocaleString() + '</p>' +
         '</div>' +
+
+        '</div>' + // Close contract-container
 
         '<script>' +
         'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
