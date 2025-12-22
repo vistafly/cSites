@@ -3060,6 +3060,70 @@ ContractFormHandler.prototype.closeChangeRequestModal = function() {
     this.currentChangeRequestSOW = null;
 };
 
+// ============================================================
+// PRICING COMPARISON MODAL
+// ============================================================
+ContractFormHandler.prototype.showPricingComparisonModal = function() {
+    // Remove existing modal if any
+    var existingModal = document.getElementById('pricingComparisonModal');
+    if (existingModal) existingModal.remove();
+
+    // Create modal overlay
+    var overlay = document.createElement('div');
+    overlay.id = 'pricingComparisonModal';
+    overlay.className = 'pricing-comparison-modal-overlay';
+    overlay.innerHTML =
+        '<div class="pricing-comparison-modal">' +
+            '<div class="pricing-comparison-modal-header">' +
+                '<h3>2025 Web Development Pricing Guide</h3>' +
+                '<button class="pricing-comparison-modal-close" id="closePricingModal">&times;</button>' +
+            '</div>' +
+            '<div class="pricing-comparison-modal-body">' +
+                '<iframe src="/pricing-comparison1.html" title="Industry Pricing Comparison"></iframe>' +
+            '</div>' +
+        '</div>';
+
+    document.body.appendChild(overlay);
+
+    // Trigger animation
+    requestAnimationFrame(function() {
+        overlay.classList.add('active');
+    });
+
+    // Close button handler
+    var closeBtn = document.getElementById('closePricingModal');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            overlay.classList.remove('active');
+            setTimeout(function() {
+                overlay.remove();
+            }, 300);
+        });
+    }
+
+    // Click outside to close
+    overlay.addEventListener('click', function(e) {
+        if (e.target === overlay) {
+            overlay.classList.remove('active');
+            setTimeout(function() {
+                overlay.remove();
+            }, 300);
+        }
+    });
+
+    // Escape key to close
+    var escHandler = function(e) {
+        if (e.key === 'Escape') {
+            overlay.classList.remove('active');
+            setTimeout(function() {
+                overlay.remove();
+            }, 300);
+            document.removeEventListener('keydown', escHandler);
+        }
+    };
+    document.addEventListener('keydown', escHandler);
+};
+
 ContractFormHandler.prototype.submitChangeRequest = function() {
     var self = this;
     var sowData = this.currentChangeRequestSOW;
@@ -3889,11 +3953,11 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">📦</span> Package Tier</h5>' +
         '<select id="sowPackage" class="sow-select">' +
         '<option value="">Select a package tier...</option>' +
-        '<option value="basic">Basic — Landing Page ($400 - $1,000)</option>' +
-        '<option value="starter">Tier 1 — Starter ($2,500 - $3,500)</option>' +
-        '<option value="professional">Tier 2 — Professional ($5,000 - $8,000)</option>' +
-        '<option value="premium">Tier 3 — Premium ($8,000 - $12,000)</option>' +
-        '<option value="elite">Tier 4 — Elite Web Application ($10,000 - $20,000+)</option>' +
+        '<option value="basic">Basic — Landing Page ($800 - $1,800)</option>' +
+        '<option value="starter">Tier 1 — Starter ($2,800 - $4,500)</option>' +
+        '<option value="professional">Tier 2 — Professional ($5,500 - $9,000)</option>' +
+        '<option value="premium">Tier 3 — Premium ($9,000 - $15,000)</option>' +
+        '<option value="elite">Tier 4 — Elite Web Application ($15,000 - $28,000)</option>' +
         '<option value="custom">Custom Quote (Manual Entry)</option>' +
         '</select>' +
         
@@ -3916,60 +3980,54 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<div class="sow-form-section">' +
         '<h5><span class="section-icon">✨</span> Features & Deliverables</h5>' +
         '<div class="sow-checkboxes">' +
-        
-        // Core Features
+
+        // Standard Features
         '<div class="feature-group">' +
-        '<p class="feature-group-title">Core Features</p>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="responsive_design" /> Responsive Design (Mobile + Desktop)</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="custom_ui" /> Custom UI/UX Design</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="animations" /> Smooth Animations & Transitions</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="seo_optimization" /> SEO Optimization</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="analytics" /> Analytics Integration</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="performance" /> Performance Optimization</label>' +
+        '<p class="feature-group-title">Standard Features</p>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="responsive_design" /> Cross-Device Optimization (Mobile, Tablet, Desktop)</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="custom_ui" /> Brand-Matched Design System</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="animations" /> Scroll & Micro-Interactions</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="seo_optimization" /> Technical SEO Setup (Meta, Sitemap, Schema)</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="analytics" /> GA4 + Custom Event Tracking</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="contact_forms" /> Multi-Step Contact Forms</label>' +
         '</div>' +
-        
-        // Backend & Auth
+
+        // Premium Add-ons
         '<div class="feature-group">' +
-        '<p class="feature-group-title">Backend & Authentication</p>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="firebase_auth" /> Firebase Authentication <span class="third-party-note">+ Firebase costs</span></label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="firebase_db" /> Firebase Database (Firestore) <span class="third-party-note">+ Firebase costs</span></label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="user_profiles" /> User Profiles & Dashboards</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="user_roles" /> User Roles & Permissions</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="file_storage" /> Firebase Storage (File Uploads) <span class="third-party-note">+ Firebase costs</span></label>' +
+        '<p class="feature-group-title">Premium Add-ons</p>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="firebase_auth" /> User Authentication System <span class="third-party-note">+ Firebase costs</span></label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="firebase_db" /> Database & Data Management <span class="third-party-note">+ Firebase costs</span></label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="user_profiles" /> Client Portal / User Dashboard</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="file_storage" /> Media Upload System <span class="third-party-note">+ Firebase costs</span></label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="api_integration" /> Third-Party Integrations (CRM, Zapier, etc.)</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="email_integration" /> Email Notifications (SendGrid) <span class="third-party-note">+ SendGrid costs</span></label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="music_media" /> Audio/Video Player Integration</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="booking_basic" /> Scheduling & Booking System</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="newsletter" /> Email Capture & Lead Forms</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="social_feed" /> Social Media Feed Integration</label>' +
         '</div>' +
-        
-        // Advanced Features
+
+        // Enterprise Features
         '<div class="feature-group">' +
-        '<p class="feature-group-title">Advanced Features</p>' +
+        '<p class="feature-group-title">Enterprise Features</p>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="user_roles" /> Role-Based Access Control</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="cms_integration" /> Content Management System</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="booking_system" /> Advanced Booking + Availability</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="blog" /> Blog/News Module</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="gallery" /> Media Gallery System</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="notifications" /> In-App Notifications</label>' +
+        '</div>' +
+
+        // E-Commerce Options
+        '<div class="feature-group">' +
+        '<p class="feature-group-title">E-Commerce Options</p>' +
         '<div class="ecommerce-radio-group">' +
-        '<p class="radio-group-label">E-Commerce Functionality:</p>' +
-        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="none" checked /> None</label>' +
-        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="basic_cart" /> Basic Shopping Cart (+$2,500) <span class="third-party-note">+ Stripe fees</span></label>' +
-        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="full_store" /> Full E-Commerce Store (+$5,000) <span class="third-party-note">+ Stripe fees</span></label>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="none" checked /> No E-Commerce</label>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="basic_cart" /> Basic E-Commerce Setup (+$2,500 - $4,000) <span class="third-party-note">+ Stripe fees</span></label>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="full_store" /> Full E-Commerce Store (+$6,000 - $12,000) <span class="third-party-note">+ Stripe fees</span></label>' +
         '</div>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="booking_system" /> Custom Booking System</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="api_integration" /> API Integrations (CRM, Mailing, etc.)</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="cms_integration" /> CMS Integration</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="blog" /> Blog/News Section</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="gallery" /> Image/Video Gallery</label>' +
         '</div>' +
-        
-        // Forms & Communication
-        '<div class="feature-group">' +
-        '<p class="feature-group-title">Forms & Communication</p>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="contact_forms" /> Custom Contact Forms</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="email_integration" /> Email Integration (SendGrid, etc.) <span class="third-party-note">+ SendGrid costs</span></label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="notifications" /> Push Notifications</label>' +
-        '</div>' +
-        
-        // Deployment & Security
-        '<div class="feature-group">' +
-        '<p class="feature-group-title">Deployment & Security</p>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="hosting" /> Hosting Setup & Deployment <span class="third-party-note">+ Monthly hosting costs</span></label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="ssl" /> SSL Certificate & Security</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="domain" /> Custom Domain Configuration <span class="third-party-note">+ Annual domain costs</span></label>' +
-        '</div>' +
-        
+
         '</div>' +
         '</div>' +
         
@@ -3984,9 +4042,9 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">🔧</span> Ongoing Maintenance Plan</h5>' +
         '<select id="sowMaintenance" class="sow-select" required>' +
         '<option value="">Select a maintenance plan...</option>' +
-        '<option value="basic" selected>Basic — $100-$150/month (Minor updates/tweaks)</option>' +
-        '<option value="professional">Professional — $200-$350/month (Semi-continuous code edits)</option>' +
-        '<option value="premium">Premium — $500-$800/month (Priority support, monthly components, SEO)</option>' +
+        '<option value="basic" selected>Basic Care — $125-$200/month (2-3 hrs/mo)</option>' +
+        '<option value="professional">Professional Care — $275-$425/month (4-6 hrs/mo)</option>' +
+        '<option value="premium">Premium Care — $550-$900/month (8-12 hrs/mo)</option>' +
         '</select>' +
         '</div>' +
         
@@ -4021,7 +4079,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<div class="pricing-divider"></div>' +
         '<div class="pricing-row maintenance-row" id="maintenanceRow">' +
         '<span>Monthly Maintenance:</span>' +
-        '<span id="sowMaintenanceCalc" class="price-value">$100-$150/month</span>' +
+        '<span id="sowMaintenanceCalc" class="price-value">$125-$200/month</span>' +
         '</div>' +
         '</div>' +
         '</div>' +
@@ -4040,67 +4098,66 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     
     var self = this;
     
-    // Package pricing map (updated to match 2025 pricing guide)
+    // Package pricing map (2025 Scarlo Pricing Guide)
     var packagePricing = {
-        'basic': { min: 400, max: 1000, default: 700 },
-        'starter': { min: 2500, max: 3500, default: 3000 },
-        'professional': { min: 5000, max: 8000, default: 6500 },
-        'premium': { min: 8000, max: 12000, default: 10000 },
-        'elite': { min: 10000, max: 20000, default: 15000 }
+        'basic': { min: 800, max: 1800, default: 1300 },
+        'starter': { min: 2800, max: 4500, default: 3650 },
+        'professional': { min: 5500, max: 9000, default: 7250 },
+        'premium': { min: 9000, max: 15000, default: 12000 },
+        'elite': { min: 15000, max: 28000, default: 21500 }
     };
-    
+
     var maintenancePricing = {
         'none': 0,
-        'basic': 125,
-        'professional': 275,
-        'premium': 650
+        'basic': 162,      // $125-$200/mo avg
+        'professional': 350, // $275-$425/mo avg
+        'premium': 725      // $550-$900/mo avg
     };
 
-    // Feature pricing based on complexity
+    // Feature pricing based on complexity (Fresno, CA market rates)
     var featurePricing = {
-        // Core Features
-        'responsive_design': { default: 250, thirdParty: false },
-        'custom_ui': { default: 500, thirdParty: false },
-        'animations': { default: 325, thirdParty: false },
-        'seo_optimization': { default: 250, thirdParty: false },
-        'analytics': { default: 200, thirdParty: false },
-        'performance': { default: 275, thirdParty: false },
-        // Backend & Auth
-        'firebase_auth': { default: 425, thirdParty: true, note: 'Firebase costs' },
-        'firebase_db': { default: 500, thirdParty: true, note: 'Firebase costs' },
-        'user_profiles': { default: 650, thirdParty: false },
-        'user_roles': { default: 500, thirdParty: false },
-        'file_storage': { default: 375, thirdParty: true, note: 'Firebase Storage costs' },
-        // Advanced
-        'booking_system': { default: 1150, thirdParty: false },
-        'api_integration': { default: 550, thirdParty: false },
-        'cms_integration': { default: 650, thirdParty: false },
-        'blog': { default: 500, thirdParty: false },
-        'gallery': { default: 400, thirdParty: false },
-        // Forms & Communication
-        'contact_forms': { default: 275, thirdParty: false },
-        'email_integration': { default: 400, thirdParty: true, note: 'SendGrid costs' },
-        'notifications': { default: 425, thirdParty: false },
-        // Deployment
-        'hosting': { default: 275, thirdParty: true, note: 'Monthly hosting costs' },
-        'ssl': { default: 200, thirdParty: false },
-        'domain': { default: 150, thirdParty: true, note: 'Annual domain costs' }
+        // Standard Features
+        'responsive_design': { default: 200, thirdParty: false },
+        'custom_ui': { default: 450, thirdParty: false },
+        'animations': { default: 275, thirdParty: false },
+        'seo_optimization': { default: 200, thirdParty: false },
+        'analytics': { default: 175, thirdParty: false },
+        'contact_forms': { default: 250, thirdParty: false },
+        // Premium Add-ons
+        'firebase_auth': { default: 350, thirdParty: true, note: 'Firebase costs' },
+        'firebase_db': { default: 425, thirdParty: true, note: 'Firebase costs' },
+        'user_profiles': { default: 550, thirdParty: false },
+        'file_storage': { default: 300, thirdParty: true, note: 'Firebase costs' },
+        'api_integration': { default: 450, thirdParty: false },
+        'email_integration': { default: 325, thirdParty: true, note: 'SendGrid costs' },
+        'music_media': { default: 275, thirdParty: false },
+        'booking_basic': { default: 400, thirdParty: false },
+        'newsletter': { default: 200, thirdParty: false },
+        'social_feed': { default: 250, thirdParty: false },
+        // Enterprise Features
+        'user_roles': { default: 450, thirdParty: false },
+        'cms_integration': { default: 550, thirdParty: false },
+        'booking_system': { default: 950, thirdParty: false },
+        'blog': { default: 400, thirdParty: false },
+        'gallery': { default: 325, thirdParty: false },
+        'notifications': { default: 350, thirdParty: false }
     };
 
-    // E-Commerce radio options (updated to match 2025 pricing guide)
+    // E-Commerce radio options (2025 Scarlo Pricing Guide)
     var ecommercePricing = {
         'none': { price: 0, label: 'No E-Commerce' },
-        'basic_cart': { price: 2500, label: 'Basic Shopping Cart', thirdParty: true, note: 'Stripe fees' },
-        'full_store': { price: 5000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }
+        'basic_cart': { price: 3250, label: 'Basic E-Commerce Setup', thirdParty: true, note: 'Stripe fees' },  // $2,500-$4,000
+        'full_store': { price: 9000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $6,000-$12,000
     };
 
     // Package-feature mapping (what's included in each package)
+    // Note: hosting, ssl, domain are now included free in all packages (not listed as features)
     var packageIncludedFeatures = {
         'basic': ['responsive_design'],
-        'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms', 'ssl'],
-        'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'contact_forms', 'ssl', 'hosting'],
-        'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_system', 'api_integration', 'contact_forms', 'email_integration', 'hosting', 'ssl', 'domain'],
-        'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'hosting', 'ssl', 'domain'],
+        'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms'],
+        'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
+        'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_basic', 'api_integration', 'contact_forms', 'email_integration', 'newsletter', 'social_feed', 'music_media'],
+        'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'newsletter', 'social_feed', 'music_media'],
         'custom': []
     };
 
@@ -5491,22 +5548,47 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     // Package definitions (comprehensive)
     var packageDefinitions = {
+        'basic': {
+            name: 'Basic — Landing Page',
+            priceRange: '$800 - $1,800',
+            defaultPrice: 1300,
+            timeline: '1-2 weeks',
+            description: 'Simple, effective landing page for establishing your online presence quickly.',
+            includes: [
+                'Single-page landing page design',
+                'Cross-device optimization (mobile, tablet, desktop)',
+                'Clean, modern layout',
+                'Basic contact form',
+                'Social media links',
+                'SSL certificate setup',
+                '1 round of revisions',
+                '14-day post-launch support'
+            ],
+            notIncluded: [
+                'Custom animations or interactions',
+                'SEO optimization',
+                'Analytics integration',
+                'User authentication',
+                'Database functionality',
+                'Ongoing maintenance'
+            ]
+        },
         'starter': {
             name: 'Tier 1 — Starter Package',
-            priceRange: '$2,500 - $3,500',
-            defaultPrice: 3000,
+            priceRange: '$2,800 - $4,500',
+            defaultPrice: 3650,
             timeline: '2-3 weeks',
             description: 'Perfect for individuals and small businesses needing a professional online presence.',
             includes: [
                 'Single-page custom React/Next.js website',
-                'Clean, modern UI/UX design',
-                'Fully mobile responsive layout',
-                'Light animations and transitions',
-                'Custom contact form with email integration',
-                'Basic analytics integration (Google Analytics)',
-                'SEO-friendly structure',
+                'Brand-matched design system',
+                'Cross-device optimization (mobile, tablet, desktop)',
+                'Scroll animations & micro-interactions',
+                'Multi-step contact forms',
+                'GA4 + custom event tracking',
+                'Technical SEO setup (meta tags, sitemap, schema)',
                 'Social media links integration',
-                'SSL certificate setup',
+                'SSL certificate & hosting included',
                 '2 rounds of revisions per milestone',
                 '30-day post-launch support'
             ],
@@ -5520,25 +5602,25 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'professional': {
             name: 'Tier 2 — Professional Package',
-            priceRange: '$5,000 - $8,000',
-            defaultPrice: 6500,
+            priceRange: '$5,500 - $9,000',
+            defaultPrice: 7250,
             timeline: '4-6 weeks',
             description: 'Ideal for growing businesses requiring dynamic functionality and user engagement features.',
             includes: [
                 'Multi-section single-page application (SPA)',
-                'Fully custom UI/UX design and layout',
+                'Brand-matched design system with component library',
                 'Dynamic content sections',
-                'Smooth scroll animations and micro-interactions',
+                'Scroll animations & micro-interactions',
                 'Firebase Authentication (email/password)',
                 'Basic user session management',
-                'Performance optimization (lazy loading, code splitting)',
-                'Advanced SEO setup with meta tags and sitemap',
-                'Google Analytics and event tracking',
-                'Custom forms with validation and logic',
-                'Integration with one third-party service (e.g., Mailchimp, Calendly)',
+                'Technical SEO setup (meta, sitemap, schema)',
+                'GA4 + custom event tracking',
+                'Multi-step forms with validation',
+                'Email capture & newsletter integration',
+                'Integration with one third-party service',
+                'SSL certificate & hosting included',
                 '4 rounds of revisions',
-                '1 month of included support',
-                'Deployment to production environment'
+                '1 month of included support'
             ],
             notIncluded: [
                 'Full user dashboard systems',
@@ -5550,55 +5632,53 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'premium': {
             name: 'Tier 3 — Premium Package',
-            priceRange: '$8,000 - $12,000',
-            defaultPrice: 10000,
+            priceRange: '$9,000 - $15,000',
+            defaultPrice: 12000,
             timeline: '6-10 weeks',
             description: 'Comprehensive solution for businesses requiring user management, booking systems, and advanced functionality.',
             includes: [
                 'Everything in Professional Package',
                 'Full Firebase backend (Auth, Firestore, Storage)',
+                'Client portal / user dashboard',
                 'User profiles with authentication',
-                'Limited multi-user login capability',
-                'Custom booking/scheduling system',
-                'Custom dashboard components',
-                'Advanced UI animations and effects',
-                'Multiple API integrations (CRMs, mailing lists, payment gateways)',
-                'File upload functionality',
-                'Email notification system',
-                'Admin panel for content management',
+                'Scheduling & booking system',
+                'Audio/video player integration',
+                'Social media feed integration',
+                'Multiple API integrations (CRMs, Zapier, etc.)',
+                'Media upload system',
+                'Email notifications (SendGrid)',
+                'SSL certificate & hosting included',
                 'Priority support response (24-48 hours)',
-                '2 months of included maintenance',
-                'Performance monitoring setup'
+                '2 months of included maintenance'
             ],
             notIncluded: [
                 'Full multi-tenant SaaS architecture',
-                'Complex role-based access control (RBAC)',
+                'Role-based access control (RBAC)',
                 'Custom mobile applications',
-                'Machine learning or AI integrations',
-                'Real-time collaboration features'
+                'Advanced booking with availability management',
+                'Content management system'
             ]
         },
         'elite': {
             name: 'Tier 4 — Elite Web Application',
-            priceRange: '$10,000 - $20,000+',
-            defaultPrice: 15000,
+            priceRange: '$15,000 - $28,000',
+            defaultPrice: 21500,
             timeline: '10-16 weeks',
             description: 'Enterprise-grade web application with full backend infrastructure, user management, and scalable architecture.',
             includes: [
+                'Everything in Premium Package',
                 'Multi-page Next.js application with routing',
-                'Full Firebase backend infrastructure',
-                'Complete authentication system (email, social, phone)',
-                'Multi-user login with full profile management',
                 'Role-based access control (admin, user, etc.)',
+                'Content management system',
+                'Advanced booking + availability management',
+                'Blog/news module',
+                'Media gallery system',
+                'In-app notifications',
                 'Custom user dashboards and analytics',
-                'Backend automation and scheduled tasks',
-                'Comprehensive API integrations',
-                'Full custom UI/UX design system',
                 'Scalable, production-ready architecture',
                 'Database design and optimization',
                 'Security best practices implementation',
-                'Automated testing setup',
-                'CI/CD pipeline configuration',
+                'SSL certificate & hosting included',
                 'Documentation and training materials',
                 '3 months of premium maintenance included',
                 'Dedicated support channel'
@@ -5629,11 +5709,11 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
             includes: []
         },
         'basic': {
-            name: 'Basic Maintenance',
-            price: '$100-$150/month',
-            description: 'Ideal for websites requiring occasional updates and minor adjustments.',
+            name: 'Basic Care',
+            price: '$125-$200/month',
+            description: 'Ideal for websites requiring occasional updates and minor adjustments (2-3 hrs/month).',
             includes: [
-                'Minor text and image updates (up to 2 hours/month)',
+                'Minor text and image updates (up to 2-3 hours/month)',
                 'Security updates and patches',
                 'Uptime monitoring',
                 'Monthly backup verification',
@@ -5642,12 +5722,12 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
             ]
         },
         'professional': {
-            name: 'Professional Maintenance',
-            price: '$200-$350/month',
-            description: 'For businesses requiring regular updates and more hands-on support.',
+            name: 'Professional Care',
+            price: '$275-$425/month',
+            description: 'For businesses requiring regular updates and more hands-on support (4-6 hrs/month).',
             includes: [
-                'Everything in Basic',
-                'Content updates (up to 5 hours/month)',
+                'Everything in Basic Care',
+                'Content updates (up to 4-6 hours/month)',
                 'Performance optimization',
                 'Analytics review and recommendations',
                 'Priority email support (24-48 hour response)',
@@ -5657,13 +5737,13 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
             ]
         },
         'premium': {
-            name: 'Premium Maintenance',
-            price: '$500-$800/month',
-            description: 'Comprehensive support for mission-critical websites and applications.',
+            name: 'Premium Care',
+            price: '$550-$900/month',
+            description: 'Comprehensive support for mission-critical websites and applications (8-12 hrs/month).',
             includes: [
-                'Everything in Professional',
+                'Everything in Professional Care',
                 'Priority support (same-day response)',
-                'New component development (up to 8 hours/month)',
+                'New component development (up to 8-12 hours/month)',
                 'SEO optimization and monitoring',
                 'A/B testing setup and analysis',
                 'Dedicated support channel (Slack/Discord)',
@@ -5774,6 +5854,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '.maintenance-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid #000; margin-bottom: 6px; }' +
     '.maintenance-name { font-weight: bold; font-size: 10pt; }' +
     '.maintenance-price { font-weight: bold; }' +
+    '.logo { max-width: 180px; max-height: 60px; margin-bottom: 10px; }' +
     '@media print { body { padding: 0.4in 0.6in; } }' +
     '@page { margin: 0.5in 0.75in; size: letter; }' +
     '</style>' +
@@ -5781,6 +5862,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     // HEADER
     '<div class="header">' +
+    '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
     '<h1>Statement of Work</h1>' +
     '<div class="subtitle">Scarlo — Professional Web Development</div>' +
     '<div class="meta-date">Document Generated: ' + generatedDate + '</div>' +
@@ -6121,55 +6203,61 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             fields.maintenance.value = sow.maintenancePlan || 'none';
         }
 
-        // Pricing data structures
+        // Pricing data structures (2025 Scarlo Pricing Guide)
         var packagePricing = {
-            'basic': { min: 400, max: 1000, default: 700 },
-            'starter': { min: 2500, max: 3500, default: 3000 },
-            'professional': { min: 5000, max: 8000, default: 6500 },
-            'premium': { min: 8000, max: 12000, default: 10000 },
-            'elite': { min: 10000, max: 20000, default: 15000 }
+            'basic': { min: 800, max: 1800, default: 1300 },
+            'starter': { min: 2800, max: 4500, default: 3650 },
+            'professional': { min: 5500, max: 9000, default: 7250 },
+            'premium': { min: 9000, max: 15000, default: 12000 },
+            'elite': { min: 15000, max: 28000, default: 21500 }
         };
         var maintenancePricing = {
             'none': 0,
-            'basic': 125,
-            'professional': 275,
-            'premium': 650
+            'basic': 162,       // $125-$200/mo avg
+            'professional': 350, // $275-$425/mo avg
+            'premium': 725       // $550-$900/mo avg
         };
+        // Feature pricing based on complexity (Fresno, CA market rates)
         var featurePricing = {
-            'responsive_design': { default: 250, thirdParty: false },
-            'custom_ui': { default: 500, thirdParty: false },
-            'animations': { default: 325, thirdParty: false },
-            'seo_optimization': { default: 250, thirdParty: false },
-            'analytics': { default: 200, thirdParty: false },
-            'performance': { default: 275, thirdParty: false },
-            'firebase_auth': { default: 425, thirdParty: true, note: 'Firebase costs' },
-            'firebase_db': { default: 500, thirdParty: true, note: 'Firebase costs' },
-            'user_profiles': { default: 650, thirdParty: false },
-            'user_roles': { default: 500, thirdParty: false },
-            'file_storage': { default: 375, thirdParty: true, note: 'Firebase Storage costs' },
-            'booking_system': { default: 1150, thirdParty: false },
-            'api_integration': { default: 550, thirdParty: false },
-            'cms_integration': { default: 650, thirdParty: false },
-            'blog': { default: 500, thirdParty: false },
-            'gallery': { default: 400, thirdParty: false },
-            'contact_forms': { default: 275, thirdParty: false },
-            'email_integration': { default: 400, thirdParty: true, note: 'SendGrid costs' },
-            'notifications': { default: 425, thirdParty: false },
-            'hosting': { default: 275, thirdParty: true, note: 'Monthly hosting costs' },
-            'ssl': { default: 200, thirdParty: false },
-            'domain': { default: 150, thirdParty: true, note: 'Annual domain costs' }
+            // Standard Features
+            'responsive_design': { default: 200, thirdParty: false },
+            'custom_ui': { default: 450, thirdParty: false },
+            'animations': { default: 275, thirdParty: false },
+            'seo_optimization': { default: 200, thirdParty: false },
+            'analytics': { default: 175, thirdParty: false },
+            'contact_forms': { default: 250, thirdParty: false },
+            // Premium Add-ons
+            'firebase_auth': { default: 350, thirdParty: true, note: 'Firebase costs' },
+            'firebase_db': { default: 425, thirdParty: true, note: 'Firebase costs' },
+            'user_profiles': { default: 550, thirdParty: false },
+            'file_storage': { default: 300, thirdParty: true, note: 'Firebase costs' },
+            'api_integration': { default: 450, thirdParty: false },
+            'email_integration': { default: 325, thirdParty: true, note: 'SendGrid costs' },
+            'music_media': { default: 275, thirdParty: false },
+            'booking_basic': { default: 400, thirdParty: false },
+            'newsletter': { default: 200, thirdParty: false },
+            'social_feed': { default: 250, thirdParty: false },
+            // Enterprise Features
+            'user_roles': { default: 450, thirdParty: false },
+            'cms_integration': { default: 550, thirdParty: false },
+            'booking_system': { default: 950, thirdParty: false },
+            'blog': { default: 400, thirdParty: false },
+            'gallery': { default: 325, thirdParty: false },
+            'notifications': { default: 350, thirdParty: false }
         };
+        // E-Commerce radio options (2025 Scarlo Pricing Guide)
         var ecommercePricing = {
             'none': { price: 0, label: 'No E-Commerce' },
-            'basic_cart': { price: 2500, label: 'Basic Shopping Cart', thirdParty: true, note: 'Stripe fees' },
-            'full_store': { price: 5000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }
+            'basic_cart': { price: 3250, label: 'Basic E-Commerce Setup', thirdParty: true, note: 'Stripe fees' },  // $2,500-$4,000
+            'full_store': { price: 9000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $6,000-$12,000
         };
+        // Package-feature mapping (hosting, ssl, domain included free in all packages)
         var packageIncludedFeatures = {
             'basic': ['responsive_design'],
-            'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms', 'ssl'],
-            'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'contact_forms', 'ssl', 'hosting'],
-            'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_system', 'api_integration', 'contact_forms', 'email_integration', 'hosting', 'ssl', 'domain'],
-            'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'performance', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'hosting', 'ssl', 'domain'],
+            'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms'],
+            'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
+            'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_basic', 'api_integration', 'contact_forms', 'email_integration', 'newsletter', 'social_feed', 'music_media'],
+            'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'newsletter', 'social_feed', 'music_media'],
             'custom': []
         };
 
@@ -7042,19 +7130,19 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
 
     var packageDetails = {
         'basic': {
-            includes: ['Single-page landing page', 'Mobile responsive design', 'Clean, modern layout']
+            includes: ['Single-page landing page', 'Cross-device optimization', 'Clean, modern layout', 'Basic contact form']
         },
         'starter': {
-            includes: ['1-page custom React/Next.js website', 'Clean, modern UI/UX', 'Mobile responsive', 'Light animations and transitions', 'Custom contact form', 'Simple analytics']
+            includes: ['1-page React/Next.js website', 'Brand-matched design system', 'Cross-device optimization', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Technical SEO setup']
         },
         'professional': {
-            includes: ['Fully custom UI/UX layout', 'Dynamic single-page application flow', 'Smooth animations', 'Firebase authentication', 'Performance optimization', 'SEO setup + analytics', 'Custom forms & logic', '4 rounds of revisions', '1 month of support included']
+            includes: ['Everything in Starter', 'Firebase Authentication', 'Email capture & newsletter', 'Multi-step forms with validation', '4 rounds of revisions', '1 month of support included']
         },
         'premium': {
-            includes: ['Everything in Professional', 'Firebase Authentication & Database', 'User Profiles (Auth. Limited Multi-User Login)', 'Custom booking systems and workflow logic', 'Custom dashboard components', 'Advanced UI animations', 'API integrations (CRMs, mailing lists, etc.)', 'Priority Support', '2 months of maintenance included']
+            includes: ['Everything in Professional', 'Full Firebase backend', 'Client portal / user dashboard', 'Scheduling & booking system', 'Audio/video player integration', 'Social media feed integration', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included']
         },
         'elite': {
-            includes: ['Multi-page Next.js application', 'Full Firebase backend (Auth, Firestore, Storage)', 'User Profiles (Auth. Multi-User Login)', 'User roles, permissions, dashboards', 'Backend automation & API integrations', 'Full custom UI/UX', 'Scalable architecture', '3 months of premium maintenance included']
+            includes: ['Everything in Premium', 'Role-based access control', 'Content management system', 'Advanced booking + availability', 'Blog/news module', 'Media gallery system', 'In-app notifications', '3 months of premium maintenance included']
         }
     };
 
@@ -7175,6 +7263,12 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
     if (addOns && addOns.some(function(a) { return a.thirdParty; })) {
         html += '<p class="third-party-note-text"><span class="third-party-indicator">*</span> These features may incur additional third-party costs (e.g., Firebase, Stripe, hosting, domain) which are billed separately by the respective providers.</p>';
     }
+
+    // View Industry Pricing button
+    html += '<button type="button" class="view-industry-pricing-btn" onclick="window.contractFormHandler.showPricingComparisonModal()">' +
+        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 13h2v-2H3v2zm0 4h2v-2H3v2zm0-8h2V7H3v2zm4 4h14v-2H7v2zm0 4h14v-2H7v2zM7 7v2h14V7H7z"/></svg>' +
+        'View Industry Pricing' +
+        '</button>';
 
     html += '</section>';
 
@@ -8525,6 +8619,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '.contract-id { font-size: 8pt; margin-top: 10px; font-style: italic; }' +
         '.important { font-weight: bold; text-transform: uppercase; }' +
         '.indented { margin-left: 25px; }' +
+        '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
         '@media print { body { padding: 0.5in 0.75in; } .signature-page { page-break-before: always; } }' +
         '@page { margin: 0.75in 1in; size: letter; }' +
         '</style>' +
@@ -8532,6 +8627,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
         // HEADER
         '<div class="header">' +
+        '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
         '<h1>Website Development Agreement</h1>' +
         '<div class="subtitle">Scarlo — Professional Web Development Services</div>' +
         '</div>' +
@@ -8739,9 +8835,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     
     var maintenanceDetails = {
         'none': { name: 'No Maintenance Plan', cost: '$0/month' },
-        'basic': { name: 'Basic Maintenance', cost: '$100-$150/month', desc: 'Minor updates/tweaks/editing of the code' },
-        'professional': { name: 'Professional Maintenance', cost: '$200-$350/month', desc: 'More labor intensive/semi-continuous code edits' },
-        'premium': { name: 'Premium Maintenance', cost: '$500-$800/month', desc: 'Priority support, new components monthly, SEO optimization' }
+        'basic': { name: 'Basic Care', cost: '$125-$200/month', desc: 'Minor updates, security patches (2-3 hrs/month)' },
+        'professional': { name: 'Professional Care', cost: '$275-$425/month', desc: 'Regular updates, performance optimization (4-6 hrs/month)' },
+        'premium': { name: 'Premium Care', cost: '$550-$900/month', desc: 'Priority support, new components, SEO optimization (8-12 hrs/month)' }
     };
     
     var maintenanceInfo = maintenanceDetails[sowData.maintenancePlan || 'none'] || maintenanceDetails['none'];
@@ -8780,6 +8876,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '.payment-table th { font-weight: bold; }' +
         '.total-row { font-weight: bold; font-size: 11pt; border-top: 2px solid #000; }' +
         '.highlight { font-weight: bold; }' +
+        '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
         '@media print { body { padding: 0.5in 0.75in; } .signature-page, .page-break { page-break-before: always; } }' +
         '@page { margin: 0.75in 1in; size: letter; }' +
         '</style>' +
@@ -8787,10 +8884,11 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
         // ==================== CONTRACT SECTION ====================
         '<div class="header">' +
+        '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
         '<h1>Website Development Agreement</h1>' +
         '<div class="subtitle">Scarlo — Professional Web Development Services</div>' +
         '</div>' +
-        
+
         '<div class="section">' +
         '<h2>PARTIES TO THE AGREEMENT</h2>' +
         '<p>This Website Development Agreement ("Agreement") is made effective as of <strong>' + clientDate + '</strong> (the "Effective Date") and is entered into by and between:</p>' +
@@ -8939,8 +9037,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
         // ==================== SOW SECTION (NEW PAGE) ====================
         '<div class="page-break"></div>' +
-        
+
         '<div class="header">' +
+        '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
         '<h1>STATEMENT OF WORK</h1>' +
         '<div class="subtitle">Scarlo — Professional Web Development</div>' +
         '<div style="font-size: 10pt; font-style: italic; margin-top: 10px;">Generated: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>' +

@@ -4815,12 +4815,15 @@ body.modal-open .custom-cursor {
     grid-template-columns: 1fr 1fr;
     gap: 1rem;
     margin-bottom: 1rem;
+    overflow: hidden;
 }
 
 .sow-input,
 .sow-select,
 .sow-textarea {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
     padding: 0.75rem 1rem;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid rgba(255, 255, 255, 0.15);
@@ -4829,6 +4832,13 @@ body.modal-open .custom-cursor {
     font-size: 1rem;
     font-family: var(--font-text);
     transition: all 0.3s ease;
+}
+
+/* Fix date inputs on mobile - prevent native browser styling overflow */
+.sow-input[type="date"] {
+    min-width: 0;
+    -webkit-appearance: none;
+    appearance: none;
 }
 
 .sow-input:focus,
@@ -5276,7 +5286,7 @@ body.modal-open .custom-cursor {
     padding: 0.5rem 0;
     cursor: pointer;
     color: rgba(255, 255, 255, 0.8);
-    font-size: 0.95rem;
+    font-size: 0.8rem;
     transition: all 0.2s ease;
 }
 
@@ -5450,7 +5460,8 @@ body.modal-open .custom-cursor {
     }
     
     .sow-input-group {
-        grid-template-columns: 1fr;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.5rem;
     }
     
     .sow-form-actions {
@@ -8113,4 +8124,131 @@ section.separator-visible::after {
 
 .third-party-note-text .third-party-indicator {
     margin-right: 0.25rem;
+}
+
+/* ============================================
+   PRICING COMPARISON MODAL & BUTTON
+   ============================================ */
+.view-industry-pricing-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+    padding: 0.625rem 1rem;
+    background: linear-gradient(135deg, rgba(228, 216, 196, 0.15) 0%, rgba(228, 216, 196, 0.05) 100%);
+    border: 1px solid rgba(228, 216, 196, 0.3);
+    border-radius: 6px;
+    color: var(--accent);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.view-industry-pricing-btn:hover {
+    background: linear-gradient(135deg, rgba(228, 216, 196, 0.25) 0%, rgba(228, 216, 196, 0.1) 100%);
+    border-color: rgba(228, 216, 196, 0.5);
+    transform: translateY(-1px);
+}
+
+.view-industry-pricing-btn svg {
+    width: 16px;
+    height: 16px;
+    fill: currentColor;
+}
+
+.pricing-comparison-modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.pricing-comparison-modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.pricing-comparison-modal {
+    position: relative;
+    width: 100%;
+    max-width: 950px;
+    height: 90vh;
+    max-height: 800px;
+    background: var(--dark);
+    border-radius: 12px;
+    border: 1px solid rgba(228, 216, 196, 0.2);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    transform: scale(0.95);
+    transition: transform 0.3s ease;
+}
+
+.pricing-comparison-modal-overlay.active .pricing-comparison-modal {
+    transform: scale(1);
+}
+
+.pricing-comparison-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid rgba(228, 216, 196, 0.15);
+    background: rgba(228, 216, 196, 0.05);
+}
+
+.pricing-comparison-modal-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--accent);
+}
+
+.pricing-comparison-modal-close {
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 1.5rem;
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.pricing-comparison-modal-close:hover {
+    color: var(--white);
+}
+
+.pricing-comparison-modal-body {
+    flex: 1;
+    overflow: hidden;
+}
+
+.pricing-comparison-modal-body iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+@media (max-width: 768px) {
+    .pricing-comparison-modal {
+        max-width: 100%;
+        height: 95vh;
+        border-radius: 8px;
+    }
+
+    .pricing-comparison-modal-overlay {
+        padding: 0.75rem;
+    }
 }
