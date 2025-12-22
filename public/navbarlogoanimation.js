@@ -1,5 +1,6 @@
-// Scarlo — Navbar Logo Animation
+// Scarlo — Navbar Logo & Text Animation
 // Seamless ping-pong loop (0→19→0→19...) for never-ending morph
+// Navbar logo, text, and footer logo animate in perfect sync
 
 (function() {
     'use strict';
@@ -8,38 +9,50 @@
 
     const CONFIG = {
         // Time per frame (ms)
-        frameInterval: 120,
-
-        // Faster on hover
-        hoverFrameInterval: 60
+        frameInterval: 120
     };
 
     class NavbarLogoAnimation {
         constructor() {
-            this.container = document.getElementById('navbarLogoAnimated');
+            this.logoContainer = document.getElementById('navbarLogoAnimated');
+            this.textContainer = document.getElementById('navbarTextAnimated');
             this.logoStack = document.getElementById('navbarLogoStack');
+            this.textStack = document.getElementById('navbarTextStack');
             this.brandContainer = document.getElementById('navbarBrand');
-            this.logos = [];
 
+            // Footer logo elements
+            this.footerLogoContainer = document.getElementById('footerLogoAnimated');
+            this.footerLogoStack = document.getElementById('footerLogoStack');
+
+            this.logos = [];
+            this.texts = [];
+            this.footerLogos = [];
+
+            // Collect logo frames
             for (let i = 0; i < TOTAL_FRAMES; i++) {
-                const el = document.getElementById('navLogo' + i);
-                if (el) this.logos.push(el);
+                const logoEl = document.getElementById('navLogo' + i);
+                if (logoEl) this.logos.push(logoEl);
+
+                const textEl = document.getElementById('navText' + i);
+                if (textEl) this.texts.push(textEl);
+
+                const footerLogoEl = document.getElementById('footerLogo' + i);
+                if (footerLogoEl) this.footerLogos.push(footerLogoEl);
             }
 
             this.currentIndex = 0;
             this.direction = 1; // 1 = forward, -1 = backward
-            this.isHovering = false;
             this.isRunning = false;
             this.animationFrameId = null;
             this.lastFrameTime = 0;
 
-            if (this.container && this.logoStack && this.logos.length > 0) {
+            if (this.logoContainer && this.logoStack && this.logos.length > 0) {
                 this.init();
             }
         }
 
         init() {
-            // Set all frames to hidden, show first
+            // Set all frames to hidden, show first - for logo, text, and footer
             this.logos.forEach((logo, i) => {
                 logo.classList.remove('visible');
                 if (i === 0) {
@@ -47,17 +60,21 @@
                 }
             });
 
+            this.texts.forEach((text, i) => {
+                text.classList.remove('visible');
+                if (i === 0) {
+                    text.classList.add('visible');
+                }
+            });
+
+            this.footerLogos.forEach((logo, i) => {
+                logo.classList.remove('visible');
+                if (i === 0) {
+                    logo.classList.add('visible');
+                }
+            });
+
             this.currentIndex = 0;
-
-            // Hover events - use parent brand container for unified hover
-            const hoverTarget = this.brandContainer || this.container;
-            hoverTarget.addEventListener('mouseenter', () => {
-                this.isHovering = true;
-            });
-
-            hoverTarget.addEventListener('mouseleave', () => {
-                this.isHovering = false;
-            });
 
             // Reset timing when tab becomes visible to prevent frame burst
             document.addEventListener('visibilitychange', () => {
@@ -71,6 +88,7 @@
         }
 
         showFrame(index) {
+            // Update logo frames
             this.logos.forEach((logo, i) => {
                 if (i === index) {
                     logo.classList.add('visible');
@@ -78,6 +96,25 @@
                     logo.classList.remove('visible');
                 }
             });
+
+            // Update text frames in sync
+            this.texts.forEach((text, i) => {
+                if (i === index) {
+                    text.classList.add('visible');
+                } else {
+                    text.classList.remove('visible');
+                }
+            });
+
+            // Update footer logo frames in sync
+            this.footerLogos.forEach((logo, i) => {
+                if (i === index) {
+                    logo.classList.add('visible');
+                } else {
+                    logo.classList.remove('visible');
+                }
+            });
+
             this.currentIndex = index;
         }
 
@@ -113,10 +150,9 @@
             const animate = (currentTime) => {
                 if (!this.isRunning) return;
 
-                const interval = this.isHovering ? CONFIG.hoverFrameInterval : CONFIG.frameInterval;
                 const elapsed = currentTime - this.lastFrameTime;
 
-                if (elapsed >= interval) {
+                if (elapsed >= CONFIG.frameInterval) {
                     this.nextFrame();
                     this.lastFrameTime = currentTime;
                 }

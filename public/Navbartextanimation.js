@@ -1,5 +1,5 @@
 // Scarlo — Navbar Text Animation
-// Seamless ping-pong loop (0→19→0→19...) for never-ending morph
+// Hover-only animation: static on load, morphs on hover, returns to frame 0
 
 (function() {
     'use strict';
@@ -7,11 +7,10 @@
     const TOTAL_FRAMES = 20;
 
     const CONFIG = {
-        // Time per frame (ms)
-        frameInterval: 120,
-
-        // Faster on hover
-        hoverFrameInterval: 60
+        // Time per frame during hover (ms)
+        hoverFrameInterval: 60,
+        // Time per frame when returning to start (ms)
+        returnFrameInterval: 40
     };
 
     class NavbarTextAnimation {
@@ -29,7 +28,7 @@
             this.currentIndex = 0;
             this.direction = 1; // 1 = forward, -1 = backward
             this.isHovering = false;
-            this.isRunning = false;
+            this.isAnimating = false;
             this.animationFrameId = null;
             this.lastFrameTime = 0;
 
@@ -39,14 +38,10 @@
         }
 
         init() {
-            // Set all frames to hidden except first (which should already be visible from HTML)
-            // Avoid removing 'visible' from first frame to prevent flicker
+            // Set all frames to hidden except first
             this.texts.forEach((text, i) => {
                 if (i === 0) {
-                    // Ensure first frame is visible without toggling
-                    if (!text.classList.contains('visible')) {
-                        text.classList.add('visible');
-                    }
+                    text.classList.add('visible');
                 } else {
                     text.classList.remove('visible');
                 }
@@ -58,21 +53,23 @@
             const hoverTarget = this.brandContainer || this.container;
             hoverTarget.addEventListener('mouseenter', () => {
                 this.isHovering = true;
+                this.direction = 1; // Always go forward on hover
+                this.startAnimation();
             });
 
             hoverTarget.addEventListener('mouseleave', () => {
                 this.isHovering = false;
+                // Animation will reverse back to frame 0
             });
 
-            // Reset timing when tab becomes visible to prevent frame burst
+            // Reset timing when tab becomes visible
             document.addEventListener('visibilitychange', () => {
                 if (!document.hidden) {
                     this.lastFrameTime = performance.now();
                 }
             });
 
-            // Start animation loop
-            this.startLoop();
+            // No animation on load - stays static at frame 0
         }
 
         showFrame(index) {
@@ -87,38 +84,49 @@
         }
 
         nextFrame() {
-            // Move to next frame
-            this.currentIndex += this.direction;
+            if (this.isHovering) {
+                // Move forward through frames while hovering
+                this.currentIndex += this.direction;
 
-            // Reverse direction at ends (ping-pong)
-            if (this.currentIndex >= this.texts.length - 1) {
-                this.currentIndex = this.texts.length - 1;
-                this.direction = -1;
-            } else if (this.currentIndex <= 0) {
-                this.currentIndex = 0;
-                this.direction = 1;
+                // Ping-pong at the ends
+                if (this.currentIndex >= this.texts.length - 1) {
+                    this.currentIndex = this.texts.length - 1;
+                    this.direction = -1;
+                } else if (this.currentIndex <= 0) {
+                    this.currentIndex = 0;
+                    this.direction = 1;
+                }
+            } else {
+                // Return to frame 0 when not hovering
+                if (this.currentIndex > 0) {
+                    this.currentIndex--;
+                } else {
+                    // Reached frame 0, stop animating
+                    this.stopAnimation();
+                    return;
+                }
             }
 
             this.showFrame(this.currentIndex);
         }
 
-        stopLoop() {
+        stopAnimation() {
             if (this.animationFrameId) {
                 cancelAnimationFrame(this.animationFrameId);
                 this.animationFrameId = null;
             }
-            this.isRunning = false;
+            this.isAnimating = false;
         }
 
-        startLoop() {
-            if (this.isRunning) return;
-            this.isRunning = true;
+        startAnimation() {
+            if (this.isAnimating) return;
+            this.isAnimating = true;
             this.lastFrameTime = performance.now();
 
             const animate = (currentTime) => {
-                if (!this.isRunning) return;
+                if (!this.isAnimating) return;
 
-                const interval = this.isHovering ? CONFIG.hoverFrameInterval : CONFIG.frameInterval;
+                const interval = this.isHovering ? CONFIG.hoverFrameInterval : CONFIG.returnFrameInterval;
                 const elapsed = currentTime - this.lastFrameTime;
 
                 if (elapsed >= interval) {
@@ -126,7 +134,10 @@
                     this.lastFrameTime = currentTime;
                 }
 
-                this.animationFrameId = requestAnimationFrame(animate);
+                // Only continue if still animating
+                if (this.isAnimating) {
+                    this.animationFrameId = requestAnimationFrame(animate);
+                }
             };
 
             this.animationFrameId = requestAnimationFrame(animate);

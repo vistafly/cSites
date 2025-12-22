@@ -2055,7 +2055,7 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
     html += '</div></div>';
     if (helpRequests.length === 0) {
         html += '<div class="empty-state">' +
-            '<div class="empty-icon">✅</div>' +
+            '<img src="/images/scarlo-logo.png" alt="Scarlo" class="empty-icon">' +
             '<p>No pending help requests</p>' +
             '</div>';
     } else {
@@ -2385,7 +2385,7 @@ ContractFormHandler.prototype.renderContractsTab = function(pendingContracts, co
     
     if (pendingContracts.length === 0) {
         html += '<div class="empty-state success-state">' +
-            '<div class="empty-icon">✨</div>' +
+            '<img src="/images/scarlo-logo.png" alt="Scarlo" class="empty-icon">' +
             '<p>No contracts waiting for your signature</p>' +
             '</div>';
     } else {
@@ -2432,7 +2432,7 @@ ContractFormHandler.prototype.renderContractsTab = function(pendingContracts, co
     
     if (completedContracts.length === 0) {
         html += '<div class="empty-state">' +
-            '<div class="empty-icon">📋</div>' +
+            '<img src="/images/scarlo-logo.png" alt="Scarlo" class="empty-icon">' +
             '<p>No completed contracts yet</p>' +
             '</div>';
     } else {
@@ -2597,7 +2597,7 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
     
     if (sows.length === 0) {
         html += '<div class="empty-state">' +
-            '<div class="empty-icon">📋</div>' +
+            '<img src="/images/scarlo-logo.png" alt="Scarlo" class="empty-icon">' +
             '<h4>No SOW Documents Yet</h4>' +
             '<p>Create your first Statement of Work to get started</p>' +
             '<button class="btn-create-sow" onclick="window.contractFormHandler.showSOWCreator()" style="margin-top: 20px;">' +
@@ -4720,17 +4720,22 @@ ContractFormHandler.prototype.renderSOWSigningModal = function(sowData) {
             '</div>';
     } else if (isClient) {
         // Client needs to sign
-        html += '<div class="form-group">' +
-            '<label>Full Name *</label>' +
+        html += '<div class="form-row">' +
+            '<div class="form-group">' +
+            '<label>Name *</label>' +
             '<input type="text" id="sowClientSignerName" value="' + sowData.clientName + '" required />' +
             '</div>' +
             '<div class="form-group">' +
             '<label>Date *</label>' +
             '<input type="date" id="sowClientSignDate" required />' +
             '</div>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label>Signature *</label>' +
             '<div class="signature-pad-container">' +
             '<canvas id="sowClientSigPad" class="signature-pad"></canvas>' +
             '<button class="clear-btn" data-canvas="sowClientSigPad">Clear</button>' +
+            '</div>' +
             '</div>';
     } else {
         // Developer viewing - client hasn't signed yet
@@ -4758,17 +4763,22 @@ ContractFormHandler.prototype.renderSOWSigningModal = function(sowData) {
             '</div>';
     } else if (isDeveloper) {
         // Developer needs to sign
-        html += '<div class="form-group">' +
-            '<label>Developer Name *</label>' +
+        html += '<div class="form-row">' +
+            '<div class="form-group">' +
+            '<label>Name</label>' +
             '<input type="text" id="sowDevSignerName" value="Carlos Martin" required />' +
             '</div>' +
             '<div class="form-group">' +
             '<label>Date *</label>' +
             '<input type="date" id="sowDevSignDate" required />' +
             '</div>' +
+            '</div>' +
+            '<div class="form-group">' +
+            '<label>Signature</label>' +
             '<div class="signature-pad-container">' +
             '<canvas id="sowDevSigPad" class="signature-pad"></canvas>' +
             '<button class="clear-btn" data-canvas="sowDevSigPad">Clear</button>' +
+            '</div>' +
             '</div>';
     } else {
         // Client viewing - developer hasn't signed yet
@@ -8812,14 +8822,14 @@ CustomCursor.prototype.handleResize = function() {
 
 CustomCursor.prototype.checkHoverState = function(element) {
     if (!element || document.body.classList.contains('modal-open')) return;
-    
+
     // 🚀 OPTIMIZED: Use native closest() for fast parent traversal
     var isInteractive = !!element.closest(this.interactiveSelectors);
-    
+
     // Only update if state actually changed
     if (isInteractive !== this.isHovering) {
         this.isHovering = isInteractive;
-        
+
         if (isInteractive) {
             this.cursor.style.width = '40px';
             this.cursor.style.height = '40px';
@@ -8829,7 +8839,7 @@ CustomCursor.prototype.checkHoverState = function(element) {
             this.cursor.style.height = '10px';
             this.currentSize = 10; // Update current size
         }
-        
+
         // Immediately update position with new offset
         this.updateCursorPosition();
     }
@@ -8962,11 +8972,50 @@ var SectionSeparatorGlow = function() {
         }
     }, { passive: true });
 };
+    // === BACK TO TOP BUTTON ===
+    var BackToTop = function() {
+        var btn = $('.footer-back-to-top');
+        if (!btn) return;
+
+        var scrollThreshold = 300;
+        var isVisible = false;
+
+        var toggleVisibility = function() {
+            var shouldShow = window.pageYOffset > scrollThreshold;
+            if (shouldShow !== isVisible) {
+                isVisible = shouldShow;
+                if (shouldShow) {
+                    btn.classList.add('visible');
+                } else {
+                    btn.classList.remove('visible');
+                }
+            }
+        };
+
+        window.addEventListener('scroll', throttle(toggleVisibility, 100), { passive: true });
+        toggleVisibility();
+    };
+
     // === INITIALIZATION ===
     var init = function() {
     console.log('Scarlo - Crafted with precision');
     console.log('Device: ' + (DeviceDetector.isMobile() ? 'Mobile' : 'Desktop'));
     console.log('Screen width:', window.innerWidth);
+
+    // Sync navbar ambient animations
+    var logoAmbient = $('.navbar-logo-ambient');
+    var textAmbient = $('.navbar-text-ambient');
+    if (logoAmbient && textAmbient) {
+        logoAmbient.style.animation = 'none';
+        textAmbient.style.animation = 'none';
+        // Force reflow
+        logoAmbient.offsetHeight;
+        textAmbient.offsetHeight;
+        // Restart animations together
+        logoAmbient.style.animation = 'navbarAmbientPulse 3s ease-in-out infinite';
+        textAmbient.style.animation = 'navbarAmbientPulse 3s ease-in-out infinite';
+    }
+
     new HelpRequestHandler();
 
     new Navigation();
@@ -8980,7 +9029,8 @@ var SectionSeparatorGlow = function() {
     new CustomCursor();
     new ViewportFix();
     new AccessibilityEnhancer();
-    new SectionSeparatorGlow();  // ✅ ADD THIS LINE
+    new SectionSeparatorGlow();
+    new BackToTop();
 };
 
     if (document.readyState === 'loading') {
