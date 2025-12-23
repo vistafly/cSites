@@ -2726,8 +2726,6 @@ ContractFormHandler.prototype.renderCouponsTab = function(coupons) {
     // Header with Create button
     html += '<div class="coupons-header">' +
         '<div class="coupons-title">' +
-        '<h3>🎟️ Coupon Management</h3>' +
-        '<p>Create and manage discount codes for your clients</p>' +
         '</div>' +
         '<button class="btn-create-coupon" id="btnCreateCoupon">' +
         '<span class="btn-icon">+</span>' +
