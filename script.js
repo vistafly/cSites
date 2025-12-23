@@ -2449,19 +2449,24 @@ html += '<div class="dashboard-tabs">' +
     '<span class="tab-label">SOW Documents</span>' +
     '<span class="tab-badge" id="sowCountBadge">0</span>' +
     '</button>' +
+    '<button class="tab-btn" data-tab="coupons">' +
+    '<span class="tab-icon">🎟️</span>' +
+    '<span class="tab-label">Coupons</span>' +
+    '<span class="tab-badge" id="couponCountBadge">0</span>' +
+    '</button>' +
     '<button class="tab-btn" data-tab="help">' +
     '<span class="tab-icon">🆘</span>' +
     '<span class="tab-label">Help Requests</span>' +
     '<span class="tab-badge" id="helpCountBadge">0</span>' +
     '</button>' +
     '</div>' +
-        
+
         '<div class="tab-content">' +
     // Contracts Tab
     '<div class="tab-pane active" data-tab="contracts">' +
     self.renderContractsTab(pendingContracts, completedContracts) +
     '</div>' +
-    
+
     // SOW Tab
     '<div class="tab-pane" data-tab="sow">' +
     '<div id="sowTabContent">' +
@@ -2471,7 +2476,17 @@ html += '<div class="dashboard-tabs">' +
     '</div>' +
     '</div>' +
     '</div>' +
-    
+
+    // Coupons Tab
+    '<div class="tab-pane" data-tab="coupons">' +
+    '<div id="couponsTabContent">' +
+    '<div class="loading-state">' +
+    '<div class="spinner"></div>' +
+    '<p>Loading coupons...</p>' +
+    '</div>' +
+    '</div>' +
+    '</div>' +
+
     // Help Requests Tab
     '<div class="tab-pane" data-tab="help">' +
     '<div id="helpTabContent">' +
@@ -2481,7 +2496,7 @@ html += '<div class="dashboard-tabs">' +
     '</div>' +
     '</div>' +
     '</div>' +
-    
+
     '</div>' +
     '</div>';
     // Close Modal Button
@@ -2519,6 +2534,9 @@ html += '<div class="dashboard-tabs">' +
     
     // Load SOWs for the SOW tab
     this.loadSOWDocuments();
+
+    // Load Coupons for the Coupons tab
+    this.loadCoupons();
 };
 
 // New function to render contracts tab content
@@ -2632,6 +2650,584 @@ ContractFormHandler.prototype.switchTab = function(tabName) {
         }
     });
 };
+
+// ============================================
+// COUPON MANAGEMENT SYSTEM
+// ============================================
+
+// Load coupons from Firebase
+ContractFormHandler.prototype.loadCoupons = function() {
+    var self = this;
+    var container = document.getElementById('couponsTabContent');
+    if (!container) return;
+
+    firebase.firestore().collection('coupons')
+        .orderBy('createdAt', 'desc')
+        .get()
+        .then(function(snapshot) {
+            var coupons = [];
+            snapshot.forEach(function(doc) {
+                var data = doc.data();
+                data.id = doc.id;
+                coupons.push(data);
+            });
+
+            // Create WELCOME10 coupon if no coupons exist
+            if (coupons.length === 0) {
+                self.createWelcomeCoupon().then(function() {
+                    // Reload coupons after creating the welcome coupon
+                    self.loadCoupons();
+                });
+                return;
+            }
+
+            // Update badge count
+            var badge = document.getElementById('couponCountBadge');
+            if (badge) badge.textContent = coupons.length;
+
+            // Store coupons for later use
+            self.coupons = coupons;
+
+            // Render the coupons tab
+            container.innerHTML = self.renderCouponsTab(coupons);
+
+            // Attach event listeners
+            self.attachCouponEventListeners();
+        })
+        .catch(function(error) {
+            console.error('Error loading coupons:', error);
+            container.innerHTML = '<div class="error-state"><p>Error loading coupons: ' + error.message + '</p></div>';
+        });
+};
+
+// Create the default WELCOME10 coupon
+ContractFormHandler.prototype.createWelcomeCoupon = function() {
+    var welcomeCoupon = {
+        code: 'WELCOME10',
+        description: 'Welcome discount for new clients - 10% off your first project',
+        discountType: 'percentage',
+        discountValue: 10,
+        minPurchase: 0,
+        usageLimit: 0, // Unlimited
+        usageCount: 0,
+        expirationDate: null, // Never expires
+        tierRestrictions: [], // All tiers
+        oneTimeUse: false, // Reusable
+        active: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    return firebase.firestore().collection('coupons')
+        .add(welcomeCoupon)
+        .then(function(docRef) {
+            console.log('WELCOME10 coupon created with ID:', docRef.id);
+        })
+        .catch(function(error) {
+            console.error('Error creating WELCOME10 coupon:', error);
+        });
+};
+
+// Render the coupons tab content
+ContractFormHandler.prototype.renderCouponsTab = function(coupons) {
+    var self = this;
+    var html = '';
+
+    // Header with Create button
+    html += '<div class="coupons-header">' +
+        '<div class="coupons-title">' +
+        '<h3>🎟️ Coupon Management</h3>' +
+        '<p>Create and manage discount codes for your clients</p>' +
+        '</div>' +
+        '<button class="btn-create-coupon" id="btnCreateCoupon">' +
+        '<span class="btn-icon">+</span>' +
+        '<span class="btn-text">Create Coupon</span>' +
+        '</button>' +
+        '</div>';
+
+    // Coupon Creator Form (hidden by default)
+    html += '<div id="couponCreatorForm" class="coupon-creator-form" style="display: none;">' +
+        '<div class="coupon-form-header">' +
+        '<h4 id="couponFormTitle">Create New Coupon</h4>' +
+        '<button class="btn-close-form" id="btnCloseCouponForm">×</button>' +
+        '</div>' +
+        '<div class="coupon-form-body">' +
+        '<div class="form-row">' +
+        '<div class="form-group">' +
+        '<label>Coupon Code *</label>' +
+        '<input type="text" id="couponCode" placeholder="e.g., WELCOME10" class="coupon-input" style="text-transform: uppercase;">' +
+        '<small>Alphanumeric, no spaces. Auto-converts to uppercase.</small>' +
+        '</div>' +
+        '<div class="form-group">' +
+        '<label>Discount Type *</label>' +
+        '<select id="couponType" class="coupon-select">' +
+        '<option value="percentage">Percentage Off (%)</option>' +
+        '<option value="fixed">Fixed Amount Off ($)</option>' +
+        '</select>' +
+        '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+        '<div class="form-group">' +
+        '<label>Discount Value *</label>' +
+        '<input type="number" id="couponValue" placeholder="e.g., 10" class="coupon-input" min="0" step="0.01">' +
+        '<small id="couponValueHint">Enter percentage (0-100)</small>' +
+        '</div>' +
+        '<div class="form-group">' +
+        '<label>Usage Limit</label>' +
+        '<input type="number" id="couponUsageLimit" placeholder="Leave empty for unlimited" class="coupon-input" min="0">' +
+        '<small>Max times this coupon can be used</small>' +
+        '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+        '<div class="form-group">' +
+        '<label>Minimum Purchase ($)</label>' +
+        '<input type="number" id="couponMinPurchase" placeholder="0" class="coupon-input" min="0" step="0.01">' +
+        '<small>Minimum order amount required</small>' +
+        '</div>' +
+        '<div class="form-group">' +
+        '<label>Expiration Date</label>' +
+        '<input type="date" id="couponExpiration" class="coupon-input">' +
+        '<small>Leave empty for no expiration</small>' +
+        '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+        '<div class="form-group full-width">' +
+        '<label>Tier Restrictions</label>' +
+        '<div class="tier-checkboxes">' +
+        '<label class="tier-checkbox"><input type="checkbox" value="essential" checked> Essential</label>' +
+        '<label class="tier-checkbox"><input type="checkbox" value="starter" checked> Starter</label>' +
+        '<label class="tier-checkbox"><input type="checkbox" value="growth" checked> Growth</label>' +
+        '<label class="tier-checkbox"><input type="checkbox" value="professional" checked> Professional</label>' +
+        '<label class="tier-checkbox"><input type="checkbox" value="enterprise" checked> Enterprise</label>' +
+        '</div>' +
+        '<small>Select which tiers this coupon can be applied to</small>' +
+        '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+        '<div class="form-group full-width">' +
+        '<label>Description (Optional)</label>' +
+        '<input type="text" id="couponDescription" placeholder="e.g., Welcome discount for new clients" class="coupon-input">' +
+        '</div>' +
+        '</div>' +
+        '<div class="form-row">' +
+        '<div class="form-group">' +
+        '<label class="checkbox-label">' +
+        '<input type="checkbox" id="couponActive" checked>' +
+        '<span>Coupon is Active</span>' +
+        '</label>' +
+        '</div>' +
+        '</div>' +
+        '<input type="hidden" id="couponEditId" value="">' +
+        '<div class="form-actions">' +
+        '<button class="btn-cancel" id="btnCancelCoupon">Cancel</button>' +
+        '<button class="btn-save-coupon" id="btnSaveCoupon">Save Coupon</button>' +
+        '</div>' +
+        '</div>' +
+        '</div>';
+
+    // Coupons List
+    if (coupons.length === 0) {
+        html += '<div class="empty-state">' +
+            '<div class="empty-icon">🎟️</div>' +
+            '<h4>No Coupons Yet</h4>' +
+            '<p>Create your first coupon to offer discounts to clients.</p>' +
+            '</div>';
+    } else {
+        html += '<div class="coupons-list">';
+
+        // Active coupons
+        var activeCoupons = coupons.filter(function(c) { return c.active !== false; });
+        var inactiveCoupons = coupons.filter(function(c) { return c.active === false; });
+
+        if (activeCoupons.length > 0) {
+            html += '<div class="coupons-section">' +
+                '<h4 class="section-label">Active Coupons (' + activeCoupons.length + ')</h4>';
+            activeCoupons.forEach(function(coupon) {
+                html += self.renderCouponCard(coupon);
+            });
+            html += '</div>';
+        }
+
+        if (inactiveCoupons.length > 0) {
+            html += '<div class="coupons-section inactive-section">' +
+                '<h4 class="section-label">Inactive Coupons (' + inactiveCoupons.length + ')</h4>';
+            inactiveCoupons.forEach(function(coupon) {
+                html += self.renderCouponCard(coupon);
+            });
+            html += '</div>';
+        }
+
+        html += '</div>';
+    }
+
+    return html;
+};
+
+// Render a single coupon card
+ContractFormHandler.prototype.renderCouponCard = function(coupon) {
+    var self = this;
+    var isExpired = coupon.expirationDate && new Date(coupon.expirationDate) < new Date();
+    var isUsedUp = coupon.usageLimit && coupon.usageCount >= coupon.usageLimit;
+    var statusClass = (!coupon.active || isExpired || isUsedUp) ? 'coupon-inactive' : 'coupon-active';
+
+    var discountDisplay = coupon.discountType === 'percentage'
+        ? coupon.discountValue + '% OFF'
+        : '$' + parseFloat(coupon.discountValue || 0).toFixed(2) + ' OFF';
+
+    var statusBadge = '';
+    if (!coupon.active) {
+        statusBadge = '<span class="status-badge inactive">Disabled</span>';
+    } else if (isExpired) {
+        statusBadge = '<span class="status-badge expired">Expired</span>';
+    } else if (isUsedUp) {
+        statusBadge = '<span class="status-badge used-up">Limit Reached</span>';
+    } else {
+        statusBadge = '<span class="status-badge active">Active</span>';
+    }
+
+    var html = '<div class="coupon-card ' + statusClass + '" data-coupon-id="' + coupon.id + '">' +
+        '<div class="coupon-card-header">' +
+        '<div class="coupon-code-display">' +
+        '<span class="coupon-code">' + coupon.code + '</span>' +
+        '<button class="btn-copy-code" data-code="' + coupon.code + '" title="Copy code">📋</button>' +
+        '</div>' +
+        statusBadge +
+        '</div>' +
+        '<div class="coupon-card-body">' +
+        '<div class="coupon-discount">' + discountDisplay + '</div>' +
+        '<div class="coupon-details">';
+
+    if (coupon.description) {
+        html += '<div class="detail-row"><span class="detail-label">Description:</span> ' + coupon.description + '</div>';
+    }
+    if (coupon.minPurchase && coupon.minPurchase > 0) {
+        html += '<div class="detail-row"><span class="detail-label">Min. Purchase:</span> $' + parseFloat(coupon.minPurchase).toFixed(2) + '</div>';
+    }
+    if (coupon.usageLimit) {
+        html += '<div class="detail-row"><span class="detail-label">Usage:</span> ' + (coupon.usageCount || 0) + ' / ' + coupon.usageLimit + '</div>';
+    } else {
+        html += '<div class="detail-row"><span class="detail-label">Usage:</span> ' + (coupon.usageCount || 0) + ' (unlimited)</div>';
+    }
+    if (coupon.expirationDate) {
+        var expDate = new Date(coupon.expirationDate).toLocaleDateString();
+        html += '<div class="detail-row"><span class="detail-label">Expires:</span> ' + expDate + '</div>';
+    }
+    if (coupon.allowedTiers && coupon.allowedTiers.length < 5) {
+        html += '<div class="detail-row"><span class="detail-label">Tiers:</span> ' + coupon.allowedTiers.join(', ') + '</div>';
+    }
+
+    html += '</div>' +
+        '</div>' +
+        '<div class="coupon-card-footer">' +
+        '<button class="btn-edit-coupon" data-coupon-id="' + coupon.id + '">Edit</button>' +
+        '<button class="btn-delete-coupon" data-coupon-id="' + coupon.id + '">Delete</button>' +
+        '</div>' +
+        '</div>';
+
+    return html;
+};
+
+// Attach event listeners for coupon functionality
+ContractFormHandler.prototype.attachCouponEventListeners = function() {
+    var self = this;
+
+    // Create button
+    var createBtn = document.getElementById('btnCreateCoupon');
+    if (createBtn) {
+        createBtn.addEventListener('click', function() {
+            self.showCouponForm();
+        });
+    }
+
+    // Close form button
+    var closeBtn = document.getElementById('btnCloseCouponForm');
+    if (closeBtn) {
+        closeBtn.addEventListener('click', function() {
+            self.hideCouponForm();
+        });
+    }
+
+    // Cancel button
+    var cancelBtn = document.getElementById('btnCancelCoupon');
+    if (cancelBtn) {
+        cancelBtn.addEventListener('click', function() {
+            self.hideCouponForm();
+        });
+    }
+
+    // Save button
+    var saveBtn = document.getElementById('btnSaveCoupon');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', function() {
+            self.saveCoupon();
+        });
+    }
+
+    // Discount type change
+    var typeSelect = document.getElementById('couponType');
+    if (typeSelect) {
+        typeSelect.addEventListener('change', function() {
+            var hint = document.getElementById('couponValueHint');
+            if (this.value === 'percentage') {
+                hint.textContent = 'Enter percentage (0-100)';
+            } else {
+                hint.textContent = 'Enter dollar amount';
+            }
+        });
+    }
+
+    // Code input - uppercase
+    var codeInput = document.getElementById('couponCode');
+    if (codeInput) {
+        codeInput.addEventListener('input', function() {
+            this.value = this.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
+        });
+    }
+
+    // Edit buttons
+    $$('.btn-edit-coupon').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var couponId = this.getAttribute('data-coupon-id');
+            self.editCoupon(couponId);
+        });
+    });
+
+    // Delete buttons
+    $$('.btn-delete-coupon').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var couponId = this.getAttribute('data-coupon-id');
+            self.deleteCoupon(couponId);
+        });
+    });
+
+    // Copy code buttons
+    $$('.btn-copy-code').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            var code = this.getAttribute('data-code');
+            navigator.clipboard.writeText(code).then(function() {
+                alert('Coupon code copied: ' + code);
+            });
+        });
+    });
+};
+
+// Show coupon form
+ContractFormHandler.prototype.showCouponForm = function(editData) {
+    var form = document.getElementById('couponCreatorForm');
+    var title = document.getElementById('couponFormTitle');
+    if (!form) return;
+
+    // Reset form
+    document.getElementById('couponCode').value = '';
+    document.getElementById('couponType').value = 'percentage';
+    document.getElementById('couponValue').value = '';
+    document.getElementById('couponUsageLimit').value = '';
+    document.getElementById('couponMinPurchase').value = '';
+    document.getElementById('couponExpiration').value = '';
+    document.getElementById('couponDescription').value = '';
+    document.getElementById('couponActive').checked = true;
+    document.getElementById('couponEditId').value = '';
+
+    // Reset tier checkboxes
+    $$('.tier-checkboxes input[type="checkbox"]').forEach(function(cb) {
+        cb.checked = true;
+    });
+
+    if (editData) {
+        title.textContent = 'Edit Coupon';
+        document.getElementById('couponCode').value = editData.code || '';
+        document.getElementById('couponType').value = editData.discountType || 'percentage';
+        document.getElementById('couponValue').value = editData.discountValue || '';
+        document.getElementById('couponUsageLimit').value = editData.usageLimit || '';
+        document.getElementById('couponMinPurchase').value = editData.minPurchase || '';
+        document.getElementById('couponExpiration').value = editData.expirationDate || '';
+        document.getElementById('couponDescription').value = editData.description || '';
+        document.getElementById('couponActive').checked = editData.active !== false;
+        document.getElementById('couponEditId').value = editData.id;
+
+        // Set tier checkboxes
+        if (editData.allowedTiers) {
+            $$('.tier-checkboxes input[type="checkbox"]').forEach(function(cb) {
+                cb.checked = editData.allowedTiers.indexOf(cb.value) !== -1;
+            });
+        }
+    } else {
+        title.textContent = 'Create New Coupon';
+    }
+
+    form.style.display = 'block';
+    document.getElementById('couponCode').focus();
+};
+
+// Hide coupon form
+ContractFormHandler.prototype.hideCouponForm = function() {
+    var form = document.getElementById('couponCreatorForm');
+    if (form) form.style.display = 'none';
+};
+
+// Save coupon to Firebase
+ContractFormHandler.prototype.saveCoupon = function() {
+    var self = this;
+    var editId = document.getElementById('couponEditId').value;
+    var code = document.getElementById('couponCode').value.trim().toUpperCase();
+    var type = document.getElementById('couponType').value;
+    var value = parseFloat(document.getElementById('couponValue').value);
+    var usageLimit = document.getElementById('couponUsageLimit').value ? parseInt(document.getElementById('couponUsageLimit').value) : null;
+    var minPurchase = parseFloat(document.getElementById('couponMinPurchase').value) || 0;
+    var expirationDate = document.getElementById('couponExpiration').value || null;
+    var description = document.getElementById('couponDescription').value.trim();
+    var active = document.getElementById('couponActive').checked;
+
+    // Get allowed tiers
+    var allowedTiers = [];
+    $$('.tier-checkboxes input[type="checkbox"]:checked').forEach(function(cb) {
+        allowedTiers.push(cb.value);
+    });
+
+    // Validation
+    if (!code) {
+        alert('Please enter a coupon code');
+        return;
+    }
+    if (isNaN(value) || value <= 0) {
+        alert('Please enter a valid discount value');
+        return;
+    }
+    if (type === 'percentage' && value > 100) {
+        alert('Percentage discount cannot exceed 100%');
+        return;
+    }
+    if (allowedTiers.length === 0) {
+        alert('Please select at least one tier');
+        return;
+    }
+
+    var couponData = {
+        code: code,
+        discountType: type,
+        discountValue: value,
+        usageLimit: usageLimit,
+        minPurchase: minPurchase,
+        expirationDate: expirationDate,
+        description: description,
+        active: active,
+        allowedTiers: allowedTiers,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+
+    var savePromise;
+    if (editId) {
+        // Update existing
+        savePromise = firebase.firestore().collection('coupons').doc(editId).update(couponData);
+    } else {
+        // Create new
+        couponData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        couponData.usageCount = 0;
+
+        // Check if code already exists
+        savePromise = firebase.firestore().collection('coupons')
+            .where('code', '==', code)
+            .get()
+            .then(function(snapshot) {
+                if (!snapshot.empty) {
+                    throw new Error('A coupon with this code already exists');
+                }
+                return firebase.firestore().collection('coupons').add(couponData);
+            });
+    }
+
+    savePromise
+        .then(function() {
+            alert('✓ Coupon saved successfully!');
+            self.hideCouponForm();
+            self.loadCoupons();
+        })
+        .catch(function(error) {
+            console.error('Error saving coupon:', error);
+            alert('Error saving coupon: ' + error.message);
+        });
+};
+
+// Edit coupon
+ContractFormHandler.prototype.editCoupon = function(couponId) {
+    var self = this;
+    var coupon = this.coupons.find(function(c) { return c.id === couponId; });
+    if (coupon) {
+        this.showCouponForm(coupon);
+    }
+};
+
+// Delete coupon
+ContractFormHandler.prototype.deleteCoupon = function(couponId) {
+    var self = this;
+    var coupon = this.coupons.find(function(c) { return c.id === couponId; });
+    if (!coupon) return;
+
+    if (!confirm('Are you sure you want to delete the coupon "' + coupon.code + '"?\n\nThis action cannot be undone.')) {
+        return;
+    }
+
+    firebase.firestore().collection('coupons').doc(couponId).delete()
+        .then(function() {
+            alert('✓ Coupon deleted successfully');
+            self.loadCoupons();
+        })
+        .catch(function(error) {
+            console.error('Error deleting coupon:', error);
+            alert('Error deleting coupon: ' + error.message);
+        });
+};
+
+// Validate and get coupon by code (used when applying in SOW)
+ContractFormHandler.prototype.validateCoupon = function(code, packageType, orderTotal) {
+    var coupon = this.coupons ? this.coupons.find(function(c) {
+        return c.code === code.toUpperCase() && c.active !== false;
+    }) : null;
+
+    if (!coupon) {
+        return { valid: false, error: 'Invalid coupon code' };
+    }
+
+    // Check expiration
+    if (coupon.expirationDate && new Date(coupon.expirationDate) < new Date()) {
+        return { valid: false, error: 'This coupon has expired' };
+    }
+
+    // Check usage limit
+    if (coupon.usageLimit && coupon.usageCount >= coupon.usageLimit) {
+        return { valid: false, error: 'This coupon has reached its usage limit' };
+    }
+
+    // Check minimum purchase
+    if (coupon.minPurchase && orderTotal < coupon.minPurchase) {
+        return { valid: false, error: 'Minimum purchase of $' + coupon.minPurchase.toFixed(2) + ' required' };
+    }
+
+    // Check tier restriction
+    if (coupon.allowedTiers && coupon.allowedTiers.length > 0 && packageType) {
+        if (coupon.allowedTiers.indexOf(packageType) === -1) {
+            return { valid: false, error: 'This coupon is not valid for the ' + packageType + ' tier' };
+        }
+    }
+
+    // Calculate discount
+    var discount = 0;
+    if (coupon.discountType === 'percentage') {
+        discount = orderTotal * (coupon.discountValue / 100);
+    } else {
+        discount = Math.min(coupon.discountValue, orderTotal); // Don't exceed order total
+    }
+
+    return {
+        valid: true,
+        coupon: coupon,
+        discount: discount,
+        discountDisplay: coupon.discountType === 'percentage' ? coupon.discountValue + '%' : '$' + coupon.discountValue.toFixed(2)
+    };
+};
+
+// ============================================
+// END COUPON MANAGEMENT SYSTEM
+// ============================================
 
 // New function to load SOW documents
 ContractFormHandler.prototype.loadSOWDocuments = function() {
@@ -2762,10 +3358,11 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
                 : 'N/A';
             
             var packageNames = {
+                'essential': 'Essential — Landing Page',
                 'starter': 'Tier 1 — Starter',
-                'professional': 'Tier 2 — Professional',
-                'premium': 'Tier 3 — Premium',
-                'elite': 'Tier 4 — Elite',
+                'growth': 'Tier 2 — Growth',
+                'professional': 'Tier 3 — Professional',
+                'enterprise': 'Tier 4 — Enterprise',
                 'custom': 'Custom Quote'
             };
             
@@ -3953,11 +4550,11 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">📦</span> Package Tier</h5>' +
         '<select id="sowPackage" class="sow-select">' +
         '<option value="">Select a package tier...</option>' +
-        '<option value="basic">Basic — Landing Page ($800 - $1,800)</option>' +
+        '<option value="essential">Essential — Landing Page ($1,000 - $2,200)</option>' +
         '<option value="starter">Tier 1 — Starter ($2,800 - $4,500)</option>' +
-        '<option value="professional">Tier 2 — Professional ($5,500 - $9,000)</option>' +
-        '<option value="premium">Tier 3 — Premium ($9,000 - $15,000)</option>' +
-        '<option value="elite">Tier 4 — Elite Web Application ($15,000 - $28,000)</option>' +
+        '<option value="growth">Tier 2 — Growth ($5,000 - $7,500)</option>' +
+        '<option value="professional">Tier 3 — Professional ($8,000 - $12,000)</option>' +
+        '<option value="enterprise">Tier 4 — Enterprise ($14,000 - $24,000)</option>' +
         '<option value="custom">Custom Quote (Manual Entry)</option>' +
         '</select>' +
         
@@ -4047,7 +4644,18 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<option value="premium">Premium Care — $550-$900/month (8-12 hrs/mo)</option>' +
         '</select>' +
         '</div>' +
-        
+
+        // Coupon / Discount Code
+        '<div class="sow-form-section coupon-section">' +
+        '<h5><span class="section-icon">🎟️</span> Discount Code</h5>' +
+        '<div class="coupon-input-group">' +
+        '<select id="sowCouponSelect" class="sow-select coupon-select">' +
+        '<option value="">No discount applied</option>' +
+        '</select>' +
+        '<div id="couponValidationMessage" class="coupon-validation-message"></div>' +
+        '</div>' +
+        '</div>' +
+
         // Pricing Summary
         '<div class="sow-form-section pricing-summary">' +
         '<h5><span class="section-icon">💰</span> Pricing Summary</h5>' +
@@ -4098,13 +4706,13 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     
     var self = this;
     
-    // Package pricing map (2025 Scarlo Pricing Guide)
+    // Package pricing map (2025 Scarlo Pricing Guide - Revised)
     var packagePricing = {
-        'basic': { min: 800, max: 1800, default: 1300 },
+        'essential': { min: 1000, max: 2200, default: 1600 },
         'starter': { min: 2800, max: 4500, default: 3650 },
-        'professional': { min: 5500, max: 9000, default: 7250 },
-        'premium': { min: 9000, max: 15000, default: 12000 },
-        'elite': { min: 15000, max: 28000, default: 21500 }
+        'growth': { min: 5000, max: 7500, default: 6250 },
+        'professional': { min: 8000, max: 12000, default: 10000 },
+        'enterprise': { min: 14000, max: 24000, default: 19000 }
     };
 
     var maintenancePricing = {
@@ -4116,31 +4724,31 @@ ContractFormHandler.prototype.showSOWCreator = function() {
 
     // Feature pricing based on complexity (Fresno, CA market rates)
     var featurePricing = {
-        // Standard Features
+        // Standard Features (included in tiers)
         'responsive_design': { default: 200, thirdParty: false },
         'custom_ui': { default: 450, thirdParty: false },
         'animations': { default: 275, thirdParty: false },
         'seo_optimization': { default: 200, thirdParty: false },
         'analytics': { default: 175, thirdParty: false },
         'contact_forms': { default: 250, thirdParty: false },
-        // Premium Add-ons
+        // Backend Features (included in higher tiers)
         'firebase_auth': { default: 350, thirdParty: true, note: 'Firebase costs' },
         'firebase_db': { default: 425, thirdParty: true, note: 'Firebase costs' },
         'user_profiles': { default: 550, thirdParty: false },
         'file_storage': { default: 300, thirdParty: true, note: 'Firebase costs' },
         'api_integration': { default: 450, thirdParty: false },
         'email_integration': { default: 325, thirdParty: true, note: 'SendGrid costs' },
-        'music_media': { default: 275, thirdParty: false },
-        'booking_basic': { default: 400, thirdParty: false },
         'newsletter': { default: 200, thirdParty: false },
-        'social_feed': { default: 250, thirdParty: false },
-        // Enterprise Features
         'user_roles': { default: 450, thirdParty: false },
-        'cms_integration': { default: 550, thirdParty: false },
-        'booking_system': { default: 950, thirdParty: false },
-        'blog': { default: 400, thirdParty: false },
-        'gallery': { default: 325, thirdParty: false },
-        'notifications': { default: 350, thirdParty: false }
+        'notifications': { default: 400, thirdParty: false },
+        // Add-on Features (available to any tier)
+        'booking_basic': { default: 450, thirdParty: false, addon: true },
+        'booking_system': { default: 1100, thirdParty: false, addon: true },
+        'blog': { default: 400, thirdParty: false, addon: true },
+        'cms_integration': { default: 600, thirdParty: false, addon: true },
+        'gallery': { default: 325, thirdParty: false, addon: true },
+        'music_media': { default: 275, thirdParty: false, addon: true },
+        'social_feed': { default: 250, thirdParty: false, addon: true }
     };
 
     // E-Commerce radio options (2025 Scarlo Pricing Guide)
@@ -4152,12 +4760,13 @@ ContractFormHandler.prototype.showSOWCreator = function() {
 
     // Package-feature mapping (what's included in each package)
     // Note: hosting, ssl, domain are now included free in all packages (not listed as features)
+    // Add-ons (booking, blog, cms, gallery, music, social_feed) available separately for any tier
     var packageIncludedFeatures = {
-        'basic': ['responsive_design'],
+        'essential': ['responsive_design', 'contact_forms'],
         'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms'],
-        'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
-        'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_basic', 'api_integration', 'contact_forms', 'email_integration', 'newsletter', 'social_feed', 'music_media'],
-        'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'newsletter', 'social_feed', 'music_media'],
+        'growth': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
+        'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'newsletter'],
+        'enterprise': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'notifications', 'newsletter'],
         'custom': []
     };
 
@@ -4216,6 +4825,34 @@ ContractFormHandler.prototype.showSOWCreator = function() {
             updatePricing();
         });
     });
+
+    // Populate coupon dropdown with available coupons
+    var couponSelect = $('#sowCouponSelect');
+    if (couponSelect && self.coupons) {
+        var activeCoupons = self.coupons.filter(function(c) {
+            var isExpired = c.expirationDate && new Date(c.expirationDate) < new Date();
+            var isUsedUp = c.usageLimit && c.usageCount >= c.usageLimit;
+            return c.active !== false && !isExpired && !isUsedUp;
+        });
+
+        activeCoupons.forEach(function(coupon) {
+            var discountText = coupon.discountType === 'percentage'
+                ? coupon.discountValue + '% off'
+                : '$' + (coupon.discountValue || 0).toFixed(2) + ' off';
+            var option = document.createElement('option');
+            option.value = coupon.code;
+            option.textContent = coupon.code + ' — ' + discountText;
+            if (coupon.description) {
+                option.textContent += ' (' + coupon.description + ')';
+            }
+            couponSelect.appendChild(option);
+        });
+
+        // Coupon selection change handler
+        couponSelect.addEventListener('change', function() {
+            updatePricing();
+        });
+    }
 
     // Auto-sync weeks and date fields
     var weeksInput = $('#sowWeeks');
@@ -4813,30 +5450,81 @@ ContractFormHandler.prototype.calculateFeatureBasedPricing = function(packagePri
 };
 
 // Render itemized pricing breakdown
-ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, packagePricing) {
+ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, packagePricing, packageIncludedFeatures) {
     var container = document.getElementById('pricingItemizedList');
     if (!container) {
         console.warn('pricingItemizedList container not found');
         return;
     }
 
-    console.log('Rendering pricing breakdown:', pricingData);
+    // Feature display labels for nice formatting
+    var featureLabels = {
+        'responsive_design': 'Responsive Design',
+        'custom_ui': 'Custom UI/UX Design',
+        'animations': 'Animations & Micro-interactions',
+        'seo_optimization': 'SEO Optimization',
+        'analytics': 'Analytics Integration (GA4)',
+        'contact_forms': 'Contact Forms',
+        'firebase_auth': 'User Authentication',
+        'firebase_db': 'Database Integration',
+        'user_profiles': 'User Profiles & Dashboard',
+        'file_storage': 'File/Media Storage',
+        'api_integration': 'API Integrations',
+        'email_integration': 'Email Notifications',
+        'newsletter': 'Newsletter Integration',
+        'user_roles': 'Role-Based Access Control',
+        'notifications': 'In-App Notifications',
+        'booking_basic': 'Basic Booking System',
+        'booking_system': 'Advanced Booking + Availability',
+        'blog': 'Blog Module',
+        'cms_integration': 'Content Management System',
+        'gallery': 'Media Gallery',
+        'music_media': 'Music/Video Player',
+        'social_feed': 'Social Media Feed'
+    };
+
+    // Package tier display names
+    var packageTierNames = {
+        'essential': 'Essential — Landing Page',
+        'starter': 'Tier 1 — Starter',
+        'growth': 'Tier 2 — Growth',
+        'professional': 'Tier 3 — Professional',
+        'enterprise': 'Tier 4 — Enterprise',
+        'custom': 'Custom Quote'
+    };
 
     var html = '';
     var packageType = pricingData.packageType;
 
-    // Base package line
-    if (packageType) {
-        var packageLabel = packageType.charAt(0).toUpperCase() + packageType.slice(1);
-        if (packageType === 'custom') {
-            packageLabel = 'Custom Quote';
-        } else {
-            packageLabel += ' Package';
-        }
-        html += '<div class="pricing-line-item base-package">' +
-            '<span class="item-label">' + packageLabel + '</span>' +
-            '<span class="item-price">$' + pricingData.basePrice.toFixed(2) + '</span>' +
-            '</div>';
+    // Show placeholder if no package selected
+    if (!packageType) {
+        html = '<div class="pricing-empty-state">Select a package to see pricing breakdown</div>';
+        container.innerHTML = html;
+        return;
+    }
+
+    // Package header with tier name
+    var packageLabel = packageTierNames[packageType] || (packageType.charAt(0).toUpperCase() + packageType.slice(1) + ' Package');
+    html += '<div class="pricing-package-header">' +
+        '<span class="package-name">' + packageLabel + '</span>' +
+        '<span class="package-price">$' + pricingData.basePrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
+        '</div>';
+
+    // Get included features for this package
+    var includedFeatures = packageIncludedFeatures ? (packageIncludedFeatures[packageType] || []) : [];
+
+    // Show included features
+    if (includedFeatures.length > 0 && packageType !== 'custom') {
+        html += '<div class="pricing-section-header">Included in Package</div>';
+        html += '<div class="pricing-included-features">';
+        includedFeatures.forEach(function(featureKey) {
+            var label = featureLabels[featureKey] || featureKey.replace(/_/g, ' ').replace(/\b\w/g, function(l) { return l.toUpperCase(); });
+            html += '<div class="pricing-feature-item included">' +
+                '<span class="feature-check">✓</span>' +
+                '<span class="feature-name">' + label + '</span>' +
+                '</div>';
+        });
+        html += '</div>';
     }
 
     // Add-ons (excluding e-commerce, show it separately)
@@ -4850,22 +5538,26 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
     if (nonEcommerceAddOns.length > 0) {
         html += '<div class="pricing-section-header">Add-Ons</div>';
         nonEcommerceAddOns.forEach(function(item) {
+            var label = featureLabels[item.key] || item.label;
             html += '<div class="pricing-line-item add-on">' +
-                '<span class="item-label">' + item.label +
+                '<span class="item-label">' + label +
                 (item.thirdParty ? ' <span class="third-party-note">+ ' + item.note + '</span>' : '') +
                 '</span>' +
-                '<span class="item-price">+$' + item.price.toFixed(2) + '</span>' +
+                '<span class="item-price">+$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
                 '</div>';
         });
     }
 
     // E-commerce (if selected)
     if (ecommerceAddOn) {
+        if (nonEcommerceAddOns.length === 0) {
+            html += '<div class="pricing-section-header">Add-Ons</div>';
+        }
         html += '<div class="pricing-line-item add-on ecommerce-item">' +
             '<span class="item-label">' + ecommerceAddOn.label +
             (ecommerceAddOn.thirdParty ? ' <span class="third-party-note">+ ' + ecommerceAddOn.note + '</span>' : '') +
             '</span>' +
-            '<span class="item-price">+$' + ecommerceAddOn.price.toFixed(2) + '</span>' +
+            '<span class="item-price">+$' + ecommerceAddOn.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
             '</div>';
     }
 
@@ -4873,16 +5565,28 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
     if (pricingData.discounts.length > 0) {
         html += '<div class="pricing-section-header">Removed Features (50% Credit)</div>';
         pricingData.discounts.forEach(function(item) {
+            var label = featureLabels[item.key] || item.label;
             html += '<div class="pricing-line-item discount">' +
-                '<span class="item-label">' + item.label + '</span>' +
-                '<span class="item-price discount-value">-$' + item.price.toFixed(2) + '</span>' +
+                '<span class="item-label">' + label + '</span>' +
+                '<span class="item-price discount-value">-$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
                 '</div>';
         });
     }
 
-    // Show placeholder if no package selected
-    if (!html) {
-        html = '<div class="pricing-empty-state">Select a package to see pricing breakdown</div>';
+    // Coupon Discount
+    if (pricingData.coupon && pricingData.couponDiscount > 0) {
+        var coupon = pricingData.coupon;
+        var discountLabel = coupon.code;
+        if (coupon.discountType === 'percentage') {
+            discountLabel += ' (' + coupon.discountValue + '% off)';
+        } else {
+            discountLabel += ' ($' + coupon.discountValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' off)';
+        }
+        html += '<div class="pricing-section-header coupon-header">Discount Applied</div>';
+        html += '<div class="pricing-line-item coupon-discount">' +
+            '<span class="item-label"><span class="coupon-icon">🎟️</span> ' + discountLabel + '</span>' +
+            '<span class="item-price coupon-value">-$' + pricingData.couponDiscount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
+            '</div>';
     }
 
     container.innerHTML = html;
@@ -4916,12 +5620,46 @@ ContractFormHandler.prototype.autoCheckPackageFeatures = function(packageType, p
 // New function to update pricing calculations
 ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, maintenancePricing, featurePricing, ecommercePricing, packageIncludedFeatures) {
     var maintenanceSelect = $('#sowMaintenance');
+    var couponSelect = $('#sowCouponSelect');
+    var couponMessage = $('#couponValidationMessage');
 
     // Calculate feature-based pricing
     var pricingData = this.calculateFeatureBasedPricing(packagePricing, featurePricing, ecommercePricing, packageIncludedFeatures);
 
+    // Apply coupon discount if selected
+    var selectedCouponCode = couponSelect ? couponSelect.value : '';
+    pricingData.coupon = null;
+    pricingData.couponDiscount = 0;
+
+    if (selectedCouponCode && this.coupons) {
+        var validation = this.validateCoupon(selectedCouponCode, pricingData.packageType, pricingData.total);
+        if (validation.valid) {
+            pricingData.coupon = validation.coupon;
+            pricingData.couponDiscount = validation.discount;
+            pricingData.total = Math.max(0, pricingData.total - validation.discount);
+
+            // Show success message
+            if (couponMessage) {
+                couponMessage.className = 'coupon-validation-message success';
+                couponMessage.innerHTML = '✓ ' + validation.discountDisplay + ' discount applied!';
+            }
+        } else {
+            // Show error message
+            if (couponMessage) {
+                couponMessage.className = 'coupon-validation-message error';
+                couponMessage.innerHTML = '✗ ' + validation.error;
+            }
+        }
+    } else {
+        // Clear message
+        if (couponMessage) {
+            couponMessage.className = 'coupon-validation-message';
+            couponMessage.innerHTML = '';
+        }
+    }
+
     // Render itemized breakdown
-    this.renderItemizedPricing(pricingData, packagePricing);
+    this.renderItemizedPricing(pricingData, packagePricing, packageIncludedFeatures);
 
     var totalPrice = pricingData.total;
     var deposit = totalPrice * 0.50;
@@ -5019,6 +5757,10 @@ ContractFormHandler.prototype.saveSOW = function() {
 
     var totalPrice = pricingData.total;
 
+    // Get selected coupon
+    var couponSelect = $('#sowCouponSelect');
+    var selectedCouponCode = couponSelect ? couponSelect.value : '';
+
     var sowData = {
         clientName: clientName,
         clientEmail: clientEmail || '',
@@ -5029,6 +5771,7 @@ ContractFormHandler.prototype.saveSOW = function() {
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
+        couponCode: selectedCouponCode || null,
         payment: {
             total: totalPrice,
             deposit: totalPrice * 0.50,
@@ -5039,7 +5782,9 @@ ContractFormHandler.prototype.saveSOW = function() {
                 addOns: pricingData.addOns,
                 discounts: pricingData.discounts,
                 ecommerceOption: pricingData.ecommerceOption,
-                ecommercePrice: pricingData.ecommercePrice
+                ecommercePrice: pricingData.ecommercePrice,
+                couponCode: selectedCouponCode || null,
+                couponDiscount: pricingData.couponDiscount || 0
             }
         },
         createdBy: firebase.auth().currentUser.email,
@@ -5546,48 +6291,46 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         return;
     }
 
-    // Package definitions (comprehensive)
+    // Package definitions (comprehensive) - 2025 Revised Structure
     var packageDefinitions = {
-        'basic': {
-            name: 'Basic — Landing Page',
-            priceRange: '$800 - $1,800',
-            defaultPrice: 1300,
+        'essential': {
+            name: 'Essential — Landing Page',
+            priceRange: '$1,000 - $2,200',
+            defaultPrice: 1600,
             timeline: '1-2 weeks',
-            description: 'Simple, effective landing page for establishing your online presence quickly.',
+            description: 'Clean, effective landing page for establishing your online presence quickly.',
             includes: [
-                'Single-page landing page design',
+                'Single-page landing page (1-3 sections)',
                 'Cross-device optimization (mobile, tablet, desktop)',
-                'Clean, modern layout',
-                'Basic contact form',
-                'Social media links',
-                'SSL certificate setup',
+                'Clean, modern React/Next.js design',
+                'Contact form with validation',
+                'Basic SEO setup (meta tags)',
+                'SSL certificate & hosting included',
                 '1 round of revisions',
                 '14-day post-launch support'
             ],
             notIncluded: [
-                'Custom animations or interactions',
-                'SEO optimization',
+                'Custom animations or micro-interactions',
+                'Advanced SEO (sitemap, schema)',
                 'Analytics integration',
                 'User authentication',
-                'Database functionality',
-                'Ongoing maintenance'
+                'Database functionality'
             ]
         },
         'starter': {
-            name: 'Tier 1 — Starter Package',
+            name: 'Tier 1 — Starter',
             priceRange: '$2,800 - $4,500',
             defaultPrice: 3650,
             timeline: '2-3 weeks',
-            description: 'Perfect for individuals and small businesses needing a professional online presence.',
+            description: 'Polished single-page website for individuals and small businesses needing a professional online presence.',
             includes: [
-                'Single-page custom React/Next.js website',
+                'Multi-section single-page React/Next.js website',
                 'Brand-matched design system',
                 'Cross-device optimization (mobile, tablet, desktop)',
                 'Scroll animations & micro-interactions',
-                'Multi-step contact forms',
+                'Multi-step contact forms with validation',
                 'GA4 + custom event tracking',
-                'Technical SEO setup (meta tags, sitemap, schema)',
-                'Social media links integration',
+                'Full technical SEO (meta tags, sitemap, schema)',
                 'SSL certificate & hosting included',
                 '2 rounds of revisions per milestone',
                 '30-day post-launch support'
@@ -5596,97 +6339,83 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
                 'User authentication or login systems',
                 'Database integration',
                 'E-commerce functionality',
-                'Custom backend development',
-                'Ongoing maintenance (available separately)'
+                'Backend development'
+            ]
+        },
+        'growth': {
+            name: 'Tier 2 — Growth',
+            priceRange: '$5,000 - $7,500',
+            defaultPrice: 6250,
+            timeline: '3-5 weeks',
+            description: 'For businesses needing auth-protected content, form data capture, and newsletter integration.',
+            includes: [
+                'Everything in Starter',
+                'Firebase Authentication (email/password login)',
+                'Protected content areas (auth-gated pages/sections)',
+                'Form data capture & storage',
+                'Newsletter/email list integration',
+                'User session management',
+                'SSL certificate & hosting included',
+                '3 rounds of revisions',
+                '45-day post-launch support'
+            ],
+            notIncluded: [
+                'User dashboard or profile pages',
+                'Database-driven content',
+                'Multiple API integrations',
+                'E-commerce functionality'
             ]
         },
         'professional': {
-            name: 'Tier 2 — Professional Package',
-            priceRange: '$5,500 - $9,000',
-            defaultPrice: 7250,
-            timeline: '4-6 weeks',
-            description: 'Ideal for growing businesses requiring dynamic functionality and user engagement features.',
+            name: 'Tier 3 — Professional',
+            priceRange: '$8,000 - $12,000',
+            defaultPrice: 10000,
+            timeline: '5-8 weeks',
+            description: 'Full-featured application with user dashboard, profiles, and database-driven functionality.',
             includes: [
-                'Multi-section single-page application (SPA)',
-                'Brand-matched design system with component library',
-                'Dynamic content sections',
-                'Scroll animations & micro-interactions',
-                'Firebase Authentication (email/password)',
-                'Basic user session management',
-                'Technical SEO setup (meta, sitemap, schema)',
-                'GA4 + custom event tracking',
-                'Multi-step forms with validation',
-                'Email capture & newsletter integration',
-                'Integration with one third-party service',
-                'SSL certificate & hosting included',
-                '4 rounds of revisions',
-                '1 month of included support'
-            ],
-            notIncluded: [
-                'Full user dashboard systems',
-                'Multi-role user permissions',
-                'E-commerce or payment processing',
-                'Complex API integrations (more than 1)',
-                'Mobile app development'
-            ]
-        },
-        'premium': {
-            name: 'Tier 3 — Premium Package',
-            priceRange: '$9,000 - $15,000',
-            defaultPrice: 12000,
-            timeline: '6-10 weeks',
-            description: 'Comprehensive solution for businesses requiring user management, booking systems, and advanced functionality.',
-            includes: [
-                'Everything in Professional Package',
+                'Everything in Growth',
                 'Full Firebase backend (Auth, Firestore, Storage)',
-                'Client portal / user dashboard',
-                'User profiles with authentication',
-                'Scheduling & booking system',
-                'Audio/video player integration',
-                'Social media feed integration',
+                'User dashboard with personalized content',
+                'User profile management',
+                'File/media upload system',
                 'Multiple API integrations (CRMs, Zapier, etc.)',
-                'Media upload system',
                 'Email notifications (SendGrid)',
                 'SSL certificate & hosting included',
                 'Priority support response (24-48 hours)',
+                '4 rounds of revisions',
                 '2 months of included maintenance'
             ],
             notIncluded: [
-                'Full multi-tenant SaaS architecture',
                 'Role-based access control (RBAC)',
-                'Custom mobile applications',
-                'Advanced booking with availability management',
-                'Content management system'
+                'Multi-page application routing',
+                'E-commerce functionality',
+                'Mobile app development'
             ]
         },
-        'elite': {
-            name: 'Tier 4 — Elite Web Application',
-            priceRange: '$15,000 - $28,000',
-            defaultPrice: 21500,
-            timeline: '10-16 weeks',
-            description: 'Enterprise-grade web application with full backend infrastructure, user management, and scalable architecture.',
+        'enterprise': {
+            name: 'Tier 4 — Enterprise',
+            priceRange: '$14,000 - $24,000',
+            defaultPrice: 19000,
+            timeline: '8-14 weeks',
+            description: 'Enterprise-grade web application with full infrastructure, role-based access, and scalable architecture.',
             includes: [
-                'Everything in Premium Package',
+                'Everything in Professional',
                 'Multi-page Next.js application with routing',
-                'Role-based access control (admin, user, etc.)',
-                'Content management system',
-                'Advanced booking + availability management',
-                'Blog/news module',
-                'Media gallery system',
-                'In-app notifications',
-                'Custom user dashboards and analytics',
+                'Role-based access control (admin, editor, user, etc.)',
+                'In-app notification system',
+                'Custom admin dashboards and analytics',
                 'Scalable, production-ready architecture',
                 'Database design and optimization',
                 'Security best practices implementation',
                 'SSL certificate & hosting included',
                 'Documentation and training materials',
+                '5 rounds of revisions',
                 '3 months of premium maintenance included',
                 'Dedicated support channel'
             ],
             notIncluded: [
-                'Native mobile app development (React Native available separately)',
-                'Machine learning model development',
-                'Blockchain integration',
+                'Native mobile app development (available separately)',
+                'Machine learning / AI features',
                 '24/7 on-call support (available separately)'
             ]
         },
@@ -6270,13 +6999,13 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             fields.maintenance.value = sow.maintenancePlan || 'none';
         }
 
-        // Pricing data structures (2025 Scarlo Pricing Guide)
+        // Pricing data structures (2025 Scarlo Pricing Guide - Revised)
         var packagePricing = {
-            'basic': { min: 800, max: 1800, default: 1300 },
+            'essential': { min: 1000, max: 2200, default: 1600 },
             'starter': { min: 2800, max: 4500, default: 3650 },
-            'professional': { min: 5500, max: 9000, default: 7250 },
-            'premium': { min: 9000, max: 15000, default: 12000 },
-            'elite': { min: 15000, max: 28000, default: 21500 }
+            'growth': { min: 5000, max: 7500, default: 6250 },
+            'professional': { min: 8000, max: 12000, default: 10000 },
+            'enterprise': { min: 14000, max: 24000, default: 19000 }
         };
         var maintenancePricing = {
             'none': 0,
@@ -6286,31 +7015,31 @@ ContractFormHandler.prototype.editSOW = function(sow) {
         };
         // Feature pricing based on complexity (Fresno, CA market rates)
         var featurePricing = {
-            // Standard Features
+            // Standard Features (included in tiers)
             'responsive_design': { default: 200, thirdParty: false },
             'custom_ui': { default: 450, thirdParty: false },
             'animations': { default: 275, thirdParty: false },
             'seo_optimization': { default: 200, thirdParty: false },
             'analytics': { default: 175, thirdParty: false },
             'contact_forms': { default: 250, thirdParty: false },
-            // Premium Add-ons
+            // Backend Features (included in higher tiers)
             'firebase_auth': { default: 350, thirdParty: true, note: 'Firebase costs' },
             'firebase_db': { default: 425, thirdParty: true, note: 'Firebase costs' },
             'user_profiles': { default: 550, thirdParty: false },
             'file_storage': { default: 300, thirdParty: true, note: 'Firebase costs' },
             'api_integration': { default: 450, thirdParty: false },
             'email_integration': { default: 325, thirdParty: true, note: 'SendGrid costs' },
-            'music_media': { default: 275, thirdParty: false },
-            'booking_basic': { default: 400, thirdParty: false },
             'newsletter': { default: 200, thirdParty: false },
-            'social_feed': { default: 250, thirdParty: false },
-            // Enterprise Features
             'user_roles': { default: 450, thirdParty: false },
-            'cms_integration': { default: 550, thirdParty: false },
-            'booking_system': { default: 950, thirdParty: false },
-            'blog': { default: 400, thirdParty: false },
-            'gallery': { default: 325, thirdParty: false },
-            'notifications': { default: 350, thirdParty: false }
+            'notifications': { default: 400, thirdParty: false },
+            // Add-on Features (available to any tier)
+            'booking_basic': { default: 450, thirdParty: false, addon: true },
+            'booking_system': { default: 1100, thirdParty: false, addon: true },
+            'blog': { default: 400, thirdParty: false, addon: true },
+            'cms_integration': { default: 600, thirdParty: false, addon: true },
+            'gallery': { default: 325, thirdParty: false, addon: true },
+            'music_media': { default: 275, thirdParty: false, addon: true },
+            'social_feed': { default: 250, thirdParty: false, addon: true }
         };
         // E-Commerce radio options (2025 Scarlo Pricing Guide)
         var ecommercePricing = {
@@ -6319,12 +7048,13 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             'full_store': { price: 9000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $6,000-$12,000
         };
         // Package-feature mapping (hosting, ssl, domain included free in all packages)
+        // Add-ons (booking, blog, cms, gallery, music, social_feed) available separately for any tier
         var packageIncludedFeatures = {
-            'basic': ['responsive_design'],
+            'essential': ['responsive_design', 'contact_forms'],
             'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms'],
-            'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
-            'premium': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'booking_basic', 'api_integration', 'contact_forms', 'email_integration', 'newsletter', 'social_feed', 'music_media'],
-            'elite': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'booking_system', 'api_integration', 'cms_integration', 'blog', 'gallery', 'contact_forms', 'email_integration', 'notifications', 'newsletter', 'social_feed', 'music_media'],
+            'growth': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
+            'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'newsletter'],
+            'enterprise': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'notifications', 'newsletter'],
             'custom': []
         };
 
@@ -6364,6 +7094,12 @@ ContractFormHandler.prototype.editSOW = function(sow) {
         }
         var ecommerceRadio = document.querySelector('input[name="ecommerce_option"][value="' + ecommerceOption + '"]');
         if (ecommerceRadio) ecommerceRadio.checked = true;
+
+        // Restore coupon selection
+        var couponSelect = $('#sowCouponSelect');
+        if (couponSelect && sow.couponCode) {
+            couponSelect.value = sow.couponCode;
+        }
 
         // Update pricing display with all parameters
         setTimeout(function() {
@@ -6495,6 +7231,10 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
 
     var totalPrice = pricingData.total;
 
+    // Get selected coupon
+    var couponSelect = $('#sowCouponSelect');
+    var selectedCouponCode = couponSelect ? couponSelect.value : '';
+
     var sowData = {
         clientName: clientName,
         clientEmail: clientEmail || '',
@@ -6505,6 +7245,7 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
+        couponCode: selectedCouponCode || null,
         payment: {
             total: totalPrice,
             deposit: totalPrice * 0.50,
@@ -6515,7 +7256,9 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
                 addOns: pricingData.addOns,
                 discounts: pricingData.discounts,
                 ecommerceOption: pricingData.ecommerceOption,
-                ecommercePrice: pricingData.ecommercePrice
+                ecommercePrice: pricingData.ecommercePrice,
+                couponCode: selectedCouponCode || null,
+                couponDiscount: pricingData.couponDiscount || 0
             }
         },
         updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -7187,29 +7930,29 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
     if (!sowContent) return;
 
     var packageNames = {
-        'basic': 'Basic — Landing Page',
+        'essential': 'Essential — Landing Page',
         'starter': 'Tier 1 — Starter',
-        'professional': 'Tier 2 — Professional',
-        'premium': 'Tier 3 — Premium',
-        'elite': 'Tier 4 — Elite',
+        'growth': 'Tier 2 — Growth',
+        'professional': 'Tier 3 — Professional',
+        'enterprise': 'Tier 4 — Enterprise',
         'custom': 'Custom Quote'
     };
 
     var packageDetails = {
-        'basic': {
-            includes: ['Single-page landing page', 'Cross-device optimization', 'Clean, modern layout', 'Basic contact form']
+        'essential': {
+            includes: ['Single-page landing page (1-3 sections)', 'Cross-device optimization', 'Clean, modern React/Next.js design', 'Contact form with validation', 'Basic SEO setup']
         },
         'starter': {
-            includes: ['1-page React/Next.js website', 'Brand-matched design system', 'Cross-device optimization', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Technical SEO setup']
+            includes: ['Multi-section React/Next.js website', 'Brand-matched design system', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Full technical SEO']
+        },
+        'growth': {
+            includes: ['Everything in Starter', 'Firebase Authentication', 'Protected content areas', 'Form data capture & storage', 'Newsletter integration', '3 rounds of revisions']
         },
         'professional': {
-            includes: ['Everything in Starter', 'Firebase Authentication', 'Email capture & newsletter', 'Multi-step forms with validation', '4 rounds of revisions', '1 month of support included']
+            includes: ['Everything in Growth', 'Full Firebase backend', 'User dashboard & profiles', 'File/media upload system', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included']
         },
-        'premium': {
-            includes: ['Everything in Professional', 'Full Firebase backend', 'Client portal / user dashboard', 'Scheduling & booking system', 'Audio/video player integration', 'Social media feed integration', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included']
-        },
-        'elite': {
-            includes: ['Everything in Premium', 'Role-based access control', 'Content management system', 'Advanced booking + availability', 'Blog/news module', 'Media gallery system', 'In-app notifications', '3 months of premium maintenance included']
+        'enterprise': {
+            includes: ['Everything in Professional', 'Multi-page application', 'Role-based access control', 'In-app notifications', 'Admin dashboards', 'Documentation & training', '3 months of premium maintenance included']
         }
     };
 
@@ -8876,25 +9619,29 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     
     // SOW data
     var packageNames = {
+        'essential': 'Essential — Landing Page',
         'starter': 'Tier 1 — Starter',
-        'professional': 'Tier 2 — Professional',
-        'premium': 'Tier 3 — Premium',
-        'elite': 'Tier 4 — Elite',
+        'growth': 'Tier 2 — Growth',
+        'professional': 'Tier 3 — Professional',
+        'enterprise': 'Tier 4 — Enterprise',
         'custom': 'Custom Quote'
     };
-    
+
     var packageDetails = {
+        'essential': {
+            includes: ['Single-page landing page (1-3 sections)', 'Cross-device optimization', 'Clean, modern React/Next.js design', 'Contact form with validation', 'Basic SEO setup']
+        },
         'starter': {
-            includes: ['1-page custom React/Next.js website', 'Clean, modern UI/UX', 'Mobile responsive', 'Light animations and transitions', 'Custom contact form', 'Simple analytics']
+            includes: ['Multi-section React/Next.js website', 'Brand-matched design system', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Full technical SEO']
+        },
+        'growth': {
+            includes: ['Everything in Starter', 'Firebase Authentication', 'Protected content areas', 'Form data capture & storage', 'Newsletter integration', '3 rounds of revisions']
         },
         'professional': {
-            includes: ['Fully custom UI/UX layout', 'Dynamic single-page application flow', 'Smooth animations', 'Firebase authentication', 'Performance optimization', 'SEO setup + analytics', 'Custom forms & logic', '4 rounds of revisions', '1 month of support included']
+            includes: ['Everything in Growth', 'Full Firebase backend', 'User dashboard & profiles', 'File/media upload system', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included']
         },
-        'premium': {
-            includes: ['Everything in Professional', 'Firebase Authentication & Database', 'User Profiles (Auth. Limited Multi-User Login)', 'Custom booking systems and workflow logic', 'Custom dashboard components', 'Advanced UI animations', 'API integrations (CRMs, mailing lists, etc.)', 'Priority Support', '2 months of maintenance included']
-        },
-        'elite': {
-            includes: ['Multi-page Next.js application', 'Full Firebase backend (Auth, Firestore, Storage)', 'User Profiles (Auth. Multi-User Login)', 'User roles, permissions, dashboards', 'Backend automation & API integrations', 'Full custom UI/UX', 'Scalable architecture', '3 months of premium maintenance included']
+        'enterprise': {
+            includes: ['Everything in Professional', 'Multi-page application', 'Role-based access control', 'In-app notifications', 'Admin dashboards', 'Documentation & training', '3 months of premium maintenance included']
         }
     };
     
