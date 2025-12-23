@@ -6500,6 +6500,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     var discounts = breakdown ? breakdown.discounts : [];
     var ecommerceOption = breakdown ? breakdown.ecommerceOption : null;
     var ecommercePrice = breakdown ? breakdown.ecommercePrice : 0;
+    var couponCode = breakdown ? breakdown.couponCode : null;
+    var couponDiscount = breakdown ? breakdown.couponDiscount : 0;
 
     // Format dates
     var generatedDate = new Date().toLocaleDateString('en-US', {
@@ -6731,6 +6733,14 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
             '<td style="text-align: right; color: #c62828;">-$' + discount.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
             '</tr>';
         });
+    }
+
+    // Coupon discount
+    if (couponCode && couponDiscount > 0) {
+        htmlContent += '<tr>' +
+        '<td>Coupon: ' + couponCode + '</td>' +
+        '<td style="text-align: right; color: #c62828;">-$' + couponDiscount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+        '</tr>';
     }
 
     // Total row

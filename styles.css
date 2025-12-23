@@ -6375,7 +6375,7 @@ body.modal-open .custom-cursor {
 
 .completion-header {
     text-align: center;
-    margin-bottom: 3rem;
+    margin-bottom: 1.5rem;
     padding-bottom: 1rem;
     border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 }
@@ -6429,7 +6429,7 @@ body.modal-open .custom-cursor {
     display: grid;
     grid-template-columns: repeat(2, 1fr); /* Add this */
     gap: 2rem;
-    margin-bottom: 2rem;
+    margin-bottom: 1rem;
 }
 
 @media (max-width: 768px) {
@@ -6549,7 +6549,7 @@ body.modal-open .custom-cursor {
 
 .completion-actions {
     text-align: center;
-    padding-top: 2rem;
+    padding-bottom: 1rem;
 }
 
 @media (max-width: 640px) {
@@ -7957,7 +7957,7 @@ section.separator-visible::after {
 
 /* Itemized pricing container */
 .pricing-itemized-container {
-    max-height: 320px;
+    max-height: 450px;
     overflow-y: auto;
     margin-bottom: 1rem;
     border: 1px solid rgba(255, 255, 255, 0.1);
