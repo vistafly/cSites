@@ -2672,15 +2672,6 @@ ContractFormHandler.prototype.loadCoupons = function() {
                 coupons.push(data);
             });
 
-            // Create WELCOME10 coupon if no coupons exist
-            if (coupons.length === 0) {
-                self.createWelcomeCoupon().then(function() {
-                    // Reload coupons after creating the welcome coupon
-                    self.loadCoupons();
-                });
-                return;
-            }
-
             // Update badge count
             var badge = document.getElementById('couponCountBadge');
             if (badge) badge.textContent = coupons.length;
