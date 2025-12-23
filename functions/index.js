@@ -581,6 +581,46 @@ exports.removeTestPhoneNumber = functions.https.onCall(async (data, context) => 
 });
 
 /**
+ * checkTestPhoneNumber
+ *
+ * Checks if a phone number is a registered test phone number.
+ * This function does NOT require authentication since it's called
+ * before the user signs in to determine the auth flow.
+ *
+ * Returns: { isTestPhone: boolean }
+ */
+exports.checkTestPhoneNumber = functions.https.onCall(async (data, context) => {
+    const { phoneNumber } = data;
+
+    if (!phoneNumber) {
+        throw new functions.https.HttpsError(
+            'invalid-argument',
+            'Phone number is required.'
+        );
+    }
+
+    try {
+        const normalizedPhone = normalizeToE164(phoneNumber);
+        const docId = normalizedPhone.replace(/[^0-9+]/g, '');
+
+        const doc = await admin.firestore()
+            .collection('test_phone_numbers')
+            .doc(docId)
+            .get();
+
+        // Only return whether it's a test phone, no sensitive details
+        return { isTestPhone: doc.exists };
+
+    } catch (error) {
+        console.error('Error checking test phone number:', error);
+        throw new functions.https.HttpsError(
+            'internal',
+            'Failed to check phone number.'
+        );
+    }
+});
+
+/**
  * verifyTestPhoneNumber
  *
  * Verifies a test phone number and returns a custom auth token.

@@ -1065,13 +1065,11 @@ RotatingText.prototype.rotate = function() {
         // Show loading state
         this.setPhoneLoadingState(submitBtn, true);
 
-        // First, check if this is a test phone number
-        var normalizedPhone = normalizeToE164(fullPhoneNumber);
-        var docId = normalizedPhone.replace(/[^0-9+]/g, '');
-
-        firebase.firestore().collection('test_phone_numbers').doc(docId).get()
-            .then(function(doc) {
-                if (doc.exists) {
+        // Check if this is a test phone number using Cloud Function
+        var checkTestPhoneNumber = firebase.functions().httpsCallable('checkTestPhoneNumber');
+        checkTestPhoneNumber({ phoneNumber: fullPhoneNumber })
+            .then(function(result) {
+                if (result.data.isTestPhone) {
                     // This is a test phone number - skip real SMS
                     console.log('Test phone number detected, skipping SMS');
                     self.isTestPhone = true;
@@ -1083,14 +1081,15 @@ RotatingText.prototype.rotate = function() {
                     // No resend timer for test phones (code is fixed)
                     self.setPhoneLoadingState(submitBtn, false);
                 } else {
-                    // Not a test phone - use normal Firebase Phone Auth
-                    self.proceedWithRealPhoneAuth(fullPhoneNumber, errorEl, submitBtn);
+                    // Not a test phone - show error (no real SMS support)
+                    self.showError(errorEl, 'Phone number not registered. Please contact support.');
+                    self.setPhoneLoadingState(submitBtn, false);
                 }
             })
             .catch(function(error) {
                 console.error('Error checking test phone:', error);
-                // Fall back to real phone auth if we can't check
-                self.proceedWithRealPhoneAuth(fullPhoneNumber, errorEl, submitBtn);
+                self.showError(errorEl, 'Unable to verify phone number. Please try again.');
+                self.setPhoneLoadingState(submitBtn, false);
             });
     };
 
