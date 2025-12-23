@@ -422,7 +422,7 @@ export const StaggeredMenu = ({
               </li>
             )}
           </ul>
-          {displaySocials && socialItems && socialItems.length > 0 && (
+          {/* {displaySocials && socialItems && socialItems.length > 0 && (
             <div className="sm-socials" aria-label="Social links">
               <h3 className="sm-socials-title">Connect</h3>
               <ul className="sm-socials-list" role="list">
@@ -435,7 +435,7 @@ export const StaggeredMenu = ({
                 ))}
               </ul>
             </div>
-          )}
+          )} */}
         </div>
       </aside>
 
