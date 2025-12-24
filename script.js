@@ -7159,7 +7159,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     '</div>' +
 
-    '<p style="font-size: 7pt; color: #888; margin-top: 4px; margin-bottom: 0;">Market rates based on Fresno/Central Valley research (2024-2025). Full industry comparison: <a href="https://scarlo.dev/pricing" target="_blank" style="color: #2e7d32; text-decoration: underline;">https://scarlo.dev/pricing</a></p>' +
+    '<p style="font-size: 7pt; color: #888; margin-top: 4px; margin-bottom: 0;">Market rates based on Fresno/Central Valley research (2024-2025). Full industry comparison: <a href="https://scarlo.dev/pricing" target="_blank" style="color: #2e7d32; text-decoration: underline;">scarlo.dev/pricing</a></p>' +
     '</div>';
 
     sectionNum++;
@@ -10996,8 +10996,258 @@ if (messageTextarea) {
         this.style.height = 'auto';
         this.style.height = Math.min(this.scrollHeight, 400) + 'px';
     });
-    
+
     // Also trigger on page load in case there's pre-filled content
     messageTextarea.style.height = 'auto';
     messageTextarea.style.height = Math.min(messageTextarea.scrollHeight, 400) + 'px';
 }
+
+// ============================================
+// COOKIE CONSENT (with Firestore sync for authenticated users)
+// ============================================
+(function() {
+    'use strict';
+
+    var COOKIE_KEY = 'scarlo_cookie_consent';
+    var FIRESTORE_COLLECTION = 'userPreferences';
+    var REASK_AFTER_DAYS = 7;
+    var REASK_AFTER_MS = REASK_AFTER_DAYS * 24 * 60 * 60 * 1000;
+
+    var popup = document.getElementById('cookieConsent');
+    var settingsBtn = document.getElementById('cookieSettingsBtn');
+    var acceptBtn = document.getElementById('cookieAccept');
+    var declineBtn = document.getElementById('cookieDecline');
+    var analyticsToggle = document.getElementById('cookieAnalytics');
+    var marketingToggle = document.getElementById('cookieMarketing');
+
+    if (!popup) return;
+
+    // --- Consent logic helpers ---
+    // "Full consent" = both Analytics AND Marketing enabled
+    function isFullConsent(consent) {
+        return consent && consent.analytics === true && consent.marketing === true;
+    }
+
+    // Should we show the popup?
+    // Yes if: no consent, OR (not full consent AND 7+ days have passed)
+    function shouldShowPopup(consent) {
+        if (!consent) return true;
+        if (isFullConsent(consent)) return false;
+
+        // Partial/declined consent - check if 7 days have passed
+        var daysSince = Date.now() - (consent.timestamp || 0);
+        return daysSince >= REASK_AFTER_MS;
+    }
+
+    // --- localStorage helpers ---
+    function getLocalConsent() {
+        try {
+            var stored = localStorage.getItem(COOKIE_KEY);
+            return stored ? JSON.parse(stored) : null;
+        } catch (e) {
+            return null;
+        }
+    }
+
+    function saveLocalConsent(consent) {
+        try {
+            localStorage.setItem(COOKIE_KEY, JSON.stringify(consent));
+        } catch (e) {
+            // localStorage not available
+        }
+    }
+
+    // --- Firestore helpers (for authenticated users) ---
+    function getCurrentUser() {
+        return window.auth && window.auth.currentUser ? window.auth.currentUser : null;
+    }
+
+    function saveToFirestore(consent) {
+        var user = getCurrentUser();
+        if (!user || !window.db) return Promise.resolve();
+
+        return window.db.collection(FIRESTORE_COLLECTION).doc(user.uid).set({
+            cookieConsent: consent,
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(function(err) {
+            console.warn('Failed to save cookie consent to Firestore:', err);
+        });
+    }
+
+    function loadFromFirestore() {
+        var user = getCurrentUser();
+        if (!user || !window.db) return Promise.resolve(null);
+
+        return window.db.collection(FIRESTORE_COLLECTION).doc(user.uid).get()
+            .then(function(doc) {
+                if (doc.exists && doc.data().cookieConsent) {
+                    return doc.data().cookieConsent;
+                }
+                return null;
+            })
+            .catch(function(err) {
+                console.warn('Failed to load cookie consent from Firestore:', err);
+                return null;
+            });
+    }
+
+    // --- UI helpers ---
+    function showPopup() {
+        popup.classList.add('visible');
+        popup.setAttribute('aria-hidden', 'false');
+        settingsBtn.classList.remove('visible');
+        settingsBtn.setAttribute('aria-hidden', 'true');
+    }
+
+    function hidePopup() {
+        popup.classList.remove('visible');
+        popup.setAttribute('aria-hidden', 'true');
+        settingsBtn.classList.add('visible');
+        settingsBtn.setAttribute('aria-hidden', 'false');
+    }
+
+    function updateToggles(consent) {
+        if (consent) {
+            analyticsToggle.checked = consent.analytics;
+            marketingToggle.checked = consent.marketing;
+        }
+    }
+
+    function applyConsent(consent) {
+        // Dispatch custom event for other scripts to listen to
+        window.dispatchEvent(new CustomEvent('cookieConsentUpdated', { detail: consent }));
+
+        // Example: Load analytics if consented
+        if (consent.analytics) {
+            // Uncomment and add your analytics script loading here
+            // loadGoogleAnalytics();
+        }
+
+        // Example: Load marketing scripts if consented
+        if (consent.marketing) {
+            // Uncomment and add your marketing script loading here
+            // loadMarketingPixels();
+        }
+    }
+
+    // --- Main save function (localStorage + Firestore if authenticated) ---
+    function saveConsent(consent) {
+        saveLocalConsent(consent);
+        saveToFirestore(consent);
+    }
+
+    // --- Initialization ---
+    function init() {
+        var localConsent = getLocalConsent();
+
+        if (shouldShowPopup(localConsent)) {
+            // No consent, or partial/declined and 7+ days passed - show immediately
+            updateToggles(localConsent);
+            showPopup();
+        } else {
+            // Full consent given - apply it and show settings button
+            updateToggles(localConsent);
+            settingsBtn.classList.add('visible');
+            settingsBtn.setAttribute('aria-hidden', 'false');
+            applyConsent(localConsent);
+        }
+    }
+
+    // --- Sync from Firestore when user authenticates ---
+    function onAuthStateChanged(user) {
+        if (!user) return;
+
+        loadFromFirestore().then(function(firestoreConsent) {
+            var localConsent = getLocalConsent();
+            var effectiveConsent = null;
+
+            if (firestoreConsent && localConsent) {
+                // Both exist - use the most recent one
+                if (firestoreConsent.timestamp > localConsent.timestamp) {
+                    effectiveConsent = firestoreConsent;
+                    saveLocalConsent(firestoreConsent);
+                } else {
+                    effectiveConsent = localConsent;
+                    saveToFirestore(localConsent);
+                }
+            } else if (firestoreConsent && !localConsent) {
+                effectiveConsent = firestoreConsent;
+                saveLocalConsent(firestoreConsent);
+            } else if (!firestoreConsent && localConsent) {
+                effectiveConsent = localConsent;
+                saveToFirestore(localConsent);
+            }
+
+            // Apply the same show/hide logic as init
+            if (effectiveConsent) {
+                updateToggles(effectiveConsent);
+                if (shouldShowPopup(effectiveConsent)) {
+                    showPopup();
+                } else {
+                    popup.classList.remove('visible');
+                    settingsBtn.classList.add('visible');
+                    settingsBtn.setAttribute('aria-hidden', 'false');
+                    applyConsent(effectiveConsent);
+                }
+            }
+        });
+    }
+
+    // Listen for Firebase auth state changes
+    function setupAuthListener() {
+        if (window.auth) {
+            window.auth.onAuthStateChanged(onAuthStateChanged);
+        }
+    }
+
+    // Accept/Save button
+    acceptBtn.addEventListener('click', function() {
+        var consent = {
+            essential: true,
+            analytics: analyticsToggle.checked,
+            marketing: marketingToggle.checked,
+            timestamp: Date.now()
+        };
+        saveConsent(consent);
+        hidePopup();
+        applyConsent(consent);
+    });
+
+    // Decline button
+    declineBtn.addEventListener('click', function() {
+        var consent = {
+            essential: true,
+            analytics: false,
+            marketing: false,
+            timestamp: Date.now()
+        };
+        analyticsToggle.checked = false;
+        marketingToggle.checked = false;
+        saveConsent(consent);
+        hidePopup();
+        applyConsent(consent);
+    });
+
+    // Settings button (reopens popup)
+    settingsBtn.addEventListener('click', function() {
+        var consent = getLocalConsent();
+        updateToggles(consent);
+        showPopup();
+    });
+
+    // Initialize immediately with localStorage
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', init);
+    } else {
+        init();
+    }
+
+    // Setup Firestore sync after Firebase is ready
+    if (window.firebaseReady) {
+        window.firebaseReady.then(setupAuthListener).catch(function() {
+            // Firebase failed to load - localStorage only
+        });
+    } else {
+        window.addEventListener('firebaseReady', setupAuthListener);
+    }
+})();

@@ -1010,9 +1010,9 @@
                     </div>
                     <div class="footer-column">
                         <h4>Legal</h4>
-                        <a href="#contract">Agreement</a>
-                        <a href="#">Privacy</a>
-                        <a href="#">Terms</a>
+                        <a href="/agreement/" target="_blank">Agreement</a>
+                        <a href="/privacy/" target="_blank">Privacy</a>
+                        <a href="/terms/" target="_blank">Terms</a>
                     </div>
                 </div>
             </div>
@@ -1089,6 +1089,73 @@
             </form>
         </div>
     </div>
+
+    <!-- Cookie Consent Popup -->
+    <div id="cookieConsent" class="cookie-consent" aria-hidden="true">
+        <div class="cookie-content">
+            <div class="cookie-header">
+                <span class="cookie-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <circle cx="8" cy="9" r="1" fill="currentColor"></circle>
+                        <circle cx="15" cy="8" r="1" fill="currentColor"></circle>
+                        <circle cx="10" cy="14" r="1" fill="currentColor"></circle>
+                        <circle cx="16" cy="13" r="1" fill="currentColor"></circle>
+                    </svg>
+                </span>
+                <span class="cookie-title">Cookie Preferences</span>
+            </div>
+            <p class="cookie-text">We use cookies to enhance your experience. Customize your preferences below.</p>
+
+            <div class="cookie-toggles">
+                <div class="cookie-toggle-row">
+                    <div class="cookie-toggle-info">
+                        <span class="cookie-toggle-label">Essential</span>
+                        <span class="cookie-toggle-desc">Required for site functionality</span>
+                    </div>
+                    <label class="cookie-switch cookie-switch-disabled">
+                        <input type="checkbox" checked disabled>
+                        <span class="cookie-slider"></span>
+                    </label>
+                </div>
+                <div class="cookie-toggle-row">
+                    <div class="cookie-toggle-info">
+                        <span class="cookie-toggle-label">Analytics</span>
+                        <span class="cookie-toggle-desc">Help us improve our site</span>
+                    </div>
+                    <label class="cookie-switch">
+                        <input type="checkbox" id="cookieAnalytics">
+                        <span class="cookie-slider"></span>
+                    </label>
+                </div>
+                <div class="cookie-toggle-row">
+                    <div class="cookie-toggle-info">
+                        <span class="cookie-toggle-label">Marketing</span>
+                        <span class="cookie-toggle-desc">Personalized content & ads</span>
+                    </div>
+                    <label class="cookie-switch">
+                        <input type="checkbox" id="cookieMarketing">
+                        <span class="cookie-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="cookie-actions">
+                <button id="cookieDecline" class="cookie-btn cookie-btn-secondary">Decline All</button>
+                <button id="cookieAccept" class="cookie-btn cookie-btn-primary">Save Preferences</button>
+            </div>
+            <a href="/privacy/" class="cookie-privacy-link" target="_blank">Privacy Policy</a>
+        </div>
+    </div>
+
+    <button id="cookieSettingsBtn" class="cookie-settings-btn" aria-label="Cookie settings" aria-hidden="true">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <circle cx="8" cy="9" r="1" fill="currentColor"></circle>
+            <circle cx="15" cy="8" r="1" fill="currentColor"></circle>
+            <circle cx="10" cy="14" r="1" fill="currentColor"></circle>
+        </svg>
+    </button>
 
     <!-- Scripts - deferred for performance -->
     <script src="./LogoAnimation.js" defer></script>
