@@ -6932,8 +6932,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<span class="package-name">' + packageInfo.name + '</span>' +
     '<span class="package-price">' + packageInfo.priceRange + '</span>' +
     '</div>' +
-    '<p style="margin-bottom: 15px;">' + packageInfo.description + '</p>' +
-    '<h3 style="margin-top: 15px;">Included in This Package:</h3>' +
+    '<p style="font-size: 9pt; margin-bottom: 10px;">' + packageInfo.description + '</p>' +
+    '<h3 style="font-size: 9pt; margin-top: 10px;">Included in This Package:</h3>' +
     '<ul class="feature-list">';
 
     packageInfo.includes.forEach(function(item) {
@@ -6959,7 +6959,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         htmlContent += '<div class="section">' +
         '<h2>' + (features && features.length > 0 ? '4' : '3') + '. Special Requirements & Notes</h2>' +
         '<div class="info-box">' +
-        '<p style="margin-bottom: 0;">' + notes + '</p>' +
+        '<p style="font-size: 9pt; margin-bottom: 0;">' + notes + '</p>' +
         '</div>' +
         '</div>';
     }
@@ -7179,10 +7179,10 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         '<span class="maintenance-name">' + maintenanceInfo.name + '</span>' +
         '<span class="maintenance-price">' + maintenanceInfo.price + '</span>' +
         '</div>' +
-        '<p style="margin: 10px 0;">' + maintenanceInfo.description + '</p>';
+        '<p style="font-size: 9pt; margin: 10px 0;">' + maintenanceInfo.description + '</p>';
 
         if (maintenanceInfo.includes && maintenanceInfo.includes.length > 0) {
-            htmlContent += '<h3 style="margin-top: 15px;">Maintenance Includes:</h3>' +
+            htmlContent += '<h3 style="font-size: 9pt; margin-top: 10px;">Maintenance Includes:</h3>' +
             '<ul>';
             maintenanceInfo.includes.forEach(function(item) {
                 htmlContent += '<li>' + item + '</li>';
@@ -7219,8 +7219,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     htmlContent += '<div class="section">' +
     '<h2>' + sectionNum + '. Acceptance Criteria</h2>' +
     '<div class="info-box">' +
-    '<p style="margin-bottom: 4px;"><strong>Process:</strong> Client has 5 business days to review deliverables. Acceptance occurs when Client: (a) approves in writing, (b) fails to respond, or (c) uses in production. Acceptance triggers payment.</p>' +
-    '<p style="margin-bottom: 0;"><strong>Final Criteria:</strong> Modern browser compatibility (Chrome, Firefox, Safari, Edge), mobile responsiveness (iOS/Android), all features functional, forms working, page load under 5 seconds.</p>' +
+    '<p style="font-size: 9pt; margin-bottom: 4px;"><strong>Process:</strong> Client has 5 business days to review deliverables. Acceptance occurs when Client: (a) approves in writing, (b) fails to respond, or (c) uses in production. Acceptance triggers payment.</p>' +
+    '<p style="font-size: 9pt; margin-bottom: 0;"><strong>Final Criteria:</strong> Modern browser compatibility (Chrome, Firefox, Safari, Edge), mobile responsiveness (iOS/Android), all features functional, forms working, page load under 5 seconds.</p>' +
     '</div>' +
     '</div>';
 
@@ -7230,8 +7230,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     htmlContent += '<div class="section">' +
     '<h2>' + sectionNum + '. Scope Changes</h2>' +
     '<div class="info-box">' +
-    '<p style="margin-bottom: 4px;">Any scope modifications require a written Change Order (Agreement Section 9).</p>' +
-    '<p style="margin-bottom: 0;"><strong>Process:</strong> Client submits request → Developer evaluates impact → Change Order issued with revised scope/timeline/pricing → Client signs and pays deposit → Work proceeds.</p>' +
+    '<p style="font-size: 9pt; margin-bottom: 4px;">Any scope modifications require a written Change Order (Agreement Section 9).</p>' +
+    '<p style="font-size: 9pt; margin-bottom: 0;"><strong>Process:</strong> Client submits request → Developer evaluates impact → Change Order issued with revised scope/timeline/pricing → Client signs and pays deposit → Work proceeds.</p>' +
     '</div>' +
     '</div>';
 
@@ -7245,6 +7245,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     // Developer Signature
     '<div class="signature-block">' +
     '<h3>DEVELOPER: Scarlo</h3>' +
+    (isBusinessEntity ? '<p style="font-size: 9pt; margin-bottom: 8px;">&nbsp;</p>' : '') +
     '<div class="signature-line">' +
     (devSignature ? '<img src="' + devSignature + '" alt="Developer Signature" />' : '<span style="font-style: italic;">Awaiting Signature</span>') +
     '</div>' +
