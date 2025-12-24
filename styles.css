@@ -5355,6 +5355,71 @@ body.modal-open .custom-cursor {
     color: #fff;
 }
 
+/* Client Info Display (Read-only from SOW) */
+.client-info-display {
+    margin: 1rem 0;
+}
+
+.sow-required-notice {
+    color: rgba(255, 255, 255, 0.6);
+    text-align: center;
+    padding: 1.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 0.75rem;
+}
+
+.client-info-populated {
+    background: rgba(99, 102, 241, 0.05);
+    border: 1px solid rgba(99, 102, 241, 0.2);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+}
+
+.client-info-populated .form-group {
+    margin-bottom: 1rem;
+}
+
+.client-info-populated .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.client-info-populated .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+
+.client-info-populated label {
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: rgba(255, 255, 255, 0.5);
+    margin-bottom: 0.25rem;
+}
+
+.readonly-value {
+    margin: 0;
+    padding: 0.5rem 0;
+    color: #fff;
+    font-size: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.business-entity-info {
+    margin: 1rem 0;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@media (max-width: 768px) {
+    .client-info-populated .form-row {
+        grid-template-columns: 1fr;
+    }
+}
+
 .sow-textarea {
     resize: vertical;
     min-height: 100px;

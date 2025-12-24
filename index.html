@@ -556,57 +556,52 @@
                         <p><strong>Scarlo</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>
                         <p>and</p>
 
-                        <!-- Entity Type Toggle -->
-                        <div class="entity-type-toggle">
-                            <span class="toggle-label active" id="individualToggleLabel">Individual</span>
-                            <label class="toggle-switch">
-                                <input type="checkbox" id="entityTypeToggle" />
-                                <span class="toggle-slider"></span>
-                            </label>
-                            <span class="toggle-label" id="businessToggleLabel">Business Entity</span>
-                        </div>
-
-                        <!-- Individual Client Name (shown by default) -->
-                        <div class="individual-fields">
-                            <div class="form-group">
-                                <label for="clientName">Client's Full Legal Name *</label>
-                                <input type="text" id="clientName" name="clientName" required placeholder="Enter your full legal name">
-                            </div>
-                        </div>
-
-                        <!-- Business Entity Fields (hidden by default) -->
-                        <div class="business-entity-fields" style="display: none;">
-                            <div class="form-group">
-                                <label for="businessName">Business Legal Name *</label>
-                                <input type="text" id="businessName" name="businessName" placeholder="Enter full legal business name">
-                            </div>
-                            <div class="form-row">
+                        <!-- Client Info (auto-populated from SOW - read only) -->
+                        <div class="client-info-display" id="clientInfoDisplay">
+                            <p class="sow-required-notice" id="sowRequiredNotice">
+                                <em>Please attach a Statement of Work (SOW) to populate client information.</em>
+                            </p>
+                            <div class="client-info-populated" id="clientInfoPopulated" style="display: none;">
                                 <div class="form-group">
-                                    <label for="entityType">Entity Type *</label>
-                                    <select id="entityType" name="entityType" class="form-select">
-                                        <option value="">Select entity type...</option>
-                                        <option value="LLC">LLC (Limited Liability Company)</option>
-                                        <option value="Corporation">Corporation</option>
-                                        <option value="Partnership">Partnership</option>
-                                        <option value="Sole Proprietorship">Sole Proprietorship</option>
-                                    </select>
+                                    <label>Client</label>
+                                    <p class="readonly-value" id="contractClientName">—</p>
+                                </div>
+                                <div class="business-entity-info" id="businessEntityInfo" style="display: none;">
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Entity Type</label>
+                                            <p class="readonly-value" id="contractEntityType">—</p>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>State of Formation</label>
+                                            <p class="readonly-value" id="contractStateOfFormation">—</p>
+                                        </div>
+                                    </div>
+                                    <div class="form-row">
+                                        <div class="form-group">
+                                            <label>Authorized Representative</label>
+                                            <p class="readonly-value" id="contractRepName">—</p>
+                                        </div>
+                                        <div class="form-group">
+                                            <label>Title</label>
+                                            <p class="readonly-value" id="contractRepTitle">—</p>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="form-group">
-                                    <label for="stateOfFormation">State of Formation</label>
-                                    <input type="text" id="stateOfFormation" name="stateOfFormation" placeholder="e.g., California">
-                                </div>
-                            </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="repName">Authorized Representative Name *</label>
-                                    <input type="text" id="repName" name="repName" placeholder="Person signing on behalf of business">
-                                </div>
-                                <div class="form-group">
-                                    <label for="repTitle">Representative Title *</label>
-                                    <input type="text" id="repTitle" name="repTitle" placeholder="e.g., Managing Member, CEO, President">
+                                    <label>Contact</label>
+                                    <p class="readonly-value" id="contractClientContact">—</p>
                                 </div>
                             </div>
                         </div>
+                        <!-- Hidden fields to store SOW data for form submission -->
+                        <input type="hidden" id="clientName" name="clientName" />
+                        <input type="hidden" id="isBusinessEntity" name="isBusinessEntity" />
+                        <input type="hidden" id="businessName" name="businessName" />
+                        <input type="hidden" id="entityType" name="entityType" />
+                        <input type="hidden" id="stateOfFormation" name="stateOfFormation" />
+                        <input type="hidden" id="repName" name="repName" />
+                        <input type="hidden" id="repTitle" name="repTitle" />
 
                         <p class="small-text">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>
                     </div>

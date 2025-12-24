@@ -2010,52 +2010,77 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
         console.log('Signature pads initialized');
     };
 
-    // Initialize entity type toggle for contract form (Individual/Business)
+    // Populate client info from SOW data (read-only display)
     ContractFormHandler.prototype.initEntityTypeToggle = function() {
-        var entityToggle = $('#entityTypeToggle');
-        var individualFields = document.querySelector('.individual-fields');
-        var businessFields = document.querySelector('.business-entity-fields');
-        var individualLabel = $('#individualToggleLabel');
-        var businessLabel = $('#businessToggleLabel');
-
-        if (entityToggle) {
-            entityToggle.addEventListener('change', function() {
-                if (this.checked) {
-                    // Business Entity mode
-                    if (individualFields) individualFields.style.display = 'none';
-                    if (businessFields) businessFields.style.display = 'block';
-                    if (individualLabel) individualLabel.classList.remove('active');
-                    if (businessLabel) businessLabel.classList.add('active');
-                    // Update required fields
-                    var clientName = $('#clientName');
-                    var businessName = $('#businessName');
-                    var repName = $('#repName');
-                    var repTitle = $('#repTitle');
-                    if (clientName) clientName.required = false;
-                    if (businessName) businessName.required = true;
-                    if (repName) repName.required = true;
-                    if (repTitle) repTitle.required = true;
-                } else {
-                    // Individual mode
-                    if (businessFields) businessFields.style.display = 'none';
-                    if (individualFields) individualFields.style.display = 'block';
-                    if (businessLabel) businessLabel.classList.remove('active');
-                    if (individualLabel) individualLabel.classList.add('active');
-                    // Update required fields
-                    var clientName = $('#clientName');
-                    var businessName = $('#businessName');
-                    var repName = $('#repName');
-                    var repTitle = $('#repTitle');
-                    if (clientName) clientName.required = true;
-                    if (businessName) businessName.required = false;
-                    if (repName) repName.required = false;
-                    if (repTitle) repTitle.required = false;
-                }
-            });
-            // Set initial state
-            if (individualLabel) individualLabel.classList.add('active');
-        }
+        // This method now handles populating client info from SOW
+        // The old toggle functionality has been removed since SOW is required first
+        console.log('Contract form initialized - client info will be populated from SOW');
     };
+
+    // Populate client info display from SOW data
+    ContractFormHandler.prototype.populateClientInfoFromSOW = function(sowData) {
+        if (!sowData) {
+            console.log('No SOW data provided');
+            return;
+        }
+
+        console.log('Populating client info from SOW:', sowData.clientName);
+
+        // Show the populated section, hide the notice
+        var sowRequiredNotice = $('#sowRequiredNotice');
+        var clientInfoPopulated = $('#clientInfoPopulated');
+        var businessEntityInfo = $('#businessEntityInfo');
+
+        if (sowRequiredNotice) sowRequiredNotice.style.display = 'none';
+        if (clientInfoPopulated) clientInfoPopulated.style.display = 'block';
+
+        // Populate the read-only display fields
+        var contractClientName = $('#contractClientName');
+        var contractEntityType = $('#contractEntityType');
+        var contractStateOfFormation = $('#contractStateOfFormation');
+        var contractRepName = $('#contractRepName');
+        var contractRepTitle = $('#contractRepTitle');
+        var contractClientContact = $('#contractClientContact');
+
+        // Set client name
+        if (contractClientName) {
+            contractClientName.textContent = sowData.isBusinessEntity ? sowData.businessName : sowData.clientName;
+        }
+
+        // Show business entity info if applicable
+        if (sowData.isBusinessEntity && businessEntityInfo) {
+            businessEntityInfo.style.display = 'block';
+            if (contractEntityType) contractEntityType.textContent = sowData.entityType || '—';
+            if (contractStateOfFormation) contractStateOfFormation.textContent = sowData.stateOfFormation || '—';
+            if (contractRepName) contractRepName.textContent = sowData.representativeName || '—';
+            if (contractRepTitle) contractRepTitle.textContent = sowData.representativeTitle || '—';
+        } else if (businessEntityInfo) {
+            businessEntityInfo.style.display = 'none';
+        }
+
+        // Set contact info
+        if (contractClientContact) {
+            contractClientContact.textContent = sowData.clientEmail || sowData.clientPhone || '—';
+        }
+
+        // Populate hidden fields for form submission
+        var hiddenClientName = $('#clientName');
+        var hiddenIsBusinessEntity = $('#isBusinessEntity');
+        var hiddenBusinessName = $('#businessName');
+        var hiddenEntityType = $('#entityType');
+        var hiddenStateOfFormation = $('#stateOfFormation');
+        var hiddenRepName = $('#repName');
+        var hiddenRepTitle = $('#repTitle');
+
+        if (hiddenClientName) hiddenClientName.value = sowData.isBusinessEntity ? sowData.businessName : sowData.clientName;
+        if (hiddenIsBusinessEntity) hiddenIsBusinessEntity.value = sowData.isBusinessEntity ? 'true' : 'false';
+        if (hiddenBusinessName) hiddenBusinessName.value = sowData.businessName || '';
+        if (hiddenEntityType) hiddenEntityType.value = sowData.entityType || '';
+        if (hiddenStateOfFormation) hiddenStateOfFormation.value = sowData.stateOfFormation || '';
+        if (hiddenRepName) hiddenRepName.value = sowData.representativeName || '';
+        if (hiddenRepTitle) hiddenRepTitle.value = sowData.representativeTitle || '';
+    };
+
 
     ContractFormHandler.prototype.setupForm = function() {
         var self = this;
@@ -5889,6 +5914,10 @@ ContractFormHandler.prototype.saveSOW = function() {
     var notes = $('#sowNotes').value.trim();
     var maintenancePlan = $('#sowMaintenance').value;
 
+    // Check if retroactive project (weeks not required if retroactive)
+    var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
+    var devDuration = $('#sowDevDuration') ? $('#sowDevDuration').value : '';
+
     // Normalize phone to E.164 format (+1XXXXXXXXXX) for Firebase Auth matching
     var clientPhone = '';
     if (clientPhoneRaw) {
@@ -5916,10 +5945,24 @@ ContractFormHandler.prototype.saveSOW = function() {
     }
 
     // Validate required fields based on entity type
+    var missingFields = [];
+
     if (isBusinessEntity) {
         // Validate business entity fields
-        if (!businessName || !entityType || !repName || !repTitle || !packageType || !weeks) {
-            alert('Please fill in all required fields:\n- Business Legal Name\n- Entity Type\n- Representative Name\n- Representative Title\n- Package Tier\n- Estimated Weeks');
+        if (!businessName) missingFields.push('Business Legal Name');
+        if (!entityType) missingFields.push('Entity Type');
+        if (!repName) missingFields.push('Representative Name');
+        if (!repTitle) missingFields.push('Representative Title');
+        if (!packageType) missingFields.push('Package Tier');
+        // For retroactive projects, check devDuration instead of weeks
+        if (isRetroactive) {
+            if (!devDuration) missingFields.push('Development Duration');
+        } else {
+            if (!weeks) missingFields.push('Estimated Weeks');
+        }
+
+        if (missingFields.length > 0) {
+            alert('Please fill in all required fields:\n- ' + missingFields.join('\n- '));
             return;
         }
         if (!businessEmail && !businessPhone) {
@@ -5928,8 +5971,17 @@ ContractFormHandler.prototype.saveSOW = function() {
         }
     } else {
         // Validate individual fields
-        if (!clientName || !packageType || !weeks) {
-            alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
+        if (!clientName) missingFields.push('Client Name');
+        if (!packageType) missingFields.push('Package Tier');
+        // For retroactive projects, check devDuration instead of weeks
+        if (isRetroactive) {
+            if (!devDuration) missingFields.push('Development Duration');
+        } else {
+            if (!weeks) missingFields.push('Estimated Weeks');
+        }
+
+        if (missingFields.length > 0) {
+            alert('Please fill in all required fields:\n- ' + missingFields.join('\n- '));
             return;
         }
         if (!clientEmail && !clientPhone) {
@@ -5937,7 +5989,7 @@ ContractFormHandler.prototype.saveSOW = function() {
             return;
         }
     }
-    
+
     // Get selected features
     var features = [];
     var checkboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]:checked');
@@ -5972,10 +6024,9 @@ ContractFormHandler.prototype.saveSOW = function() {
     var couponSelect = $('#sowCouponSelect');
     var selectedCouponCode = couponSelect ? couponSelect.value : '';
 
-    // Check if retroactive project
-    var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
-    var devDuration = $('#sowDevDuration') ? parseInt($('#sowDevDuration').value) || null : null;
+    // Get retroactive duration unit (isRetroactive and devDuration already declared above)
     var devDurationUnit = $('#sowDevDurationUnit') ? $('#sowDevDurationUnit').value : 'weeks';
+    var devDurationParsed = devDuration ? parseInt(devDuration) || null : null;
 
     var sowData = {
         // Use business name as primary if business entity, otherwise individual name
@@ -5983,13 +6034,13 @@ ContractFormHandler.prototype.saveSOW = function() {
         clientEmail: isBusinessEntity ? (businessEmail || '') : (clientEmail || ''),
         clientPhone: isBusinessEntity ? (normalizeToE164(businessPhone) || '') : (normalizeToE164(clientPhone) || ''),
         packageType: packageType,
-        estimatedWeeks: parseInt(weeks),
+        estimatedWeeks: isRetroactive ? (devDurationParsed || null) : parseInt(weeks),
         startDate: startDate || null,
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
         isRetroactive: isRetroactive,
-        devDuration: devDuration,
+        devDuration: devDurationParsed,
         devDurationUnit: devDurationUnit,
         couponCode: selectedCouponCode || null,
         // Business entity information
@@ -7628,6 +7679,10 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     var notes = $('#sowNotes').value.trim();
     var maintenancePlan = $('#sowMaintenance').value;
 
+    // Check if retroactive project (weeks not required if retroactive)
+    var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
+    var devDuration = $('#sowDevDuration') ? $('#sowDevDuration').value : '';
+
     // Normalize phone to E.164 format (+1XXXXXXXXXX) for Firebase Auth matching
     var clientPhone = '';
     if (clientPhoneRaw) {
@@ -7655,10 +7710,24 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     }
 
     // Validate required fields based on entity type
+    var missingFields = [];
+
     if (isBusinessEntity) {
         // Validate business entity fields
-        if (!businessName || !entityType || !repName || !repTitle || !packageType || !weeks) {
-            alert('Please fill in all required fields:\n- Business Legal Name\n- Entity Type\n- Representative Name\n- Representative Title\n- Package Tier\n- Estimated Weeks');
+        if (!businessName) missingFields.push('Business Legal Name');
+        if (!entityType) missingFields.push('Entity Type');
+        if (!repName) missingFields.push('Representative Name');
+        if (!repTitle) missingFields.push('Representative Title');
+        if (!packageType) missingFields.push('Package Tier');
+        // For retroactive projects, check devDuration instead of weeks
+        if (isRetroactive) {
+            if (!devDuration) missingFields.push('Development Duration');
+        } else {
+            if (!weeks) missingFields.push('Estimated Weeks');
+        }
+
+        if (missingFields.length > 0) {
+            alert('Please fill in all required fields:\n- ' + missingFields.join('\n- '));
             return;
         }
         if (!businessEmail && !businessPhone) {
@@ -7667,8 +7736,17 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
         }
     } else {
         // Validate individual fields
-        if (!clientName || !packageType || !weeks) {
-            alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
+        if (!clientName) missingFields.push('Client Name');
+        if (!packageType) missingFields.push('Package Tier');
+        // For retroactive projects, check devDuration instead of weeks
+        if (isRetroactive) {
+            if (!devDuration) missingFields.push('Development Duration');
+        } else {
+            if (!weeks) missingFields.push('Estimated Weeks');
+        }
+
+        if (missingFields.length > 0) {
+            alert('Please fill in all required fields:\n- ' + missingFields.join('\n- '));
             return;
         }
         if (!clientEmail && !clientPhone) {
@@ -7676,7 +7754,7 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
             return;
         }
     }
-    
+
     // Get selected features
     var features = [];
     var checkboxes = document.querySelectorAll('.sow-checkboxes input[type="checkbox"]:checked');
@@ -7711,10 +7789,9 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     var couponSelect = $('#sowCouponSelect');
     var selectedCouponCode = couponSelect ? couponSelect.value : '';
 
-    // Check if retroactive project
-    var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
-    var devDuration = $('#sowDevDuration') ? parseInt($('#sowDevDuration').value) || null : null;
+    // Get retroactive duration unit (isRetroactive and devDuration already declared above)
     var devDurationUnit = $('#sowDevDurationUnit') ? $('#sowDevDurationUnit').value : 'weeks';
+    var devDurationParsed = devDuration ? parseInt(devDuration) || null : null;
 
     var sowData = {
         // Use business name as primary if business entity, otherwise individual name
@@ -7722,13 +7799,13 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
         clientEmail: isBusinessEntity ? (businessEmail || '') : (clientEmail || ''),
         clientPhone: isBusinessEntity ? (normalizeToE164(businessPhone) || '') : (normalizeToE164(clientPhone) || ''),
         packageType: packageType,
-        estimatedWeeks: parseInt(weeks),
+        estimatedWeeks: isRetroactive ? (devDurationParsed || null) : parseInt(weeks),
         startDate: startDate || null,
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
         isRetroactive: isRetroactive,
-        devDuration: devDuration,
+        devDuration: devDurationParsed,
         devDurationUnit: devDurationUnit,
         couponCode: selectedCouponCode || null,
         // Business entity information
@@ -8228,12 +8305,15 @@ ContractFormHandler.prototype.showNoSOWNotification = function(errorMsg) {
     
 ContractFormHandler.prototype.showDualSigningInterface = function(sowData) {
     var self = this;
-    
+
     console.log('Showing dual signing interface for:', sowData.clientName);
-    
+
     // Store SOW data
     this.currentSOW = sowData;
-    
+
+    // Populate client info from SOW (read-only display)
+    this.populateClientInfoFromSOW(sowData);
+
     // Hide the regular contract form
     var contractForm = $('#contractForm');
     if (contractForm) contractForm.style.display = 'none';
@@ -9233,37 +9313,19 @@ ContractFormHandler.prototype.validateContractTab = function() {
     ContractFormHandler.prototype.handleClientSubmit = function() {
         console.log('Handling client submit...');
 
-        // Check if business entity mode
-        var entityToggle = $('#entityTypeToggle');
-        var isBusinessEntity = entityToggle && entityToggle.checked;
+        // Validate that SOW is attached (required)
+        if (!this.currentSOW) {
+            alert('A Statement of Work (SOW) must be attached before signing the contract.');
+            return;
+        }
 
-        // Validate client fields
+        // Client info comes from SOW (stored in hidden fields)
         var errors = [];
 
-        if (isBusinessEntity) {
-            // Validate business entity fields
-            var businessName = $('#businessName');
-            if (!businessName || !businessName.value.trim()) {
-                errors.push('Please enter the business legal name');
-            }
-            var entityType = $('#entityType');
-            if (!entityType || !entityType.value) {
-                errors.push('Please select the entity type');
-            }
-            var repName = $('#repName');
-            if (!repName || !repName.value.trim()) {
-                errors.push('Please enter the authorized representative name');
-            }
-            var repTitle = $('#repTitle');
-            if (!repTitle || !repTitle.value.trim()) {
-                errors.push('Please enter the representative title');
-            }
-        } else {
-            // Validate individual fields
-            var clientName = $('#clientName');
-            if (!clientName || !clientName.value.trim()) {
-                errors.push('Please enter the client name');
-            }
+        // Validate client name from hidden field (populated from SOW)
+        var clientName = $('#clientName');
+        if (!clientName || !clientName.value.trim()) {
+            errors.push('Client information is missing. Please ensure a SOW is attached.');
         }
 
         var acknowledgment = $('#acknowledgment');
@@ -9292,6 +9354,16 @@ ContractFormHandler.prototype.validateContractTab = function() {
         
         // All validation passed, submit to Firebase
         this.submitClientSignature();
+    };
+
+    // Submit client signature - redirects to dual signing flow
+    ContractFormHandler.prototype.submitClientSignature = function() {
+        // Since SOW is now required, redirect to the dual signing interface
+        if (this.currentSOW) {
+            this.submitBothSignatures();
+        } else {
+            alert('A Statement of Work (SOW) must be attached before signing the contract.');
+        }
     };
 
     ContractFormHandler.prototype.handleDeveloperSubmit = function() {
@@ -9364,21 +9436,19 @@ ContractFormHandler.prototype.validateContractTab = function() {
     var clientEmail = user.email || '';
     var clientPhone = user.phoneNumber || '';
 
-    // Check if business entity mode
-    var entityToggle = $('#entityTypeToggle');
-    var isBusinessEntity = entityToggle && entityToggle.checked;
+    // Get business entity info from SOW (not from form toggle anymore)
+    var sowData = this.currentSOW || {};
+    var isBusinessEntity = sowData.isBusinessEntity || false;
+    var businessName = sowData.businessName || '';
+    var entityType = sowData.entityType || '';
+    var stateOfFormation = sowData.stateOfFormation || '';
+    var repName = sowData.representativeName || '';
+    var repTitle = sowData.representativeTitle || '';
 
-    // Get business entity fields if applicable
-    var businessName = isBusinessEntity && $('#businessName') ? $('#businessName').value.trim() : '';
-    var entityType = isBusinessEntity && $('#entityType') ? $('#entityType').value : '';
-    var stateOfFormation = isBusinessEntity && $('#stateOfFormation') ? $('#stateOfFormation').value.trim() : '';
-    var repName = isBusinessEntity && $('#repName') ? $('#repName').value.trim() : '';
-    var repTitle = isBusinessEntity && $('#repTitle') ? $('#repTitle').value.trim() : '';
-
-    // Contract data
+    // Contract data - client info comes from SOW
     var contractData = {
         // Use business name if business entity, otherwise individual name
-        clientName: isBusinessEntity ? businessName : $('#clientName').value.trim(),
+        clientName: isBusinessEntity ? businessName : sowData.clientName,
         clientSignerName: isBusinessEntity ? repName : $('#clientSignerName').value.trim(),
         clientDate: $('#clientDate').value,
         clientSignature: this.clientSignaturePad.toDataURL(),
@@ -9775,7 +9845,6 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' +
 
         '<div class="completion-actions">' +
-'<p class="info-text">📧 A confirmation email has been sent to <strong>' + contractData.clientEmail + '</strong></p>' +
 '</div>';
 
     // Insert completed view
