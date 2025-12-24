@@ -447,6 +447,10 @@
                         </div>
                         <button type="submit" class="btn-auth">Sign In</button>
                         <div class="auth-error" id="loginError"></div>
+                        <div class="auth-help-link" id="loginHelpLink" style="display: none;">
+                            <span>Still having trouble?</span>
+                            <button type="button" class="btn-contact-dev" id="loginContactDevBtn">Contact developer</button>
+                        </div>
                     </form>
                 </div>
 
@@ -483,6 +487,10 @@
                             </span>
                         </button>
                         <div class="auth-error" id="phoneError"></div>
+                        <div class="auth-help-link" id="phoneHelpLink" style="display: none;">
+                            <span>Still having trouble?</span>
+                            <button type="button" class="btn-contact-dev" id="phoneContactDevBtn">Contact developer</button>
+                        </div>
                     </form>
 
                     <!-- Step 2: Verification Code Input -->
@@ -495,10 +503,6 @@
                             <div class="code-input-wrapper">
                                 <input type="text" id="verificationCode" required maxlength="6" placeholder="000000" autocomplete="one-time-code" inputmode="numeric">
                             </div>
-                        </div>
-                        <div class="resend-wrapper">
-                            <span id="resendTimer" class="resend-timer">Resend code in <span id="countdown">60</span>s</span>
-                            <button type="button" id="resendCodeBtn" class="btn-resend" style="display: none;">Get Help</button>
                         </div>
                         <button type="submit" class="btn-auth" id="verifyCodeBtn">
                             <span class="btn-text">Verify & Sign In</span>
@@ -516,6 +520,10 @@
                             Change Number
                         </button>
                         <div class="auth-error" id="verifyError"></div>
+                        <div class="auth-help-link" id="verifyHelpLink" style="display: none;">
+                            <span>Still having trouble?</span>
+                            <button type="button" class="btn-contact-dev" id="verifyContactDevBtn">Contact developer</button>
+                        </div>
                     </form>
                 </div>
             </div>
@@ -523,7 +531,6 @@
             <!-- Invisible reCAPTCHA container (required by Firebase, but verification is disabled) -->
             <div id="recaptcha-container"></div>
 
-            <p class="auth-note">If provided credentials are invalid use the Request Help section to contact the developer.</p>
         </div>
     </div>
 

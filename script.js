@@ -577,7 +577,7 @@ RotatingText.prototype.rotate = function() {
         this.recaptchaVerifier = null;
         this.confirmationResult = null;
         this.currentPhoneNumber = '';
-        this.resendTimerInterval = null;
+        this.lastLoginError = null;  // Stores context for help modal
 
         if (!this.authModal || !this.contractModal) {
             console.error('Auth or Contract modal not found');
@@ -661,6 +661,28 @@ RotatingText.prototype.rotate = function() {
         if (modalOverlay) {
             modalOverlay.addEventListener('click', function() {
                 self.closeContractModal();
+            });
+        }
+
+        // Contact developer buttons for login errors
+        var loginContactDevBtn = $('#loginContactDevBtn');
+        if (loginContactDevBtn) {
+            loginContactDevBtn.addEventListener('click', function() {
+                self.openHelpModalWithContext();
+            });
+        }
+
+        var phoneContactDevBtn = $('#phoneContactDevBtn');
+        if (phoneContactDevBtn) {
+            phoneContactDevBtn.addEventListener('click', function() {
+                self.openHelpModalWithContext();
+            });
+        }
+
+        var verifyContactDevBtn = $('#verifyContactDevBtn');
+        if (verifyContactDevBtn) {
+            verifyContactDevBtn.addEventListener('click', function() {
+                self.openHelpModalWithContext();
             });
         }
 
@@ -759,7 +781,6 @@ RotatingText.prototype.rotate = function() {
             document.body.classList.remove('modal-open');
 
             // Reset phone auth state when closing
-            this.stopResendTimer();
             this.resetPhoneAuthToStep1();
         }
     };
@@ -839,16 +860,20 @@ RotatingText.prototype.rotate = function() {
         var email = $('#loginEmail').value.trim();
         var password = $('#loginPassword').value;
         var errorEl = $('#loginError');
+        var helpLinkEl = $('#loginHelpLink');
         var submitBtn = $('#loginForm button[type="submit"]');
-        
+
+        // Hide help link from previous attempt
+        if (helpLinkEl) helpLinkEl.style.display = 'none';
+
         if (!email || !password) {
             this.showError(errorEl, 'Please fill in all fields');
             return;
         }
-        
+
         submitBtn.disabled = true;
         submitBtn.textContent = 'Signing in...';
-        
+
         var self = this;
         firebase.auth().signInWithEmailAndPassword(email, password)
             .then(function(userCredential) {
@@ -861,7 +886,10 @@ RotatingText.prototype.rotate = function() {
             })
             .catch(function(error) {
                 console.error('Login error:', error);
-                self.showError(errorEl, self.getErrorMessage(error.code));
+                self.showErrorWithHelpLink(errorEl, helpLinkEl, self.getErrorMessage(error.code), {
+                    email: email,
+                    errorType: 'account_access'
+                });
             })
             .finally(function() {
                 submitBtn.disabled = false;
@@ -923,6 +951,99 @@ RotatingText.prototype.rotate = function() {
         return messages[errorCode] || 'Authentication error. Please try again.';
     };
 
+    // === CONTACT DEVELOPER HELP LINK METHODS ===
+
+    FirebaseAuthHandler.prototype.showErrorWithHelpLink = function(errorEl, helpLinkEl, message, context) {
+        var self = this;
+
+        // Store error context for help modal
+        this.lastLoginError = {
+            message: message,
+            email: context.email || '',
+            phone: context.phone || '',
+            errorType: context.errorType || 'account_access'
+        };
+
+        // Hide any existing help link
+        if (helpLinkEl) {
+            helpLinkEl.style.display = 'none';
+        }
+
+        // Show error message
+        if (errorEl) {
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+
+            // After 5 seconds, hide error and show help link
+            setTimeout(function() {
+                errorEl.classList.remove('show');
+
+                // Show help link after error hides
+                if (helpLinkEl) {
+                    helpLinkEl.style.display = 'flex';
+                }
+            }, 5000);
+        }
+    };
+
+    FirebaseAuthHandler.prototype.openHelpModalWithContext = function() {
+        var helpModal = $('#helpModal');
+        var helpContact = $('#helpContact');
+        var helpContactLabel = $('#helpContactLabel');
+        var helpIssue = $('#helpIssue');
+        var helpDetails = $('#helpDetails');
+        var contactTabs = $('#contactTabs');
+        var successMessage = $('#helpSuccessMessage');
+        var formGroups = document.querySelectorAll('#helpRequestForm .form-group');
+        var formFooter = document.querySelector('.help-form-footer');
+
+        if (!helpModal || !this.lastLoginError) return;
+
+        // Show modal
+        helpModal.classList.add('show');
+        document.body.style.overflow = 'hidden';
+        document.body.classList.add('modal-open');
+
+        // Reset form appearance
+        if (successMessage) successMessage.classList.remove('show');
+        formGroups.forEach(function(group) {
+            group.style.display = 'block';
+        });
+        if (formFooter) formFooter.style.display = 'flex';
+
+        // Pre-fill contact field with the email/phone they tried
+        if (helpContact) {
+            if (this.lastLoginError.email) {
+                helpContact.value = this.lastLoginError.email;
+                helpContact.type = 'email';
+                helpContact.placeholder = 'your@email.com';
+                if (helpContactLabel) helpContactLabel.textContent = 'Your Email *';
+                // Hide tabs since we're pre-filling
+                if (contactTabs) contactTabs.style.display = 'none';
+            } else if (this.lastLoginError.phone) {
+                helpContact.value = this.lastLoginError.phone;
+                helpContact.type = 'tel';
+                helpContact.placeholder = '(555) 123-4567';
+                if (helpContactLabel) helpContactLabel.textContent = 'Your Phone Number *';
+                if (contactTabs) contactTabs.style.display = 'none';
+            }
+
+            // Make it editable so user can correct if needed
+            helpContact.removeAttribute('readonly');
+            helpContact.style.opacity = '1';
+        }
+
+        // Pre-fill issue type
+        if (helpIssue) {
+            helpIssue.value = this.lastLoginError.errorType;
+        }
+
+        // Leave details field blank for user input
+        if (helpDetails) {
+            helpDetails.value = '';
+        }
+    };
+
     // === PHONE AUTHENTICATION METHODS ===
 
     FirebaseAuthHandler.prototype.setupTabs = function() {
@@ -948,6 +1069,12 @@ RotatingText.prototype.rotate = function() {
                     targetPanel.classList.add('active');
                 }
 
+                // Hide all help links when switching tabs
+                var allHelpLinks = $$('.auth-help-link', self.authModal);
+                allHelpLinks.forEach(function(link) {
+                    link.style.display = 'none';
+                });
+
                 // Reset phone auth state when switching to phone tab
                 if (targetTab === 'phone') {
                     self.resetPhoneAuthToStep1();
@@ -962,7 +1089,6 @@ RotatingText.prototype.rotate = function() {
         var phoneForm = $('#phoneForm');
         var verifyForm = $('#verifyCodeForm');
         var backBtn = $('#backToPhoneBtn');
-        var resendBtn = $('#resendCodeBtn');
 
         if (phoneForm) {
             phoneForm.addEventListener('submit', function(e) {
@@ -981,22 +1107,6 @@ RotatingText.prototype.rotate = function() {
         if (backBtn) {
             backBtn.addEventListener('click', function() {
                 self.resetPhoneAuthToStep1();
-            });
-        }
-
-        if (resendBtn) {
-            resendBtn.addEventListener('click', function() {
-                // Open help modal and select Verification Code issue
-                var helpModal = $('#helpModal');
-                var helpIssue = $('#helpIssue');
-                if (helpModal) {
-                    helpModal.classList.add('show');
-                    document.body.style.overflow = 'hidden';
-                    document.body.classList.add('modal-open');
-                    if (helpIssue) {
-                        helpIssue.value = 'verification_code';
-                    }
-                }
             });
         }
 
@@ -1031,13 +1141,15 @@ RotatingText.prototype.rotate = function() {
         var countryCode = countryCodeEl ? countryCodeEl.value : '+1';
         var phoneNumber = phoneNumberEl ? phoneNumberEl.value.replace(/\D/g, '') : '';
         var errorEl = $('#phoneError');
+        var helpLinkEl = $('#phoneHelpLink');
         var submitBtn = $('#sendCodeBtn');
 
-        // Clear previous errors
+        // Clear previous errors and hide help link
         if (errorEl) {
             errorEl.classList.remove('show');
             errorEl.textContent = '';
         }
+        if (helpLinkEl) helpLinkEl.style.display = 'none';
 
         // Validate phone number
         if (!phoneNumber || phoneNumber.length < 10) {
@@ -1072,13 +1184,21 @@ RotatingText.prototype.rotate = function() {
                     self.setPhoneLoadingState(submitBtn, false);
                 } else {
                     // Not a test phone - show error (no real SMS support)
-                    self.showError(errorEl, 'Phone number not registered. Please contact support.');
+                    var phoneHelpLink = $('#phoneHelpLink');
+                    self.showErrorWithHelpLink(errorEl, phoneHelpLink, 'Phone number not registered. Please contact support.', {
+                        phone: fullPhoneNumber,
+                        errorType: 'account_access'
+                    });
                     self.setPhoneLoadingState(submitBtn, false);
                 }
             })
             .catch(function(error) {
                 console.error('Error checking test phone:', error);
-                self.showError(errorEl, 'Unable to verify phone number. Please try again.');
+                var phoneHelpLink = $('#phoneHelpLink');
+                self.showErrorWithHelpLink(errorEl, phoneHelpLink, 'Unable to verify phone number. Please try again.', {
+                    phone: fullPhoneNumber,
+                    errorType: 'account_access'
+                });
                 self.setPhoneLoadingState(submitBtn, false);
             });
     };
@@ -1098,9 +1218,6 @@ RotatingText.prototype.rotate = function() {
 
                 // Update UI to show verification step
                 self.showVerificationStep();
-
-                // Start resend timer
-                self.startResendTimer();
             })
             .catch(function(error) {
                 console.error('SMS send error:', error);
@@ -1118,13 +1235,15 @@ RotatingText.prototype.rotate = function() {
         var codeInput = $('#verificationCode');
         var code = codeInput ? codeInput.value.trim() : '';
         var errorEl = $('#verifyError');
+        var helpLinkEl = $('#verifyHelpLink');
         var submitBtn = $('#verifyCodeBtn');
 
-        // Clear previous errors
+        // Clear previous errors and hide help link
         if (errorEl) {
             errorEl.classList.remove('show');
             errorEl.textContent = '';
         }
+        if (helpLinkEl) helpLinkEl.style.display = 'none';
 
         // Validate code (4-6 digits for test phones, 6 digits for real)
         var minLength = this.isTestPhone ? 4 : 6;
@@ -1147,7 +1266,10 @@ RotatingText.prototype.rotate = function() {
         } else {
             // Normal Firebase verification
             if (!this.confirmationResult) {
-                this.showError(errorEl, 'Session expired. Please request a new code.');
+                this.showErrorWithHelpLink(errorEl, helpLinkEl, 'Session expired. Please request a new code.', {
+                    phone: this.currentPhoneNumber,
+                    errorType: 'verification_code'
+                });
                 this.setPhoneLoadingState(submitBtn, false);
                 return;
             }
@@ -1163,7 +1285,11 @@ RotatingText.prototype.rotate = function() {
                 })
                 .catch(function(error) {
                     console.error('Code verification error:', error);
-                    self.showError(errorEl, self.getErrorMessage(error.code));
+                    var verifyHelpLink = $('#verifyHelpLink');
+                    self.showErrorWithHelpLink(errorEl, verifyHelpLink, self.getErrorMessage(error.code), {
+                        phone: self.currentPhoneNumber,
+                        errorType: 'verification_code'
+                    });
                 })
                 .finally(function() {
                     self.setPhoneLoadingState(submitBtn, false);
@@ -1208,7 +1334,11 @@ RotatingText.prototype.rotate = function() {
             } else if (error.code === 'functions/internal') {
                 message = 'Server error. Please try again.';
             }
-            self.showError(errorEl, message);
+            var verifyHelpLink = $('#verifyHelpLink');
+            self.showErrorWithHelpLink(errorEl, verifyHelpLink, message, {
+                phone: self.currentPhoneNumber,
+                errorType: 'verification_code'
+            });
         })
         .finally(function() {
             self.setPhoneLoadingState(submitBtn, false);
@@ -1254,9 +1384,6 @@ RotatingText.prototype.rotate = function() {
 
         // Reset reCAPTCHA verifier so a fresh one is created on next attempt
         this.recaptchaVerifier = null;
-
-        // Stop resend timer
-        this.stopResendTimer();
     };
 
     FirebaseAuthHandler.prototype.resetPhoneAuthState = function() {
@@ -1268,69 +1395,6 @@ RotatingText.prototype.rotate = function() {
         // Clear phone form
         var phoneForm = $('#phoneForm');
         if (phoneForm) phoneForm.reset();
-    };
-
-    FirebaseAuthHandler.prototype.startResendTimer = function() {
-        var self = this;
-        var resendCountdown = 60;
-
-        var timerEl = $('#resendTimer');
-        var countdownEl = $('#countdown');
-        var resendBtn = $('#resendCodeBtn');
-
-        if (timerEl) timerEl.style.display = 'inline';
-        if (resendBtn) resendBtn.style.display = 'none';
-        if (countdownEl) countdownEl.textContent = resendCountdown;
-
-        this.resendTimerInterval = setInterval(function() {
-            resendCountdown--;
-
-            if (countdownEl) {
-                countdownEl.textContent = resendCountdown;
-            }
-
-            if (resendCountdown <= 0) {
-                self.stopResendTimer();
-                if (timerEl) timerEl.style.display = 'none';
-                if (resendBtn) resendBtn.style.display = 'inline';
-            }
-        }, 1000);
-    };
-
-    FirebaseAuthHandler.prototype.stopResendTimer = function() {
-        if (this.resendTimerInterval) {
-            clearInterval(this.resendTimerInterval);
-            this.resendTimerInterval = null;
-        }
-    };
-
-    FirebaseAuthHandler.prototype.handleResendCode = function() {
-        var self = this;
-        var resendBtn = $('#resendCodeBtn');
-        var errorEl = $('#verifyError');
-
-        if (!this.currentPhoneNumber) {
-            this.showError(errorEl, 'Phone number not found. Please start over.');
-            return;
-        }
-
-        if (resendBtn) resendBtn.disabled = true;
-
-        // Initialize reCAPTCHA if needed
-        this.initRecaptcha();
-
-        // Resend verification code
-        firebase.auth().signInWithPhoneNumber(this.currentPhoneNumber, this.recaptchaVerifier)
-            .then(function(confirmationResult) {
-                console.log('SMS resent successfully');
-                self.confirmationResult = confirmationResult;
-                self.startResendTimer();
-            })
-            .catch(function(error) {
-                console.error('Resend SMS error:', error);
-                self.showError(errorEl, self.getErrorMessage(error.code));
-                if (resendBtn) resendBtn.disabled = false;
-            });
     };
 
     FirebaseAuthHandler.prototype.setPhoneLoadingState = function(button, isLoading) {

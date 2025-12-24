@@ -2916,7 +2916,7 @@ section {
 }
 
 ::selection {
-    background: rgba(255, 255, 255, 0.2);
+    background: rgba(100, 100, 100, 0.5);
     color: var(--white);
 }
 
@@ -2948,7 +2948,7 @@ section {
     background: linear-gradient(135deg, var(--near-black) 0%, var(--dark-gray) 100%);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 1.5rem;
-    padding: 2rem 1.5rem;
+    padding: 1.25rem 1.25rem 1.5rem 1.25rem;
     max-width: 480px;
     width: 90%;
     max-height: 90vh;
@@ -2991,17 +2991,6 @@ section {
 .auth-header p {
     color: var(--silver);
     font-size: 0.9375rem;
-}
-
-.auth-note {
-    margin-top: 1.5rem;
-    padding: .9rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-left: 3px solid rgba(255, 255, 255, 0.3);
-    border-radius: 0.5rem;
-    font-size: 0.875rem;
-    color: var(--silver);
-    line-height: 1.6;
 }
 
 .auth-form {
@@ -3080,6 +3069,53 @@ section {
 
 .auth-error.show {
     display: block;
+}
+
+/* === CONTACT DEVELOPER HELP LINK === */
+.auth-help-link {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 0.5rem;
+    animation: authHelpFadeIn 0.3s ease-out;
+}
+
+.auth-help-link span {
+    color: var(--medium-gray);
+    font-size: 0.875rem;
+}
+
+.btn-contact-dev {
+    background: transparent;
+    border: none;
+    color: var(--accent);
+    font-size: 0.875rem;
+    font-weight: 500;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    transition: opacity 0.3s var(--ease-smooth);
+    font-family: var(--font-text);
+    padding: 0;
+}
+
+.btn-contact-dev:hover {
+    opacity: 0.7;
+}
+
+@keyframes authHelpFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-5px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 @media (max-width: 768px) {
@@ -3223,45 +3259,6 @@ section {
 .verify-message span {
     color: var(--white);
     font-weight: 500;
-}
-
-/* === RESEND CODE SECTION === */
-.resend-wrapper {
-    display: flex;
-    justify-content: center;
-    margin-bottom: 1rem;
-}
-
-.resend-timer {
-    color: var(--medium-gray);
-    font-size: 0.875rem;
-}
-
-.resend-timer span {
-    font-weight: 600;
-    color: var(--silver);
-}
-
-.btn-resend {
-    background: transparent;
-    border: none;
-    color: var(--white);
-    font-size: 0.875rem;
-    font-weight: 500;
-    cursor: pointer;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    transition: opacity 0.3s var(--ease-smooth);
-    font-family: var(--font-text);
-}
-
-.btn-resend:hover {
-    opacity: 0.7;
-}
-
-.btn-resend:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
 }
 
 /* === SECONDARY BUTTON (Back/Change Number) === */
