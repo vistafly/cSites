@@ -43,6 +43,7 @@ lerna-debug.log*
 firebase-debug.log
 firestore-debug.log
 serviceAccountKey.json
+firestore.rules
 
 # macOS
 .DS_Store

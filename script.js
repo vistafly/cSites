@@ -41,6 +41,38 @@
         };
     };
 
+    // === LOGO CACHE FOR PDF GENERATION ===
+    var cachedLogoBase64 = null;
+
+    // Preload and cache logo as base64 for PDF generation
+    var preloadLogoForPDF = function() {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() {
+            try {
+                var canvas = document.createElement('canvas');
+                canvas.width = img.width;
+                canvas.height = img.height;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                cachedLogoBase64 = canvas.toDataURL('image/png');
+                console.log('Logo cached for PDF generation');
+            } catch (e) {
+                console.warn('Could not cache logo:', e);
+            }
+        };
+        img.onerror = function() {
+            console.warn('Could not load logo for caching');
+        };
+        // Use absolute URL to ensure it loads
+        img.src = '/images/scarlo-logo.png';
+    };
+
+    // Get logo source for PDF (base64 if cached, URL fallback)
+    var getLogoForPDF = function() {
+        return cachedLogoBase64 || 'https://scarlo.dev/images/scarlo-logo.png';
+    };
+
     // Format phone number to (xxx) xxx-xxxx or +1 (xxx) xxx-xxxx
     var formatPhoneNumber = function(phone) {
         if (!phone) return '';
@@ -689,16 +721,6 @@ RotatingText.prototype.rotate = function() {
             return;
         }
 
-        var normalizedEmail = user.email ? user.email.trim().toLowerCase() : null;
-        var normalizedPhone = user.phoneNumber || null;
-
-        // Check if there's a manually-added record to merge with
-        var manualDocId = normalizedEmail
-            ? 'email_' + normalizedEmail.replace(/[^a-z0-9]/g, '_')
-            : normalizedPhone
-                ? 'phone_' + normalizedPhone.replace(/[^0-9+]/g, '')
-                : null;
-
         var userData = {
             uid: user.uid,
             email: user.email || null,
@@ -711,47 +733,15 @@ RotatingText.prototype.rotate = function() {
 
         var usersRef = firebase.firestore().collection('users');
 
-        // If there might be a manual record, check and merge
-        if (manualDocId) {
-            usersRef.doc(manualDocId).get()
-                .then(function(doc) {
-                    if (doc.exists && doc.data().manuallyAdded) {
-                        console.log('🔄 Found manually-added record, merging...');
-                        var manualData = doc.data();
-
-                        // Preserve displayName from manual record if not set by auth
-                        if (!userData.displayName && manualData.displayName) {
-                            userData.displayName = manualData.displayName;
-                        }
-
-                        // Delete the manual record
-                        return usersRef.doc(manualDocId).delete()
-                            .then(function() {
-                                console.log('🗑️ Deleted manual record:', manualDocId);
-                                // Create the real record with Firebase Auth UID
-                                return usersRef.doc(user.uid).set(userData, { merge: true });
-                            });
-                    } else {
-                        // No manual record, just save with real UID
-                        return usersRef.doc(user.uid).set(userData, { merge: true });
-                    }
-                })
-                .then(function() {
-                    console.log('✅ User info saved to Firestore successfully');
-                })
-                .catch(function(error) {
-                    console.error('❌ Error saving user to Firestore:', error);
-                });
-        } else {
-            // No email or phone, just save with real UID
-            usersRef.doc(user.uid).set(userData, { merge: true })
-                .then(function() {
-                    console.log('✅ User info saved to Firestore successfully');
-                })
-                .catch(function(error) {
-                    console.error('❌ Error saving user to Firestore:', error);
-                });
-        }
+        // Save user data using their Firebase Auth UID
+        // Note: Manual record merging (if needed) should be done server-side with Admin SDK
+        usersRef.doc(user.uid).set(userData, { merge: true })
+            .then(function() {
+                console.log('✅ User info saved to Firestore successfully');
+            })
+            .catch(function(error) {
+                console.error('❌ Error saving user to Firestore:', error);
+            });
     };
 
     FirebaseAuthHandler.prototype.showAuthModal = function() {
@@ -1860,10 +1850,10 @@ HelpRequestHandler.prototype.submitHelpRequest = function() {
     }
 
     var helpRequestData = {
-        userContact: helpContact,
+        userContact: isPhone ? normalizeToE164(helpContact) : helpContact,
         contactType: isPhone ? 'phone' : 'email',
         userEmail: isPhone ? '' : helpContact,
-        userPhone: isPhone ? helpContact : '',
+        userPhone: isPhone ? normalizeToE164(helpContact) : '',
         issueType: helpIssue,
         issueDetails: helpDetails,
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
@@ -6943,7 +6933,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     // HEADER
     '<div class="header">' +
-    '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
+    '<img src="' + getLogoForPDF() + '" alt="Scarlo Logo" class="logo" />' +
     '<h1>Statement of Work</h1>' +
     '<div class="subtitle">Scarlo — Professional Web Development</div>' +
     '<div class="meta-date">Document Generated: ' + generatedDate + '</div>' +
@@ -7330,7 +7320,17 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '</div>' + // Close sow-container
 
     '<script>' +
-    'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
+    'window.onload = function() {' +
+    '  var images = document.images;' +
+    '  var loaded = 0;' +
+    '  var total = images.length;' +
+    '  if (total === 0) { setTimeout(function() { window.print(); }, 300); return; }' +
+    '  for (var i = 0; i < total; i++) {' +
+    '    if (images[i].complete) { loaded++; }' +
+    '    else { images[i].onload = images[i].onerror = function() { loaded++; if (loaded >= total) setTimeout(function() { window.print(); }, 300); }; }' +
+    '  }' +
+    '  if (loaded >= total) setTimeout(function() { window.print(); }, 300);' +
+    '};' +
     '</script>' +
     '</body></html>';
 
@@ -9488,7 +9488,7 @@ ContractFormHandler.prototype.validateContractTab = function() {
                     clientSignedTimestamp: firebase.firestore.FieldValue.serverTimestamp(),
                     linkedContract: contractId,
                     linkedContractEmail: clientEmail,
-                    linkedContractPhone: clientPhone,
+                    linkedContractPhone: normalizeToE164(clientPhone),
                     status: 'pending_developer'
                 });
         })
@@ -10052,7 +10052,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
         // HEADER
         '<div class="header">' +
-        '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
+        '<img src="' + getLogoForPDF() + '" alt="Scarlo Logo" class="logo" />' +
         '<h1>Website Development Agreement</h1>' +
         '<div class="subtitle">Scarlo — Professional Web Development Services</div>' +
         '</div>' +
@@ -10190,7 +10190,17 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' + // Close contract-container
 
         '<script>' +
-        'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
+        'window.onload = function() {' +
+        '  var images = document.images;' +
+        '  var loaded = 0;' +
+        '  var total = images.length;' +
+        '  if (total === 0) { setTimeout(function() { window.print(); }, 300); return; }' +
+        '  for (var i = 0; i < total; i++) {' +
+        '    if (images[i].complete) { loaded++; }' +
+        '    else { images[i].onload = images[i].onerror = function() { loaded++; if (loaded >= total) setTimeout(function() { window.print(); }, 300); }; }' +
+        '  }' +
+        '  if (loaded >= total) setTimeout(function() { window.print(); }, 300);' +
+        '};' +
         '</script>' +
         '</body></html>';
 
@@ -10326,7 +10336,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
         // ==================== CONTRACT SECTION ====================
         '<div class="header">' +
-        '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
+        '<img src="' + getLogoForPDF() + '" alt="Scarlo Logo" class="logo" />' +
         '<h1>Website Development Agreement</h1>' +
         '<div class="subtitle">Scarlo — Professional Web Development Services</div>' +
         '</div>' +
@@ -10484,7 +10494,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div class="page-break"></div>' +
 
         '<div class="header">' +
-        '<img src="https://scarlo.dev/images/scarlo-logo.png" alt="Scarlo Logo" class="logo" />' +
+        '<img src="' + getLogoForPDF() + '" alt="Scarlo Logo" class="logo" />' +
         '<h1>STATEMENT OF WORK</h1>' +
         '<div class="subtitle">Scarlo — Professional Web Development</div>' +
         '<div style="font-size: 10pt; font-style: italic; margin-top: 10px;">Generated: ' + new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) + '</div>' +
@@ -10601,12 +10611,22 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<p style="margin-top: 8px;">Carlos Martin | Professional Web Development</p>' +
         '<p class="contract-id">Contract ID: ' + (self.currentContract ? self.currentContract.id : 'N/A') + ' | SOW ID: ' + sowData.id + '</p>' +
         '</div>' +
-        
+
         '<script>' +
-        'window.onload = function() { setTimeout(function() { window.print(); }, 500); };' +
+        'window.onload = function() {' +
+        '  var images = document.images;' +
+        '  var loaded = 0;' +
+        '  var total = images.length;' +
+        '  if (total === 0) { setTimeout(function() { window.print(); }, 300); return; }' +
+        '  for (var i = 0; i < total; i++) {' +
+        '    if (images[i].complete) { loaded++; }' +
+        '    else { images[i].onload = images[i].onerror = function() { loaded++; if (loaded >= total) setTimeout(function() { window.print(); }, 300); }; }' +
+        '  }' +
+        '  if (loaded >= total) setTimeout(function() { window.print(); }, 300);' +
+        '};' +
         '</script>' +
         '</body></html>';
-    
+
     printWindow.document.write(htmlContent);
     printWindow.document.close();
 };
@@ -10935,6 +10955,9 @@ var SectionSeparatorGlow = function() {
     // === INITIALIZATION ===
     var init = function() {
     console.log('Scarlo - Crafted with precision');
+
+    // Preload logo for PDF generation
+    preloadLogoForPDF();
     console.log('Device: ' + (DeviceDetector.isMobile() ? 'Mobile' : 'Desktop'));
     console.log('Screen width:', window.innerWidth);
 
@@ -11206,7 +11229,7 @@ if (messageTextarea) {
             essential: true,
             analytics: analyticsToggle.checked,
             marketing: marketingToggle.checked,
-            timestamp: Date.now()
+            timestamp: new Date().toLocaleString()
         };
         saveConsent(consent);
         hidePopup();
@@ -11219,7 +11242,7 @@ if (messageTextarea) {
             essential: true,
             analytics: false,
             marketing: false,
-            timestamp: Date.now()
+            timestamp: new Date().toLocaleString()
         };
         analyticsToggle.checked = false;
         marketingToggle.checked = false;
