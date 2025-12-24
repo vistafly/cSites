@@ -1941,6 +1941,9 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
             setTimeout(function() {
                 self.initializeSignaturePads();
             }, 100);
+
+            // Initialize entity type toggle for contract form
+            self.initEntityTypeToggle();
         });
         
         // Initial auth state check
@@ -2005,6 +2008,53 @@ HelpRequestHandler.prototype.showSuccessMessage = function() {
         }
         
         console.log('Signature pads initialized');
+    };
+
+    // Initialize entity type toggle for contract form (Individual/Business)
+    ContractFormHandler.prototype.initEntityTypeToggle = function() {
+        var entityToggle = $('#entityTypeToggle');
+        var individualFields = document.querySelector('.individual-fields');
+        var businessFields = document.querySelector('.business-entity-fields');
+        var individualLabel = $('#individualToggleLabel');
+        var businessLabel = $('#businessToggleLabel');
+
+        if (entityToggle) {
+            entityToggle.addEventListener('change', function() {
+                if (this.checked) {
+                    // Business Entity mode
+                    if (individualFields) individualFields.style.display = 'none';
+                    if (businessFields) businessFields.style.display = 'block';
+                    if (individualLabel) individualLabel.classList.remove('active');
+                    if (businessLabel) businessLabel.classList.add('active');
+                    // Update required fields
+                    var clientName = $('#clientName');
+                    var businessName = $('#businessName');
+                    var repName = $('#repName');
+                    var repTitle = $('#repTitle');
+                    if (clientName) clientName.required = false;
+                    if (businessName) businessName.required = true;
+                    if (repName) repName.required = true;
+                    if (repTitle) repTitle.required = true;
+                } else {
+                    // Individual mode
+                    if (businessFields) businessFields.style.display = 'none';
+                    if (individualFields) individualFields.style.display = 'block';
+                    if (businessLabel) businessLabel.classList.remove('active');
+                    if (individualLabel) individualLabel.classList.add('active');
+                    // Update required fields
+                    var clientName = $('#clientName');
+                    var businessName = $('#businessName');
+                    var repName = $('#repName');
+                    var repTitle = $('#repTitle');
+                    if (clientName) clientName.required = true;
+                    if (businessName) businessName.required = false;
+                    if (repName) repName.required = false;
+                    if (repTitle) repTitle.required = false;
+                }
+            });
+            // Set initial state
+            if (individualLabel) individualLabel.classList.add('active');
+        }
     };
 
     ContractFormHandler.prototype.setupForm = function() {
@@ -4518,6 +4568,8 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '</div>' +
         '</div>' +
 
+        // Combined toggles row (Email/Phone + Individual/Business)
+        '<div class="toggles-row">' +
         '<div class="client-id-toggle">' +
         '<span class="toggle-label" id="emailToggleLabel">Email</span>' +
         '<label class="toggle-switch">' +
@@ -4526,10 +4578,46 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '</label>' +
         '<span class="toggle-label" id="phoneToggleLabel">Phone</span>' +
         '</div>' +
+        '<div class="entity-type-toggle">' +
+        '<span class="toggle-label active" id="sowIndividualLabel">Individual</span>' +
+        '<label class="toggle-switch">' +
+        '<input type="checkbox" id="sowEntityTypeToggle" />' +
+        '<span class="toggle-slider"></span>' +
+        '</label>' +
+        '<span class="toggle-label" id="sowBusinessLabel">Business Entity</span>' +
+        '</div>' +
+        '</div>' +
+
+        // Individual client fields (shown by default)
+        '<div id="sowIndividualFields">' +
         '<div class="sow-input-group client-inputs-row">' +
         '<input type="text" id="sowClientName" placeholder="Client Name *" class="sow-input" required />' +
         '<input type="email" id="sowClientEmail" placeholder="Client Email *" class="sow-input" />' +
         '<input type="tel" id="sowClientPhone" placeholder="Client Phone (e.g., +15551234567) *" class="sow-input" style="display: none;" />' +
+        '</div>' +
+        '</div>' +
+
+        // Business entity fields (hidden by default)
+        '<div id="sowBusinessFields" style="display: none;">' +
+        '<div class="sow-input-group">' +
+        '<input type="text" id="sowBusinessName" placeholder="Business Legal Name *" class="sow-input" />' +
+        '<select id="sowEntityType" class="sow-select" style="flex: 1;">' +
+        '<option value="">Entity Type *</option>' +
+        '<option value="LLC">LLC</option>' +
+        '<option value="Corporation">Corporation</option>' +
+        '<option value="Partnership">Partnership</option>' +
+        '<option value="Sole Proprietorship">Sole Proprietorship</option>' +
+        '</select>' +
+        '</div>' +
+        '<div class="sow-input-group">' +
+        '<input type="text" id="sowStateOfFormation" placeholder="State of Formation (optional)" class="sow-input" />' +
+        '<input type="email" id="sowBusinessEmail" placeholder="Business Email *" class="sow-input" />' +
+        '<input type="tel" id="sowBusinessPhone" placeholder="Business Phone *" class="sow-input" style="display: none;" />' +
+        '</div>' +
+        '<div class="sow-input-group">' +
+        '<input type="text" id="sowRepName" placeholder="Representative Name *" class="sow-input" />' +
+        '<input type="text" id="sowRepTitle" placeholder="Title (e.g., CEO, Managing Member) *" class="sow-input" />' +
+        '</div>' +
         '</div>' +
         '</div>' +
         
@@ -4558,6 +4646,21 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<div class="sow-input-group">' +
         '<input type="number" id="sowWeeks" placeholder="Estimated Weeks *" class="sow-input" min="1" max="52" required />' +
         '<input type="date" id="sowStartDate" class="sow-input" title="Target completion date" />' +
+        '</div>' +
+        '<label class="sow-checkbox retroactive-toggle" style="margin-top: 10px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.3);">' +
+        '<input type="checkbox" id="sowRetroactive" onchange="toggleRetroactiveFields()" />' +
+        '<span style="color: #f59e0b; font-weight: 500;">Retroactive Project</span>' +
+        '<span style="font-size: 0.8em; color: #888; margin-left: 8px;">(project already in development)</span>' +
+        '</label>' +
+        '<div id="retroactiveDurationFields" style="display: none; margin-top: 10px; padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 6px; border: 1px dashed rgba(245, 158, 11, 0.3);">' +
+        '<label style="font-size: 0.85em; color: #f59e0b; margin-bottom: 5px; display: block;">Development Duration</label>' +
+        '<div class="sow-input-group">' +
+        '<input type="number" id="sowDevDuration" placeholder="Duration *" class="sow-input" min="1" max="52" style="flex: 1;" />' +
+        '<select id="sowDevDurationUnit" class="sow-input" style="flex: 1;">' +
+        '<option value="weeks">Weeks</option>' +
+        '<option value="months">Months</option>' +
+        '</select>' +
+        '</div>' +
         '</div>' +
         '</div>' +
         
@@ -4588,7 +4691,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<label class="sow-checkbox"><input type="checkbox" value="email_integration" /> Email Notifications (SendGrid) <span class="third-party-note">+ SendGrid costs</span></label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="music_media" /> Audio/Video Player Integration</label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="booking_basic" /> Scheduling & Booking System</label>' +
-        '<label class="sow-checkbox"><input type="checkbox" value="newsletter" /> Email Capture & Lead Forms</label>' +
+        '<label class="sow-checkbox"><input type="checkbox" value="newsletter" /> Newsletter Integration</label>' +
         '<label class="sow-checkbox"><input type="checkbox" value="social_feed" /> Social Media Feed Integration</label>' +
         '</div>' +
 
@@ -4726,7 +4829,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         'file_storage': { default: 300, thirdParty: true, note: 'Firebase costs' },
         'api_integration': { default: 450, thirdParty: false },
         'email_integration': { default: 325, thirdParty: true, note: 'SendGrid costs' },
-        'newsletter': { default: 200, thirdParty: false },
+        'newsletter': { default: 200, thirdParty: false, addon: true },
         'user_roles': { default: 450, thirdParty: false },
         'notifications': { default: 400, thirdParty: false },
         // Add-on Features (available to any tier)
@@ -4748,11 +4851,11 @@ ContractFormHandler.prototype.showSOWCreator = function() {
 
     // Package-feature mapping (what's included in each package)
     // Note: hosting, ssl, domain are now included free in all packages (not listed as features)
-    // Add-ons (booking, blog, cms, gallery, music, social_feed) available separately for any tier
+    // Add-ons (booking, blog, cms, gallery, music, social_feed, newsletter) available separately for any tier
     var packageIncludedFeatures = {
         'essential': ['responsive_design', 'contact_forms'],
         'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms'],
-        'growth': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
+        'growth': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms'],
         'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'newsletter'],
         'enterprise': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'notifications', 'newsletter'],
         'custom': []
@@ -4813,6 +4916,15 @@ ContractFormHandler.prototype.showSOWCreator = function() {
             updatePricing();
         });
     });
+
+    // Toggle retroactive project duration fields
+    window.toggleRetroactiveFields = function() {
+        var checkbox = $('#sowRetroactive');
+        var durationFields = $('#retroactiveDurationFields');
+        if (checkbox && durationFields) {
+            durationFields.style.display = checkbox.checked ? 'block' : 'none';
+        }
+    };
 
     // Populate coupon dropdown with available coupons
     var couponSelect = $('#sowCouponSelect');
@@ -4917,6 +5029,78 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         });
         // Set initial state
         emailLabel.classList.add('active');
+    }
+
+    // Entity Type toggle (Individual/Business)
+    var entityTypeToggle = $('#sowEntityTypeToggle');
+    var individualFields = $('#sowIndividualFields');
+    var businessFields = $('#sowBusinessFields');
+    var individualLabel = $('#sowIndividualLabel');
+    var businessLabel = $('#sowBusinessLabel');
+    var businessEmailInput = $('#sowBusinessEmail');
+    var businessPhoneInput = $('#sowBusinessPhone');
+
+    if (entityTypeToggle) {
+        entityTypeToggle.addEventListener('change', function() {
+            if (this.checked) {
+                // Business Entity mode
+                if (individualFields) individualFields.style.display = 'none';
+                if (businessFields) businessFields.style.display = 'block';
+                if (individualLabel) individualLabel.classList.remove('active');
+                if (businessLabel) businessLabel.classList.add('active');
+                // Sync email/phone visibility for business fields based on clientIdToggle
+                if (clientIdToggle && clientIdToggle.checked) {
+                    if (businessEmailInput) businessEmailInput.style.display = 'none';
+                    if (businessPhoneInput) businessPhoneInput.style.display = 'block';
+                } else {
+                    if (businessEmailInput) businessEmailInput.style.display = 'block';
+                    if (businessPhoneInput) businessPhoneInput.style.display = 'none';
+                }
+            } else {
+                // Individual mode
+                if (businessFields) businessFields.style.display = 'none';
+                if (individualFields) individualFields.style.display = 'block';
+                if (businessLabel) businessLabel.classList.remove('active');
+                if (individualLabel) individualLabel.classList.add('active');
+            }
+        });
+        // Set initial state
+        if (individualLabel) individualLabel.classList.add('active');
+    }
+
+    // Update Email/Phone toggle to also sync business entity fields
+    if (clientIdToggle) {
+        clientIdToggle.addEventListener('change', function() {
+            // Also sync business entity email/phone fields if visible
+            if (entityTypeToggle && entityTypeToggle.checked) {
+                if (this.checked) {
+                    // Phone mode for business
+                    if (businessEmailInput) {
+                        businessEmailInput.style.display = 'none';
+                        businessEmailInput.value = '';
+                    }
+                    if (businessPhoneInput) businessPhoneInput.style.display = 'block';
+                } else {
+                    // Email mode for business
+                    if (businessPhoneInput) {
+                        businessPhoneInput.style.display = 'none';
+                        businessPhoneInput.value = '';
+                    }
+                    if (businessEmailInput) businessEmailInput.style.display = 'block';
+                }
+            }
+        });
+    }
+
+    // Format phone number for business phone as user types
+    if (businessPhoneInput) {
+        businessPhoneInput.setAttribute('maxlength', '17');
+        businessPhoneInput.addEventListener('input', function() {
+            var formatted = formatPhoneNumber(this.value);
+            if (formatted !== this.value) {
+                this.value = formatted;
+            }
+        });
     }
 
     // Format phone number as user types
@@ -5682,9 +5866,23 @@ ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, mainte
 };
 
 ContractFormHandler.prototype.saveSOW = function() {
+    // Check if business entity mode
+    var isBusinessEntity = $('#sowEntityTypeToggle') && $('#sowEntityTypeToggle').checked;
+
+    // Individual client fields
     var clientName = $('#sowClientName').value.trim();
     var clientEmail = $('#sowClientEmail').value.trim();
     var clientPhoneRaw = $('#sowClientPhone').value.trim();
+
+    // Business entity fields
+    var businessName = $('#sowBusinessName') ? $('#sowBusinessName').value.trim() : '';
+    var entityType = $('#sowEntityType') ? $('#sowEntityType').value : '';
+    var stateOfFormation = $('#sowStateOfFormation') ? $('#sowStateOfFormation').value.trim() : '';
+    var repName = $('#sowRepName') ? $('#sowRepName').value.trim() : '';
+    var repTitle = $('#sowRepTitle') ? $('#sowRepTitle').value.trim() : '';
+    var businessEmail = $('#sowBusinessEmail') ? $('#sowBusinessEmail').value.trim() : '';
+    var businessPhoneRaw = $('#sowBusinessPhone') ? $('#sowBusinessPhone').value.trim() : '';
+
     var packageType = $('#sowPackage').value;
     var weeks = $('#sowWeeks').value;
     var startDate = $('#sowStartDate').value;
@@ -5704,15 +5902,40 @@ ContractFormHandler.prototype.saveSOW = function() {
         }
     }
 
-    // Validate required fields - require either email OR phone
-    if (!clientName || !packageType || !weeks) {
-        alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
-        return;
+    // Normalize business phone to E.164 format
+    var businessPhone = '';
+    if (businessPhoneRaw) {
+        var bizDigits = businessPhoneRaw.replace(/\D/g, '');
+        if (bizDigits.length === 10) {
+            businessPhone = '+1' + bizDigits;
+        } else if (bizDigits.length === 11 && bizDigits.startsWith('1')) {
+            businessPhone = '+' + bizDigits;
+        } else {
+            businessPhone = businessPhoneRaw;
+        }
     }
 
-    if (!clientEmail && !clientPhone) {
-        alert('Please provide either a Client Email or Client Phone number.');
-        return;
+    // Validate required fields based on entity type
+    if (isBusinessEntity) {
+        // Validate business entity fields
+        if (!businessName || !entityType || !repName || !repTitle || !packageType || !weeks) {
+            alert('Please fill in all required fields:\n- Business Legal Name\n- Entity Type\n- Representative Name\n- Representative Title\n- Package Tier\n- Estimated Weeks');
+            return;
+        }
+        if (!businessEmail && !businessPhone) {
+            alert('Please provide either a Business Email or Business Phone number.');
+            return;
+        }
+    } else {
+        // Validate individual fields
+        if (!clientName || !packageType || !weeks) {
+            alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
+            return;
+        }
+        if (!clientEmail && !clientPhone) {
+            alert('Please provide either a Client Email or Client Phone number.');
+            return;
+        }
     }
     
     // Get selected features
@@ -5749,17 +5972,33 @@ ContractFormHandler.prototype.saveSOW = function() {
     var couponSelect = $('#sowCouponSelect');
     var selectedCouponCode = couponSelect ? couponSelect.value : '';
 
+    // Check if retroactive project
+    var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
+    var devDuration = $('#sowDevDuration') ? parseInt($('#sowDevDuration').value) || null : null;
+    var devDurationUnit = $('#sowDevDurationUnit') ? $('#sowDevDurationUnit').value : 'weeks';
+
     var sowData = {
-        clientName: clientName,
-        clientEmail: clientEmail || '',
-        clientPhone: normalizeToE164(clientPhone) || '',
+        // Use business name as primary if business entity, otherwise individual name
+        clientName: isBusinessEntity ? businessName : clientName,
+        clientEmail: isBusinessEntity ? (businessEmail || '') : (clientEmail || ''),
+        clientPhone: isBusinessEntity ? (normalizeToE164(businessPhone) || '') : (normalizeToE164(clientPhone) || ''),
         packageType: packageType,
         estimatedWeeks: parseInt(weeks),
         startDate: startDate || null,
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
+        isRetroactive: isRetroactive,
+        devDuration: devDuration,
+        devDurationUnit: devDurationUnit,
         couponCode: selectedCouponCode || null,
+        // Business entity information
+        isBusinessEntity: isBusinessEntity,
+        businessName: isBusinessEntity ? businessName : '',
+        entityType: isBusinessEntity ? entityType : '',
+        stateOfFormation: isBusinessEntity ? stateOfFormation : '',
+        representativeName: isBusinessEntity ? repName : '',
+        representativeTitle: isBusinessEntity ? repTitle : '',
         payment: {
             total: totalPrice,
             deposit: totalPrice * 0.50,
@@ -5779,9 +6018,9 @@ ContractFormHandler.prototype.saveSOW = function() {
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         status: 'draft'
     };
-    
+
     var self = this;
-    
+
     firebase.firestore().collection('sow_documents').add(sowData)
         .then(function(docRef) {
             console.log('SOW saved with ID:', docRef.id);
@@ -6232,24 +6471,44 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         devSignedDate = sowData.devSignedDate || '';
     } else {
         // Reading from form
+        var entityToggleForm = $('#sowEntityTypeToggle');
+        var isBusinessEntityForm = entityToggleForm && entityToggleForm.checked;
+
         var clientNameField = $('#sowClientName');
         var clientEmailField = $('#sowClientEmail');
         var clientPhoneField = $('#sowClientPhone');
+        var businessNameField = $('#sowBusinessName');
+        var businessEmailField = $('#sowBusinessEmail');
+        var businessPhoneField = $('#sowBusinessPhone');
         var packageField = $('#sowPackage');
         var weeksField = $('#sowWeeks');
         var startDateField = $('#sowStartDate');
         var notesField = $('#sowNotes');
         var maintenanceField = $('#sowMaintenance');
 
-        if (!clientNameField || !packageField) {
-            alert('Please fill in at least Client Name and Package Tier to generate PDF');
+        if (!packageField) {
+            alert('Please select a Package Tier to generate PDF');
             return;
         }
 
-        clientName = clientNameField.value.trim() || 'Client Name';
-        var emailVal = clientEmailField ? clientEmailField.value.trim() : '';
-        var phoneVal = clientPhoneField ? clientPhoneField.value.trim() : '';
-        clientContact = emailVal || phoneVal || 'N/A';
+        // Get client name based on entity type
+        if (isBusinessEntityForm) {
+            clientName = businessNameField ? businessNameField.value.trim() : '';
+            var bizEmailVal = businessEmailField ? businessEmailField.value.trim() : '';
+            var bizPhoneVal = businessPhoneField ? businessPhoneField.value.trim() : '';
+            clientContact = bizEmailVal || bizPhoneVal || 'N/A';
+        } else {
+            clientName = clientNameField ? clientNameField.value.trim() : '';
+            var emailVal = clientEmailField ? clientEmailField.value.trim() : '';
+            var phoneVal = clientPhoneField ? clientPhoneField.value.trim() : '';
+            clientContact = emailVal || phoneVal || 'N/A';
+        }
+
+        if (!clientName) {
+            alert('Please fill in the ' + (isBusinessEntityForm ? 'Business Name' : 'Client Name') + ' to generate PDF');
+            return;
+        }
+
         packageType = packageField.value || 'professional';
         estimatedWeeks = weeksField ? weeksField.value : 'TBD';
         startDate = startDateField ? startDateField.value : null;
@@ -6257,7 +6516,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         maintenancePlan = maintenanceField ? maintenanceField.value : 'none';
         sowId = 'DRAFT';
         clientSignature = '';
-        clientSignerName = clientName;
+        clientSignerName = isBusinessEntityForm ? ($('#sowRepName') ? $('#sowRepName').value.trim() : clientName) : clientName;
         clientSignedDate = '';
         devSignature = '';
         devSignerName = 'Carlos Martin';
@@ -6274,8 +6533,51 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     // For backward compatibility, also set clientEmail
     var clientEmail = clientContact;
 
+    // Check if retroactive project (from saved data or form)
+    var isRetroactive = false;
+    var devDuration = null;
+    var devDurationUnit = 'weeks';
+    if (sowData && sowData.isRetroactive !== undefined) {
+        isRetroactive = sowData.isRetroactive;
+        devDuration = sowData.devDuration || null;
+        devDurationUnit = sowData.devDurationUnit || 'weeks';
+    } else {
+        var retroactiveCheckbox = $('#sowRetroactive');
+        isRetroactive = retroactiveCheckbox && retroactiveCheckbox.checked;
+        devDuration = $('#sowDevDuration') ? parseInt($('#sowDevDuration').value) || null : null;
+        devDurationUnit = $('#sowDevDurationUnit') ? $('#sowDevDurationUnit').value : 'weeks';
+    }
+
+    // Business entity fields
+    var isBusinessEntity = false;
+    var businessName = '';
+    var entityType = '';
+    var stateOfFormation = '';
+    var representativeName = '';
+    var representativeTitle = '';
+
+    if (sowData) {
+        isBusinessEntity = sowData.isBusinessEntity || false;
+        businessName = sowData.businessName || '';
+        entityType = sowData.entityType || '';
+        stateOfFormation = sowData.stateOfFormation || '';
+        representativeName = sowData.representativeName || '';
+        representativeTitle = sowData.representativeTitle || '';
+    } else {
+        var entityToggle = $('#sowEntityTypeToggle');
+        isBusinessEntity = entityToggle && entityToggle.checked;
+        if (isBusinessEntity) {
+            businessName = $('#sowBusinessName') ? $('#sowBusinessName').value.trim() : '';
+            entityType = $('#sowEntityType') ? $('#sowEntityType').value : '';
+            stateOfFormation = $('#sowStateOfFormation') ? $('#sowStateOfFormation').value.trim() : '';
+            representativeName = $('#sowRepName') ? $('#sowRepName').value.trim() : '';
+            representativeTitle = $('#sowRepTitle') ? $('#sowRepTitle').value.trim() : '';
+        }
+    }
+
+    // Validation already done above when reading from form
     if (!clientName || !packageType) {
-        alert('Client Name and Package Tier are required to generate PDF');
+        alert((isBusinessEntity ? 'Business Name' : 'Client Name') + ' and Package Tier are required to generate PDF');
         return;
     }
 
@@ -6293,7 +6595,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
                 'Clean, modern React/Next.js design',
                 'Contact form with validation',
                 'Basic SEO setup (meta tags)',
-                'SSL certificate & hosting included',
+                'DNS & hosting configuration (client pays for domain)',
                 '1 round of revisions',
                 '14-day post-launch support'
             ],
@@ -6319,7 +6621,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
                 'Multi-step contact forms with validation',
                 'GA4 + custom event tracking',
                 'Full technical SEO (meta tags, sitemap, schema)',
-                'SSL certificate & hosting included',
+                'DNS & hosting configuration (client pays for domain)',
                 '2 rounds of revisions per milestone',
                 '30-day post-launch support'
             ],
@@ -6335,15 +6637,14 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
             priceRange: '$5,000 - $7,500',
             defaultPrice: 6250,
             timeline: '3-5 weeks',
-            description: 'For businesses needing auth-protected content, form data capture, and newsletter integration.',
+            description: 'For businesses needing auth-protected content, form data capture, and user data management.',
             includes: [
                 'Everything in Starter',
                 'Firebase Authentication (email/password login)',
                 'Protected content areas (auth-gated pages/sections)',
                 'Form data capture & storage',
-                'Newsletter/email list integration',
                 'User session management',
-                'SSL certificate & hosting included',
+                'Domain, hosting & SSL included (first year)',
                 '3 rounds of revisions',
                 '45-day post-launch support'
             ],
@@ -6368,7 +6669,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
                 'File/media upload system',
                 'Multiple API integrations (CRMs, Zapier, etc.)',
                 'Email notifications (SendGrid)',
-                'SSL certificate & hosting included',
+                'Domain, hosting & SSL included (first year)',
                 'Priority support response (24-48 hours)',
                 '4 rounds of revisions',
                 '2 months of included maintenance'
@@ -6395,7 +6696,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
                 'Scalable, production-ready architecture',
                 'Database design and optimization',
                 'Security best practices implementation',
-                'SSL certificate & hosting included',
+                'Domain, hosting & SSL included (first year)',
                 'Documentation and training materials',
                 '5 rounds of revisions',
                 '3 months of premium maintenance included',
@@ -6529,7 +6830,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<style>' +
     '* { margin: 0; padding: 0; box-sizing: border-box; }' +
     'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.35; color: #000; background: #fff; padding: 0.5in 0.75in; }' +
-    '.sow-container { max-width: 750px; margin: 0 auto; }' +
+    '.sow-container { max-width: 900px; margin: 0 auto; }' +
     'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
     'h2 { font-size: 10pt; margin-top: 12px; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 2px; }' +
     'h3 { font-size: 10pt; margin-top: 8px; margin-bottom: 4px; font-weight: bold; }' +
@@ -6541,8 +6842,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '.meta-date { font-size: 9pt; margin-top: 6px; font-style: italic; }' +
     '.info-box { padding: 8px 12px; border: 1px solid #000; border-left: 3px solid #000; margin: 8px 0; }' +
     '.info-box h3 { margin-top: 0; }' +
-    '.info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 4px 15px; margin-top: 6px; }' +
-    '.info-item { font-size: 9pt; }' +
+    '.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-top: 6px; }' +
+    '.info-item { font-size: 9pt; white-space: nowrap; }' +
     '.section { margin-bottom: 10px; page-break-inside: avoid; }' +
     '.package-box { border: 1px solid #000; padding: 8px 12px; margin: 8px 0; }' +
     '.package-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #000; }' +
@@ -6607,10 +6908,16 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<h2>1. Client Information</h2>' +
     '<div class="info-box">' +
     '<div class="info-grid">' +
-    '<div class="info-item"><strong>Client Name:</strong> ' + clientName + '</div>' +
-    '<div class="info-item"><strong>Contact Email:</strong> ' + clientEmail + '</div>' +
+    (isBusinessEntity
+        ? '<div class="info-item"><strong>Business Name:</strong> ' + businessName + '</div>' +
+          '<div class="info-item"><strong>Entity Type:</strong> ' + entityType + (stateOfFormation ? ' (' + stateOfFormation + ')' : '') + '</div>' +
+          '<div class="info-item"><strong>Representative:</strong> ' + representativeName + ', ' + representativeTitle + '</div>'
+        : '<div class="info-item"><strong>Client Name:</strong> ' + clientName + '</div>') +
+    '<div class="info-item"><strong>Contact:</strong> ' + clientEmail + '</div>' +
     '<div class="info-item"><strong>Package Selected:</strong> ' + packageInfo.name + '</div>' +
-    '<div class="info-item"><strong>Estimated Timeline:</strong> ' + estimatedWeeks + ' weeks</div>' +
+    (isRetroactive
+        ? '<div class="info-item"><strong>Development Duration:</strong> ' + (devDuration || estimatedWeeks) + ' ' + devDurationUnit + '</div>'
+        : '<div class="info-item"><strong>Estimated Timeline:</strong> ' + estimatedWeeks + ' weeks</div>') +
     '<div class="info-item"><strong>Estimated Final Revision:</strong> ' + formattedStartDate + '</div>' +
     '<div class="info-item"><strong>SOW Reference:</strong> ' + sowId + '</div>' +
     '</div>' +
@@ -6659,37 +6966,39 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     var sectionNum = 3 + (features && features.length > 0 ? 1 : 0) + (notes && notes.trim() ? 1 : 0);
 
-    // PROJECT TIMELINE
-    htmlContent += '<div class="section">' +
-    '<h2>' + sectionNum + '. Project Timeline & Milestones</h2>' +
-    '<div class="timeline-box">' +
-    '<div class="timeline-header">Estimated Project Duration: ' + estimatedWeeks + ' Weeks</div>' +
+    // PROJECT TIMELINE (hidden for retroactive projects)
+    if (!isRetroactive) {
+        htmlContent += '<div class="section">' +
+        '<h2>' + sectionNum + '. Project Timeline & Milestones</h2>' +
+        '<div class="timeline-box">' +
+        '<div class="timeline-header">Estimated Project Duration: ' + estimatedWeeks + ' Weeks</div>' +
 
-    '<div class="milestone">' +
-    '<div class="milestone-title">1. Discovery & Planning (Week 1)</div>' +
-    '<div class="milestone-desc">Requirements gathering, sitemap, wireframes, project kickoff.</div>' +
-    '</div>' +
+        '<div class="milestone">' +
+        '<div class="milestone-title">1. Discovery & Planning (Week 1)</div>' +
+        '<div class="milestone-desc">Requirements gathering, sitemap, wireframes, project kickoff.</div>' +
+        '</div>' +
 
-    '<div class="milestone">' +
-    '<div class="milestone-title">2. UI/UX Design (Weeks 2-3)</div>' +
-    '<div class="milestone-desc">Visual mockups, component design, approval. <strong>Milestone Payment due.</strong></div>' +
-    '</div>' +
+        '<div class="milestone">' +
+        '<div class="milestone-title">2. UI/UX Design (Weeks 2-3)</div>' +
+        '<div class="milestone-desc">Visual mockups, component design, approval. <strong>Milestone Payment due.</strong></div>' +
+        '</div>' +
 
-    '<div class="milestone">' +
-    '<div class="milestone-title">3. Development (Weeks 4-' + Math.max(4, parseInt(estimatedWeeks) - 2 || 4) + ')</div>' +
-    '<div class="milestone-desc">Frontend/backend development, feature implementation, testing.</div>' +
-    '</div>' +
+        '<div class="milestone">' +
+        '<div class="milestone-title">3. Development (Weeks 4-' + Math.max(4, parseInt(estimatedWeeks) - 2 || 4) + ')</div>' +
+        '<div class="milestone-desc">Frontend/backend development, feature implementation, testing.</div>' +
+        '</div>' +
 
-    '<div class="milestone">' +
-    '<div class="milestone-title">4. Testing & Deployment (Final Week)</div>' +
-    '<div class="milestone-desc">QA, bug fixes, optimization, deployment. <strong>Final Payment due.</strong></div>' +
-    '</div>' +
+        '<div class="milestone">' +
+        '<div class="milestone-title">4. Testing & Deployment (Final Week)</div>' +
+        '<div class="milestone-desc">QA, bug fixes, optimization, deployment. <strong>Final Payment due.</strong></div>' +
+        '</div>' +
 
-    '</div>' +
-    '<p style="font-size: 9pt; font-style: italic; margin-top: 6px;">Timeline is an estimate. See Agreement Section 8 for terms.</p>' +
-    '</div>';
+        '</div>' +
+        '<p style="font-size: 9pt; font-style: italic; margin-top: 6px;">Timeline is an estimate. See Agreement Section 8 for terms.</p>' +
+        '</div>';
 
-    sectionNum++;
+        sectionNum++;
+    }
 
     // PRICING SUMMARY (individualized breakdown)
     htmlContent += '<div class="section">' +
@@ -6754,48 +7063,111 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     sectionNum++;
 
-    // PAYMENT STRUCTURE
-    htmlContent += '<div class="section">' +
-    '<h2>' + sectionNum + '. Payment Structure</h2>' +
+    // YOUR VALUE SUMMARY - Personalized, compact, high-impact
+    var marketRates = {
+        'essential': { local: '$2,500 - $5,000', localHigh: 5000 },
+        'starter': { local: '$4,000 - $8,000', localHigh: 8000 },
+        'growth': { local: '$7,000 - $12,000', localHigh: 12000 },
+        'professional': { local: '$12,000 - $20,000', localHigh: 20000 },
+        'enterprise': { local: '$25,000 - $50,000', localHigh: 50000 },
+        'custom': { local: '$15,000 - $75,000+', localHigh: 75000 }
+    };
+    var tierRates = marketRates[packageType] || marketRates['starter'];
+    var potentialSavings = Math.max(0, tierRates.localHigh - totalPrice);
 
-    '<table class="payment-table">' +
-    '<thead>' +
-    '<tr>' +
-    '<th style="width: 25%;">Payment</th>' +
-    '<th style="width: 45%;">Description</th>' +
-    '<th style="width: 15%;">Percentage</th>' +
-    '<th style="width: 15%;">Amount</th>' +
-    '</tr>' +
-    '</thead>' +
-    '<tbody>' +
-    '<tr>' +
-    '<td><strong>Deposit</strong></td>' +
-    '<td>Before work begins</td>' +
-    '<td>50%</td>' +
-    '<td><strong>$' + deposit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-    '</tr>' +
-    '<tr>' +
-    '<td><strong>Milestone</strong></td>' +
-    '<td>Upon design approval</td>' +
-    '<td>25%</td>' +
-    '<td><strong>$' + milestone1.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-    '</tr>' +
-    '<tr>' +
-    '<td><strong>Final</strong></td>' +
-    '<td>Prior to deployment</td>' +
-    '<td>25%</td>' +
-    '<td><strong>$' + finalPayment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-    '</tr>' +
-    '<tr class="total-row">' +
-    '<td colspan="2"><strong>TOTAL PROJECT COST</strong></td>' +
-    '<td><strong>100%</strong></td>' +
-    '<td><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
-    '</tr>' +
-    '</tbody>' +
-    '</table>' +
+    htmlContent += '<div class="section" style="page-break-inside: avoid;">' +
+    '<h2>' + sectionNum + '. Your Value Summary</h2>' +
 
-    '<p style="font-size: 9pt; font-style: italic;">Late payments subject to interest (Section 3.3). IP rights transfer upon full payment (Section 6.6).</p>' +
+    '<div style="border: 2px solid #000; padding: 12px 15px; margin: 8px 0;">' +
+
+    // Price comparison - anchored
+    '<div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 10px; border-bottom: 1px solid #ccc; margin-bottom: 10px;">' +
+    '<div style="font-size: 9pt;">' +
+    '<div style="color: #666; margin-bottom: 2px;">Fresno/Central Valley agencies typically charge:</div>' +
+    '<div style="font-size: 11pt; font-weight: bold;">' + tierRates.local + '</div>' +
+    '</div>' +
+    '<div style="text-align: right;">' +
+    '<div style="color: #666; font-size: 9pt; margin-bottom: 2px;">Your Scarlo Quote:</div>' +
+    '<div style="font-size: 14pt; font-weight: bold;">$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</div>' +
+    '</div>' +
+    '</div>' +
+
+    // Savings callout
+    (potentialSavings > 500 ?
+    '<div style="background: #f0f7f0; padding: 8px 12px; margin-bottom: 10px; text-align: center; border-left: 3px solid #2e7d32;">' +
+    '<span style="font-size: 9pt; color: #666;">Potential savings vs. local market: </span>' +
+    '<strong style="font-size: 11pt; color: #2e7d32;">Up to $' + potentialSavings.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong>' +
+    '</div>' : '') +
+
+    // Value propositions - 3 key differentiators focused on functionality & purpose
+    '<div style="font-size: 9pt;">' +
+    '<div style="margin-bottom: 4px;"><strong style="color: #2e7d32;">✓</strong> <strong>Advanced Functionality</strong> — Real features that work: auth systems, dashboards, integrations — not static pages</div>' +
+    '<div style="margin-bottom: 4px;"><strong style="color: #2e7d32;">✓</strong> <strong>Modern Tech Stack</strong> — React/Next.js built for speed, SEO, and scale — not outdated WordPress themes</div>' +
+    '<div><strong style="color: #2e7d32;">✓</strong> <strong>Creative Solutions</strong> — Your online presence matters. Stand out in a market full of cookie-cutter websites</div>' +
+    '</div>' +
+
+    '</div>' +
+
+    '<p style="font-size: 7pt; color: #888; margin-top: 4px; margin-bottom: 0;">Market rates based on Fresno/Central Valley research (2024-2025). Full industry comparison: <a href="https://scarlo.dev/pricing" target="_blank" style="color: #2e7d32; text-decoration: underline;">scarlo.dev/pricing</a></p>' +
     '</div>';
+
+    sectionNum++;
+
+    // PAYMENT STRUCTURE (simplified for retroactive projects)
+    if (isRetroactive) {
+        // Simple total for retroactive projects
+        htmlContent += '<div class="section">' +
+        '<h2>' + sectionNum + '. Payment Summary</h2>' +
+        '<div class="info-box" style="text-align: center; padding: 15px;">' +
+        '<div style="font-size: 10pt; color: #666; margin-bottom: 5px;">Total Project Cost</div>' +
+        '<div style="font-size: 16pt; font-weight: bold;">$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</div>' +
+        '</div>' +
+        '<p style="font-size: 9pt; font-style: italic;">Payment terms as agreed. IP rights transfer upon full payment (Section 6.6).</p>' +
+        '</div>';
+    } else {
+        // Full payment structure for new projects
+        htmlContent += '<div class="section">' +
+        '<h2>' + sectionNum + '. Payment Structure</h2>' +
+
+        '<table class="payment-table">' +
+        '<thead>' +
+        '<tr>' +
+        '<th style="width: 25%;">Payment</th>' +
+        '<th style="width: 45%;">Description</th>' +
+        '<th style="width: 15%;">Percentage</th>' +
+        '<th style="width: 15%;">Amount</th>' +
+        '</tr>' +
+        '</thead>' +
+        '<tbody>' +
+        '<tr>' +
+        '<td><strong>Deposit</strong></td>' +
+        '<td>Before work begins</td>' +
+        '<td>50%</td>' +
+        '<td><strong>$' + deposit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '</tr>' +
+        '<tr>' +
+        '<td><strong>Milestone</strong></td>' +
+        '<td>Upon design approval</td>' +
+        '<td>25%</td>' +
+        '<td><strong>$' + milestone1.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '</tr>' +
+        '<tr>' +
+        '<td><strong>Final</strong></td>' +
+        '<td>Prior to deployment</td>' +
+        '<td>25%</td>' +
+        '<td><strong>$' + finalPayment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '</tr>' +
+        '<tr class="total-row">' +
+        '<td colspan="2"><strong>TOTAL PROJECT COST</strong></td>' +
+        '<td><strong>100%</strong></td>' +
+        '<td><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '</tr>' +
+        '</tbody>' +
+        '</table>' +
+
+        '<p style="font-size: 9pt; font-style: italic;">Late payments subject to interest (Section 3.3). IP rights transfer upon full payment (Section 6.6).</p>' +
+        '</div>';
+    }
 
     sectionNum++;
 
@@ -6833,7 +7205,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<li><strong>Feedback:</strong> Client provides consolidated feedback within 5 business days</li>' +
     '<li><strong>Contact:</strong> Client designates one authorized representative for approvals</li>' +
     '<li><strong>Third-Party:</strong> Required APIs/services remain available throughout project</li>' +
-    '<li><strong>Hosting:</strong> Client provides hosting meeting Developer\'s requirements</li>' +
+    '<li><strong>Domain & Hosting:</strong> Essential & Starter: Client pays for domain (Developer handles DNS & hosting configuration). Growth, Professional & Enterprise: Domain, hosting & SSL included (first year).</li>' +
     '<li><strong>Rights:</strong> Client has rights to all materials provided</li>' +
     '<li><strong>Scope:</strong> Project scope remains substantially unchanged</li>' +
     '</ul>' +
@@ -6883,12 +7255,13 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     // Client Signature
     '<div class="signature-block">' +
-    '<h3>CLIENT: ' + clientName + '</h3>' +
+    '<h3>CLIENT: ' + (isBusinessEntity ? businessName : clientName) + '</h3>' +
+    (isBusinessEntity ? '<p style="font-size: 9pt; margin-bottom: 8px;">' + entityType + (stateOfFormation ? ', ' + stateOfFormation : '') + '</p>' : '') +
     '<div class="signature-line">' +
     (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Awaiting Signature</span>') +
     '</div>' +
     '<div class="signature-label">Authorized Signature</div>' +
-    '<div class="signature-name">' + clientSignerName + '</div>' +
+    '<div class="signature-name">' + (isBusinessEntity ? 'By: ' + representativeName + ', ' + representativeTitle : clientSignerName) + '</div>' +
     '<div class="signature-date">Date: ' + (clientSignedDate || '_______________') + '</div>' +
     '</div>' +
 
@@ -6997,6 +7370,70 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             fields.maintenance.value = sow.maintenancePlan || 'none';
         }
 
+        // Set retroactive project fields
+        var retroactiveCheckbox = $('#sowRetroactive');
+        var devDurationField = $('#sowDevDuration');
+        var devDurationUnitField = $('#sowDevDurationUnit');
+        var retroactiveDurationFields = $('#retroactiveDurationFields');
+
+        if (retroactiveCheckbox && sow.isRetroactive) {
+            retroactiveCheckbox.checked = true;
+            if (retroactiveDurationFields) retroactiveDurationFields.style.display = 'block';
+            if (devDurationField && sow.devDuration) devDurationField.value = sow.devDuration;
+            if (devDurationUnitField && sow.devDurationUnit) devDurationUnitField.value = sow.devDurationUnit;
+        }
+
+        // Populate business entity fields
+        var entityTypeToggle = $('#sowEntityTypeToggle');
+        var individualFields = $('#sowIndividualFields');
+        var businessFields = $('#sowBusinessFields');
+        var individualLabel = $('#sowIndividualLabel');
+        var businessLabel = $('#sowBusinessLabel');
+        var businessNameField = $('#sowBusinessName');
+        var entityTypeField = $('#sowEntityType');
+        var stateOfFormationField = $('#sowStateOfFormation');
+        var repNameField = $('#sowRepName');
+        var repTitleField = $('#sowRepTitle');
+        var businessEmailField = $('#sowBusinessEmail');
+        var businessPhoneField = $('#sowBusinessPhone');
+
+        if (sow.isBusinessEntity && entityTypeToggle) {
+            entityTypeToggle.checked = true;
+            if (individualFields) individualFields.style.display = 'none';
+            if (businessFields) businessFields.style.display = 'block';
+            if (individualLabel) individualLabel.classList.remove('active');
+            if (businessLabel) businessLabel.classList.add('active');
+
+            // Populate business fields
+            if (businessNameField) businessNameField.value = sow.businessName || '';
+            if (entityTypeField) entityTypeField.value = sow.entityType || '';
+            if (stateOfFormationField) stateOfFormationField.value = sow.stateOfFormation || '';
+            if (repNameField) repNameField.value = sow.representativeName || '';
+            if (repTitleField) repTitleField.value = sow.representativeTitle || '';
+
+            // Handle business email/phone based on clientIdToggle
+            if (sow.clientPhone && !sow.clientEmail) {
+                if (businessEmailField) businessEmailField.style.display = 'none';
+                if (businessPhoneField) {
+                    businessPhoneField.style.display = 'block';
+                    businessPhoneField.value = formatPhoneNumber(sow.clientPhone);
+                }
+            } else {
+                if (businessPhoneField) businessPhoneField.style.display = 'none';
+                if (businessEmailField) {
+                    businessEmailField.style.display = 'block';
+                    businessEmailField.value = sow.clientEmail || '';
+                }
+            }
+        } else if (entityTypeToggle) {
+            // Individual mode (default)
+            entityTypeToggle.checked = false;
+            if (businessFields) businessFields.style.display = 'none';
+            if (individualFields) individualFields.style.display = 'block';
+            if (businessLabel) businessLabel.classList.remove('active');
+            if (individualLabel) individualLabel.classList.add('active');
+        }
+
         // Pricing data structures (2025 Scarlo Pricing Guide - Revised)
         var packagePricing = {
             'essential': { min: 1000, max: 2200, default: 1600 },
@@ -7027,7 +7464,7 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             'file_storage': { default: 300, thirdParty: true, note: 'Firebase costs' },
             'api_integration': { default: 450, thirdParty: false },
             'email_integration': { default: 325, thirdParty: true, note: 'SendGrid costs' },
-            'newsletter': { default: 200, thirdParty: false },
+            'newsletter': { default: 200, thirdParty: false, addon: true },
             'user_roles': { default: 450, thirdParty: false },
             'notifications': { default: 400, thirdParty: false },
             // Add-on Features (available to any tier)
@@ -7046,11 +7483,11 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             'full_store': { price: 9000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $6,000-$12,000
         };
         // Package-feature mapping (hosting, ssl, domain included free in all packages)
-        // Add-ons (booking, blog, cms, gallery, music, social_feed) available separately for any tier
+        // Add-ons (booking, blog, cms, gallery, music, social_feed, newsletter) available separately for any tier
         var packageIncludedFeatures = {
             'essential': ['responsive_design', 'contact_forms'],
             'starter': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms'],
-            'growth': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms', 'newsletter'],
+            'growth': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'contact_forms'],
             'professional': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'newsletter'],
             'enterprise': ['responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'firebase_auth', 'firebase_db', 'user_profiles', 'user_roles', 'file_storage', 'api_integration', 'contact_forms', 'email_integration', 'notifications', 'newsletter'],
             'custom': []
@@ -7167,9 +7604,23 @@ ContractFormHandler.prototype.editSOW = function(sow) {
 
 // ============= NEW: Update SOW (instead of create new) =============
 ContractFormHandler.prototype.updateSOW = function(sowId) {
+    // Check if business entity mode
+    var isBusinessEntity = $('#sowEntityTypeToggle') && $('#sowEntityTypeToggle').checked;
+
+    // Individual client fields
     var clientName = $('#sowClientName').value.trim();
     var clientEmail = $('#sowClientEmail').value.trim();
     var clientPhoneRaw = $('#sowClientPhone').value.trim();
+
+    // Business entity fields
+    var businessName = $('#sowBusinessName') ? $('#sowBusinessName').value.trim() : '';
+    var entityType = $('#sowEntityType') ? $('#sowEntityType').value : '';
+    var stateOfFormation = $('#sowStateOfFormation') ? $('#sowStateOfFormation').value.trim() : '';
+    var repName = $('#sowRepName') ? $('#sowRepName').value.trim() : '';
+    var repTitle = $('#sowRepTitle') ? $('#sowRepTitle').value.trim() : '';
+    var businessEmail = $('#sowBusinessEmail') ? $('#sowBusinessEmail').value.trim() : '';
+    var businessPhoneRaw = $('#sowBusinessPhone') ? $('#sowBusinessPhone').value.trim() : '';
+
     var packageType = $('#sowPackage').value;
     var weeks = $('#sowWeeks').value;
     var startDate = $('#sowStartDate').value;
@@ -7189,14 +7640,40 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
         }
     }
 
-    if (!clientName || !packageType || !weeks) {
-        alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
-        return;
+    // Normalize business phone to E.164 format
+    var businessPhone = '';
+    if (businessPhoneRaw) {
+        var bizDigits = businessPhoneRaw.replace(/\D/g, '');
+        if (bizDigits.length === 10) {
+            businessPhone = '+1' + bizDigits;
+        } else if (bizDigits.length === 11 && bizDigits.startsWith('1')) {
+            businessPhone = '+' + bizDigits;
+        } else {
+            businessPhone = businessPhoneRaw;
+        }
     }
 
-    if (!clientEmail && !clientPhone) {
-        alert('Please provide either a Client Email or Client Phone number.');
-        return;
+    // Validate required fields based on entity type
+    if (isBusinessEntity) {
+        // Validate business entity fields
+        if (!businessName || !entityType || !repName || !repTitle || !packageType || !weeks) {
+            alert('Please fill in all required fields:\n- Business Legal Name\n- Entity Type\n- Representative Name\n- Representative Title\n- Package Tier\n- Estimated Weeks');
+            return;
+        }
+        if (!businessEmail && !businessPhone) {
+            alert('Please provide either a Business Email or Business Phone number.');
+            return;
+        }
+    } else {
+        // Validate individual fields
+        if (!clientName || !packageType || !weeks) {
+            alert('Please fill in all required fields:\n- Client Name\n- Package Tier\n- Estimated Weeks');
+            return;
+        }
+        if (!clientEmail && !clientPhone) {
+            alert('Please provide either a Client Email or Client Phone number.');
+            return;
+        }
     }
     
     // Get selected features
@@ -7233,17 +7710,33 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     var couponSelect = $('#sowCouponSelect');
     var selectedCouponCode = couponSelect ? couponSelect.value : '';
 
+    // Check if retroactive project
+    var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
+    var devDuration = $('#sowDevDuration') ? parseInt($('#sowDevDuration').value) || null : null;
+    var devDurationUnit = $('#sowDevDurationUnit') ? $('#sowDevDurationUnit').value : 'weeks';
+
     var sowData = {
-        clientName: clientName,
-        clientEmail: clientEmail || '',
-        clientPhone: normalizeToE164(clientPhone) || '',
+        // Use business name as primary if business entity, otherwise individual name
+        clientName: isBusinessEntity ? businessName : clientName,
+        clientEmail: isBusinessEntity ? (businessEmail || '') : (clientEmail || ''),
+        clientPhone: isBusinessEntity ? (normalizeToE164(businessPhone) || '') : (normalizeToE164(clientPhone) || ''),
         packageType: packageType,
         estimatedWeeks: parseInt(weeks),
         startDate: startDate || null,
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
+        isRetroactive: isRetroactive,
+        devDuration: devDuration,
+        devDurationUnit: devDurationUnit,
         couponCode: selectedCouponCode || null,
+        // Business entity information
+        isBusinessEntity: isBusinessEntity,
+        businessName: isBusinessEntity ? businessName : '',
+        entityType: isBusinessEntity ? entityType : '',
+        stateOfFormation: isBusinessEntity ? stateOfFormation : '',
+        representativeName: isBusinessEntity ? repName : '',
+        representativeTitle: isBusinessEntity ? repTitle : '',
         payment: {
             total: totalPrice,
             deposit: totalPrice * 0.50,
@@ -7938,19 +8431,19 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
 
     var packageDetails = {
         'essential': {
-            includes: ['Single-page landing page (1-3 sections)', 'Cross-device optimization', 'Clean, modern React/Next.js design', 'Contact form with validation', 'Basic SEO setup']
+            includes: ['Single-page landing page (1-3 sections)', 'Cross-device optimization', 'Clean, modern React/Next.js design', 'Contact form with validation', 'Basic SEO setup', 'DNS & hosting configuration (client pays for domain)']
         },
         'starter': {
-            includes: ['Multi-section React/Next.js website', 'Brand-matched design system', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Full technical SEO']
+            includes: ['Multi-section React/Next.js website', 'Brand-matched design system', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Full technical SEO', 'DNS & hosting configuration (client pays for domain)']
         },
         'growth': {
-            includes: ['Everything in Starter', 'Firebase Authentication', 'Protected content areas', 'Form data capture & storage', 'Newsletter integration', '3 rounds of revisions']
+            includes: ['Everything in Starter', 'Firebase Authentication', 'Protected content areas', 'Form data capture & storage', 'Newsletter integration', '3 rounds of revisions', 'Domain, hosting & SSL included (first year)']
         },
         'professional': {
-            includes: ['Everything in Growth', 'Full Firebase backend', 'User dashboard & profiles', 'File/media upload system', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included']
+            includes: ['Everything in Growth', 'Full Firebase backend', 'User dashboard & profiles', 'File/media upload system', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included', 'Domain, hosting & SSL included (first year)']
         },
         'enterprise': {
-            includes: ['Everything in Professional', 'Multi-page application', 'Role-based access control', 'In-app notifications', 'Admin dashboards', 'Documentation & training', '3 months of premium maintenance included']
+            includes: ['Everything in Professional', 'Multi-page application', 'Role-based access control', 'In-app notifications', 'Admin dashboards', 'Documentation & training', '3 months of premium maintenance included', 'Domain, hosting & SSL included (first year)']
         }
     };
 
@@ -8738,20 +9231,45 @@ ContractFormHandler.prototype.validateContractTab = function() {
 
     ContractFormHandler.prototype.handleClientSubmit = function() {
         console.log('Handling client submit...');
-        
+
+        // Check if business entity mode
+        var entityToggle = $('#entityTypeToggle');
+        var isBusinessEntity = entityToggle && entityToggle.checked;
+
         // Validate client fields
         var errors = [];
-        
-        var clientName = $('#clientName');
-        if (!clientName || !clientName.value.trim()) {
-            errors.push('Please enter the client name or company name');
+
+        if (isBusinessEntity) {
+            // Validate business entity fields
+            var businessName = $('#businessName');
+            if (!businessName || !businessName.value.trim()) {
+                errors.push('Please enter the business legal name');
+            }
+            var entityType = $('#entityType');
+            if (!entityType || !entityType.value) {
+                errors.push('Please select the entity type');
+            }
+            var repName = $('#repName');
+            if (!repName || !repName.value.trim()) {
+                errors.push('Please enter the authorized representative name');
+            }
+            var repTitle = $('#repTitle');
+            if (!repTitle || !repTitle.value.trim()) {
+                errors.push('Please enter the representative title');
+            }
+        } else {
+            // Validate individual fields
+            var clientName = $('#clientName');
+            if (!clientName || !clientName.value.trim()) {
+                errors.push('Please enter the client name');
+            }
         }
-        
+
         var acknowledgment = $('#acknowledgment');
         if (!acknowledgment || !acknowledgment.checked) {
             errors.push('Please acknowledge that you have read and agree to the terms');
         }
-        
+
         var clientSignerName = $('#clientSignerName');
         if (!clientSignerName || !clientSignerName.value.trim()) {
             errors.push('Please enter your full name');
@@ -8845,16 +9363,35 @@ ContractFormHandler.prototype.validateContractTab = function() {
     var clientEmail = user.email || '';
     var clientPhone = user.phoneNumber || '';
 
+    // Check if business entity mode
+    var entityToggle = $('#entityTypeToggle');
+    var isBusinessEntity = entityToggle && entityToggle.checked;
+
+    // Get business entity fields if applicable
+    var businessName = isBusinessEntity && $('#businessName') ? $('#businessName').value.trim() : '';
+    var entityType = isBusinessEntity && $('#entityType') ? $('#entityType').value : '';
+    var stateOfFormation = isBusinessEntity && $('#stateOfFormation') ? $('#stateOfFormation').value.trim() : '';
+    var repName = isBusinessEntity && $('#repName') ? $('#repName').value.trim() : '';
+    var repTitle = isBusinessEntity && $('#repTitle') ? $('#repTitle').value.trim() : '';
+
     // Contract data
     var contractData = {
-        clientName: $('#clientName').value.trim(),
-        clientSignerName: $('#clientSignerName').value.trim(),
+        // Use business name if business entity, otherwise individual name
+        clientName: isBusinessEntity ? businessName : $('#clientName').value.trim(),
+        clientSignerName: isBusinessEntity ? repName : $('#clientSignerName').value.trim(),
         clientDate: $('#clientDate').value,
         clientSignature: this.clientSignaturePad.toDataURL(),
         clientEmail: clientEmail,
         clientPhone: normalizeToE164(clientPhone),
         timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-        status: 'pending_developer'
+        status: 'pending_developer',
+        // Business entity information
+        isBusinessEntity: isBusinessEntity,
+        businessName: businessName,
+        entityType: entityType,
+        stateOfFormation: stateOfFormation,
+        representativeName: repName,
+        representativeTitle: repTitle
     };
     
     // SOW signature data
@@ -9397,9 +9934,17 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         var clientSignature = contractData.clientSignature || '';
         var devSignature = contractData.devSignature || '';
 
+        // Business entity fields
+        var isBusinessEntity = contractData.isBusinessEntity || false;
+        var businessName = contractData.businessName || '';
+        var entityType = contractData.entityType || '';
+        var stateOfFormation = contractData.stateOfFormation || '';
+        var representativeName = contractData.representativeName || '';
+        var representativeTitle = contractData.representativeTitle || '';
+
         var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
-        '<title>Website Development Agreement - ' + clientName + '</title>' +
+        '<title>Website Development Agreement - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
         '<style>' +
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
         'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
@@ -9448,7 +9993,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<p>This Agreement is entered into as of <strong>' + clientDate + '</strong> between:</p>' +
         '<div class="parties">' +
         '<p><strong>Developer:</strong> Scarlo (Carlos Martin), Fresno County, California</p>' +
-        '<p><strong>Client:</strong> ' + clientName + (clientEmail ? ' (' + clientEmail + ')' : '') + '</p>' +
+        (isBusinessEntity
+            ? '<p><strong>Client:</strong> ' + businessName + ', a ' + entityType + (stateOfFormation ? ' formed in ' + stateOfFormation : '') + (clientEmail ? ' (' + clientEmail + ')' : '') + '</p>'
+            : '<p><strong>Client:</strong> ' + clientName + (clientEmail ? ' (' + clientEmail + ')' : '') + '</p>') +
         '</div>' +
         '</div>' +
 
@@ -9548,12 +10095,13 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' +
 
         '<div class="signature-block">' +
-        '<h3 style="font-size: 10pt;">CLIENT: ' + clientName + '</h3>' +
+        '<h3 style="font-size: 10pt;">CLIENT: ' + (isBusinessEntity ? businessName : clientName) + '</h3>' +
+        (isBusinessEntity ? '<p style="font-size: 9pt; margin-bottom: 5px;">' + entityType + (stateOfFormation ? ' (' + stateOfFormation + ')' : '') + '</p>' : '') +
         '<div class="signature-line">' +
         (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Awaiting Signature</span>') +
         '</div>' +
         '<div class="signature-label">Authorized Signature</div>' +
-        '<div class="signature-name">' + clientSignerName + '</div>' +
+        '<div class="signature-name">' + (isBusinessEntity ? 'By: ' + representativeName + ', ' + representativeTitle : clientSignerName) + '</div>' +
         '<div class="signature-date">Date: ' + clientDate + '</div>' +
         '<div class="signature-email">' + clientContactLabel + ': ' + clientContact + '</div>' +
         '</div>' +
@@ -9614,7 +10162,15 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     var devEmail = contractData.devEmail || 'N/A';
     var clientSignature = contractData.clientSignature || '';
     var devSignature = contractData.devSignature || '';
-    
+
+    // Business entity fields (check both contract and SOW data)
+    var isBusinessEntity = contractData.isBusinessEntity || sowData.isBusinessEntity || false;
+    var businessName = contractData.businessName || sowData.businessName || '';
+    var entityType = contractData.entityType || sowData.entityType || '';
+    var stateOfFormation = contractData.stateOfFormation || sowData.stateOfFormation || '';
+    var representativeName = contractData.representativeName || sowData.representativeName || '';
+    var representativeTitle = contractData.representativeTitle || sowData.representativeTitle || '';
+
     // SOW data
     var packageNames = {
         'essential': 'Essential — Landing Page',
@@ -9627,19 +10183,19 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
     var packageDetails = {
         'essential': {
-            includes: ['Single-page landing page (1-3 sections)', 'Cross-device optimization', 'Clean, modern React/Next.js design', 'Contact form with validation', 'Basic SEO setup']
+            includes: ['Single-page landing page (1-3 sections)', 'Cross-device optimization', 'Clean, modern React/Next.js design', 'Contact form with validation', 'Basic SEO setup', 'DNS & hosting configuration (client pays for domain)']
         },
         'starter': {
-            includes: ['Multi-section React/Next.js website', 'Brand-matched design system', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Full technical SEO']
+            includes: ['Multi-section React/Next.js website', 'Brand-matched design system', 'Scroll animations & micro-interactions', 'Multi-step contact forms', 'GA4 + custom event tracking', 'Full technical SEO', 'DNS & hosting configuration (client pays for domain)']
         },
         'growth': {
-            includes: ['Everything in Starter', 'Firebase Authentication', 'Protected content areas', 'Form data capture & storage', 'Newsletter integration', '3 rounds of revisions']
+            includes: ['Everything in Starter', 'Firebase Authentication', 'Protected content areas', 'Form data capture & storage', 'Newsletter integration', '3 rounds of revisions', 'Domain, hosting & SSL included (first year)']
         },
         'professional': {
-            includes: ['Everything in Growth', 'Full Firebase backend', 'User dashboard & profiles', 'File/media upload system', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included']
+            includes: ['Everything in Growth', 'Full Firebase backend', 'User dashboard & profiles', 'File/media upload system', 'API integrations', 'Email notifications (SendGrid)', '2 months of maintenance included', 'Domain, hosting & SSL included (first year)']
         },
         'enterprise': {
-            includes: ['Everything in Professional', 'Multi-page application', 'Role-based access control', 'In-app notifications', 'Admin dashboards', 'Documentation & training', '3 months of premium maintenance included']
+            includes: ['Everything in Professional', 'Multi-page application', 'Role-based access control', 'In-app notifications', 'Admin dashboards', 'Documentation & training', '3 months of premium maintenance included', 'Domain, hosting & SSL included (first year)']
         }
     };
     
@@ -9660,7 +10216,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     
     var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
-        '<title>Complete Agreement Package - ' + clientName + '</title>' +
+        '<title>Complete Agreement Package - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
         '<style>' +
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
         'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
@@ -9711,7 +10267,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<div class="parties">' +
         '<p><strong>Scarlo</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>' +
         '<p>and</p>' +
-        '<p><strong>' + clientName + '</strong> (the "Client")</p>' +
+        (isBusinessEntity
+            ? '<p><strong>' + businessName + '</strong>, a ' + entityType + (stateOfFormation ? ' formed in ' + stateOfFormation : '') + ' (the "Client")</p>'
+            : '<p><strong>' + clientName + '</strong> (the "Client")</p>') +
         '<p style="font-size: 10pt; font-style: italic; margin-top: 10px;">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>' +
         '</div>' +
         '</div>' +
@@ -9838,12 +10396,13 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' +
         
         '<div class="signature-block">' +
-        '<h3>Client — ' + clientName + '</h3>' +
+        '<h3>Client — ' + (isBusinessEntity ? businessName : clientName) + '</h3>' +
+        (isBusinessEntity ? '<p style="font-size: 9pt; margin-bottom: 5px;">' + entityType + (stateOfFormation ? ' (' + stateOfFormation + ')' : '') + '</p>' : '') +
         '<div class="signature-line">' +
         (clientSignature ? '<img src="' + clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Pending</span>') +
         '</div>' +
         '<div class="signature-label">Signature</div>' +
-        '<div class="signature-name">' + clientSignerName + '</div>' +
+        '<div class="signature-name">' + (isBusinessEntity ? 'By: ' + representativeName + ', ' + representativeTitle : clientSignerName) + '</div>' +
         '<div class="signature-date">Date: ' + clientDate + '</div>' +
         '<div class="signature-email">' + clientContactLabel + ': ' + clientContact + '</div>' +
         '</div>' +
@@ -9863,7 +10422,11 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         
         '<div class="info-box">' +
         '<h3>Client Information</h3>' +
-        '<p><strong>Client Name:</strong> ' + (sowData.clientName || clientName) + '</p>' +
+        (isBusinessEntity
+            ? '<p><strong>Business Name:</strong> ' + businessName + '</p>' +
+              '<p><strong>Entity Type:</strong> ' + entityType + (stateOfFormation ? ' (' + stateOfFormation + ')' : '') + '</p>' +
+              '<p><strong>Representative:</strong> ' + representativeName + ', ' + representativeTitle + '</p>'
+            : '<p><strong>Client Name:</strong> ' + (sowData.clientName || clientName) + '</p>') +
         '<p><strong>Contact:</strong> ' + (sowData.clientEmail || sowData.clientPhone || clientEmail || 'N/A') + '</p>' +
         '<p><strong>Package:</strong> ' + (packageNames[sowData.packageType] || sowData.packageType) + ' <span class="highlight">$' + totalPrice.toFixed(2) + '</span></p>' +
         '<p><strong>Estimated Timeline:</strong> ' + (sowData.estimatedWeeks || 'TBD') + ' weeks' + (sowData.startDate ? ' (Starting ' + new Date(sowData.startDate).toLocaleDateString() + ')' : '') + '</p>' +
@@ -9949,18 +10512,19 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' +
         
         '<div class="signature-block">' +
-        '<h3>Client — ' + clientName + '</h3>' +
+        '<h3>Client — ' + (isBusinessEntity ? businessName : clientName) + '</h3>' +
+        (isBusinessEntity ? '<p style="font-size: 9pt; margin-bottom: 5px;">' + entityType + (stateOfFormation ? ' (' + stateOfFormation + ')' : '') + '</p>' : '') +
         '<div class="signature-line">' +
         (sowData.clientSignature ? '<img src="' + sowData.clientSignature + '" alt="Client Signature" />' : '<span style="font-style: italic;">Pending</span>') +
         '</div>' +
         '<div class="signature-label">Signature</div>' +
-        '<div class="signature-name">' + (sowData.clientSignerName || clientName) + '</div>' +
+        '<div class="signature-name">' + (isBusinessEntity ? 'By: ' + representativeName + ', ' + representativeTitle : (sowData.clientSignerName || clientName)) + '</div>' +
         '<div class="signature-date">Date: ' + (sowData.clientSignedDate || 'N/A') + '</div>' +
         '</div>' +
-        
+
         '</div>' +
         '</div>' +
-        
+
         // Footer
         '<div class="footer">' +
         '<p><strong>© ' + new Date().getFullYear() + ' Scarlo</strong> — Crafted with precision</p>' +

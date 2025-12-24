@@ -555,10 +555,59 @@
                     <div class="party-info">
                         <p><strong>Scarlo</strong>, a sole proprietorship owned and operated by Carlos Martin (the "Developer"),</p>
                         <p>and</p>
-                        <div class="form-group">
-                            <label for="clientName">Client's Full Legal Name or Company Name *</label>
-                            <input type="text" id="clientName" name="clientName" required placeholder="Enter full legal name or company name">
+
+                        <!-- Entity Type Toggle -->
+                        <div class="entity-type-toggle">
+                            <span class="toggle-label active" id="individualToggleLabel">Individual</span>
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="entityTypeToggle" />
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span class="toggle-label" id="businessToggleLabel">Business Entity</span>
                         </div>
+
+                        <!-- Individual Client Name (shown by default) -->
+                        <div class="individual-fields">
+                            <div class="form-group">
+                                <label for="clientName">Client's Full Legal Name *</label>
+                                <input type="text" id="clientName" name="clientName" required placeholder="Enter your full legal name">
+                            </div>
+                        </div>
+
+                        <!-- Business Entity Fields (hidden by default) -->
+                        <div class="business-entity-fields" style="display: none;">
+                            <div class="form-group">
+                                <label for="businessName">Business Legal Name *</label>
+                                <input type="text" id="businessName" name="businessName" placeholder="Enter full legal business name">
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="entityType">Entity Type *</label>
+                                    <select id="entityType" name="entityType" class="form-select">
+                                        <option value="">Select entity type...</option>
+                                        <option value="LLC">LLC (Limited Liability Company)</option>
+                                        <option value="Corporation">Corporation</option>
+                                        <option value="Partnership">Partnership</option>
+                                        <option value="Sole Proprietorship">Sole Proprietorship</option>
+                                    </select>
+                                </div>
+                                <div class="form-group">
+                                    <label for="stateOfFormation">State of Formation</label>
+                                    <input type="text" id="stateOfFormation" name="stateOfFormation" placeholder="e.g., California">
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="repName">Authorized Representative Name *</label>
+                                    <input type="text" id="repName" name="repName" placeholder="Person signing on behalf of business">
+                                </div>
+                                <div class="form-group">
+                                    <label for="repTitle">Representative Title *</label>
+                                    <input type="text" id="repTitle" name="repTitle" placeholder="e.g., Managing Member, CEO, President">
+                                </div>
+                            </div>
+                        </div>
+
                         <p class="small-text">The Developer and Client may be referred to individually as a "Party" and collectively as the "Parties."</p>
                     </div>
                 </section>
