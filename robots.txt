@@ -1,0 +1,13 @@
+# robots.txt for scarlo.dev
+# https://www.robotstxt.org/
+
+User-agent: *
+Allow: /
+Crawl-delay: 1
+
+# Disallow admin/private areas
+Disallow: /admin/
+Disallow: /private/
+
+# Sitemap location
+Sitemap: https://scarlo.dev/sitemap.xml
