@@ -3739,7 +3739,7 @@ ContractFormHandler.prototype.showPricingComparisonModal = function() {
                 '<button class="pricing-comparison-modal-close" id="closePricingModal">&times;</button>' +
             '</div>' +
             '<div class="pricing-comparison-modal-body">' +
-                '<iframe src="/pricing-comparison1.html" title="Industry Pricing Comparison"></iframe>' +
+                '<iframe src="/pricing/" title="Industry Pricing Comparison"></iframe>' +
             '</div>' +
         '</div>';
 
@@ -7159,7 +7159,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     '</div>' +
 
-    '<p style="font-size: 7pt; color: #888; margin-top: 4px; margin-bottom: 0;">Market rates based on Fresno/Central Valley research (2024-2025). Full industry comparison: <a href="https://scarlo.dev/pricing" target="_blank" style="color: #2e7d32; text-decoration: underline;">scarlo.dev/pricing</a></p>' +
+    '<p style="font-size: 7pt; color: #888; margin-top: 4px; margin-bottom: 0;">Market rates based on Fresno/Central Valley research (2024-2025). Full industry comparison: <a href="https://scarlo.dev/pricing" target="_blank" style="color: #2e7d32; text-decoration: underline;">https://scarlo.dev/pricing</a></p>' +
     '</div>';
 
     sectionNum++;
@@ -10969,10 +10969,23 @@ var SectionSeparatorGlow = function() {
     new BackToTop();
 };
 
+    // Wait for both DOM and Firebase to be ready before initializing
+    function startApp() {
+        if (window.firebaseReady) {
+            window.firebaseReady.then(init).catch(function(err) {
+                console.error('Firebase initialization failed, starting app anyway:', err);
+                init();
+            });
+        } else {
+            // Fallback if firebaseReady isn't available
+            init();
+        }
+    }
+
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
+        document.addEventListener('DOMContentLoaded', startApp);
     } else {
-        init();
+        startApp();
     }
 
 })();

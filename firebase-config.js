@@ -19,27 +19,52 @@ window.VITE_DEVELOPER_EMAIL = import.meta.env.VITE_DEVELOPER_EMAIL || '';
 
 // Validate configuration
 if (!firebaseConfig.apiKey) {
-    console.error('❌ Firebase configuration error: Missing environment variables!');
-    console.error('📝 Please create a .env file based on .env.example');
-    console.error('🔑 Add your Firebase credentials from Firebase Console');
+    console.error('Firebase configuration error: Missing environment variables!');
+    console.error('Please create a .env file based on .env.example');
+    console.error('Add your Firebase credentials from Firebase Console');
 }
 
 if (!window.VITE_DEVELOPER_EMAIL) {
-    console.error('❌ VITE_DEVELOPER_EMAIL not set in .env file!');
-    console.error('📝 Add this line to your .env: VITE_DEVELOPER_EMAIL=your-email@gmail.com');
+    console.error('VITE_DEVELOPER_EMAIL not set in .env file!');
+    console.error('Add this line to your .env: VITE_DEVELOPER_EMAIL=your-email@gmail.com');
 }
 
-// Initialize Firebase
-firebase.initializeApp(firebaseConfig);
+// Wait for Firebase SDK to be available before initializing
+function waitForFirebase(maxAttempts = 50) {
+    return new Promise((resolve, reject) => {
+        let attempts = 0;
+        const check = () => {
+            attempts++;
+            if (typeof firebase !== 'undefined' && firebase.initializeApp && firebase.auth && firebase.firestore) {
+                resolve();
+            } else if (attempts >= maxAttempts) {
+                reject(new Error('Firebase SDK failed to load'));
+            } else {
+                setTimeout(check, 100);
+            }
+        };
+        check();
+    });
+}
 
-// Export Firebase services
-const auth = firebase.auth();
-const db = firebase.firestore();
+// Initialize Firebase and expose a ready promise
+window.firebaseReady = waitForFirebase().then(() => {
+    firebase.initializeApp(firebaseConfig);
 
-// Disable app verification for testing with Firebase Console test phone numbers
-auth.settings.appVerificationDisabledForTesting = true;
+    window.auth = firebase.auth();
+    window.db = firebase.firestore();
+    window.googleProvider = new firebase.auth.GoogleAuthProvider();
 
-// Google Auth Provider
-const googleProvider = new firebase.auth.GoogleAuthProvider();
+    // Disable app verification for testing with Firebase Console test phone numbers
+    window.auth.settings.appVerificationDisabledForTesting = true;
 
-console.log('✅ Firebase initialized successfully');
+    console.log('Firebase initialized successfully');
+
+    // Dispatch event for any listeners waiting on Firebase
+    window.dispatchEvent(new Event('firebaseReady'));
+
+    return { auth: window.auth, db: window.db, googleProvider: window.googleProvider };
+}).catch(err => {
+    console.error('Failed to initialize Firebase:', err);
+    throw err;
+});
