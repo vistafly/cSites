@@ -3793,7 +3793,7 @@ ContractFormHandler.prototype.showPricingComparisonModal = function() {
                 '<button class="pricing-comparison-modal-close" id="closePricingModal">&times;</button>' +
             '</div>' +
             '<div class="pricing-comparison-modal-body">' +
-                '<iframe src="/pricing/" title="Industry Pricing Comparison"></iframe>' +
+                '<iframe src="/pricing/index.html" title="Industry Pricing Comparison"></iframe>' +
             '</div>' +
         '</div>';
 
@@ -4705,11 +4705,11 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">📦</span> Package Tier</h5>' +
         '<select id="sowPackage" class="sow-select">' +
         '<option value="">Select a package tier...</option>' +
-        '<option value="essential">Essential — Landing Page ($1,000 - $2,200)</option>' +
-        '<option value="starter">Tier 1 — Starter ($2,800 - $4,500)</option>' +
-        '<option value="growth">Tier 2 — Growth ($5,000 - $7,500)</option>' +
-        '<option value="professional">Tier 3 — Professional ($8,000 - $12,000)</option>' +
-        '<option value="enterprise">Tier 4 — Enterprise ($14,000 - $24,000)</option>' +
+        '<option value="essential">Essential — Landing Page ($1,000 - $3,000)</option>' +
+        '<option value="starter">Tier 1 — Starter ($3,000 - $6,000)</option>' +
+        '<option value="growth">Tier 2 — Growth ($6,000 - $12,000)</option>' +
+        '<option value="professional">Tier 3 — Professional ($12,000 - $25,000)</option>' +
+        '<option value="enterprise">Tier 4 — Enterprise ($25,000 - $50,000)</option>' +
         '<option value="custom">Custom Quote (Manual Entry)</option>' +
         '</select>' +
         
@@ -4790,8 +4790,8 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<p class="feature-group-title">E-Commerce Options</p>' +
         '<div class="ecommerce-radio-group">' +
         '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="none" checked /> No E-Commerce</label>' +
-        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="basic_cart" /> Basic E-Commerce Setup (+$2,500 - $4,000) <span class="third-party-note">+ Stripe fees</span></label>' +
-        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="full_store" /> Full E-Commerce Store (+$6,000 - $12,000) <span class="third-party-note">+ Stripe fees</span></label>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="basic_cart" /> Basic E-Commerce Setup (+$3,000 - $8,000) <span class="third-party-note">+ Stripe fees</span></label>' +
+        '<label class="sow-radio"><input type="radio" name="ecommerce_option" value="full_store" /> Full E-Commerce Store (+$8,000 - $20,000) <span class="third-party-note">+ Stripe fees</span></label>' +
         '</div>' +
         '</div>' +
 
@@ -4809,9 +4809,9 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">🔧</span> Ongoing Maintenance Plan</h5>' +
         '<select id="sowMaintenance" class="sow-select" required>' +
         '<option value="">Select a maintenance plan...</option>' +
-        '<option value="basic" selected>Basic Care — $125-$200/month (2-3 hrs/mo)</option>' +
-        '<option value="professional">Professional Care — $275-$425/month (4-6 hrs/mo)</option>' +
-        '<option value="premium">Premium Care — $550-$900/month (8-12 hrs/mo)</option>' +
+        '<option value="basic" selected>Basic Care — $110-$225/month (2-3 hrs/mo)</option>' +
+        '<option value="professional">Professional Care — $220-$450/month (4-6 hrs/mo)</option>' +
+        '<option value="premium">Premium Care — $440-$900/month (8-12 hrs/mo)</option>' +
         '</select>' +
         '</div>' +
 
@@ -4857,7 +4857,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<div class="pricing-divider"></div>' +
         '<div class="pricing-row maintenance-row" id="maintenanceRow">' +
         '<span>Monthly Maintenance:</span>' +
-        '<span id="sowMaintenanceCalc" class="price-value">$125-$200/month</span>' +
+        '<span id="sowMaintenanceCalc" class="price-value">$110-$225/month</span>' +
         '</div>' +
         '</div>' +
         '</div>' +
@@ -4878,18 +4878,18 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     
     // Package pricing map (2025 Scarlo Pricing Guide - Revised)
     var packagePricing = {
-        'essential': { min: 1000, max: 2200, default: 1600 },
-        'starter': { min: 2800, max: 4500, default: 3650 },
-        'growth': { min: 5000, max: 7500, default: 6250 },
-        'professional': { min: 8000, max: 12000, default: 10000 },
-        'enterprise': { min: 14000, max: 24000, default: 19000 }
+        'essential': { min: 1000, max: 3000, default: 2000 },
+        'starter': { min: 3000, max: 6000, default: 4500 },
+        'growth': { min: 6000, max: 12000, default: 9000 },
+        'professional': { min: 12000, max: 25000, default: 18500 },
+        'enterprise': { min: 25000, max: 50000, default: 37500 }
     };
 
     var maintenancePricing = {
         'none': 0,
-        'basic': 162,      // $125-$200/mo avg
-        'professional': 350, // $275-$425/mo avg
-        'premium': 725      // $550-$900/mo avg
+        'basic': 167,      // $110-$225/mo avg
+        'professional': 335, // $220-$450/mo avg
+        'premium': 670      // $440-$900/mo avg
     };
 
     // Feature pricing based on complexity (Fresno, CA market rates)
@@ -4924,8 +4924,8 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     // E-Commerce radio options (2025 Scarlo Pricing Guide)
     var ecommercePricing = {
         'none': { price: 0, label: 'No E-Commerce' },
-        'basic_cart': { price: 3250, label: 'Basic E-Commerce Setup', thirdParty: true, note: 'Stripe fees' },  // $2,500-$4,000
-        'full_store': { price: 9000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $6,000-$12,000
+        'basic_cart': { price: 5500, label: 'Basic E-Commerce Setup', thirdParty: true, note: 'Stripe fees' },  // $3,000-$8,000
+        'full_store': { price: 14000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $8,000-$20,000
     };
 
     // Package-feature mapping (what's included in each package)
@@ -6690,8 +6690,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     var packageDefinitions = {
         'essential': {
             name: 'Essential — Landing Page',
-            priceRange: '$1,000 - $2,200',
-            defaultPrice: 1600,
+            priceRange: '$1,000 - $3,000',
+            defaultPrice: 2000,
             timeline: '1-2 weeks',
             description: 'Clean, effective landing page for establishing your online presence quickly.',
             includes: [
@@ -6714,8 +6714,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'starter': {
             name: 'Tier 1 — Starter',
-            priceRange: '$2,800 - $4,500',
-            defaultPrice: 3650,
+            priceRange: '$3,000 - $6,000',
+            defaultPrice: 4500,
             timeline: '2-3 weeks',
             description: 'Polished single-page website for individuals and small businesses needing a professional online presence.',
             includes: [
@@ -6739,8 +6739,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'growth': {
             name: 'Tier 2 — Growth',
-            priceRange: '$5,000 - $7,500',
-            defaultPrice: 6250,
+            priceRange: '$6,000 - $12,000',
+            defaultPrice: 9000,
             timeline: '3-5 weeks',
             description: 'For businesses needing auth-protected content, form data capture, and user data management.',
             includes: [
@@ -6762,8 +6762,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'professional': {
             name: 'Tier 3 — Professional',
-            priceRange: '$8,000 - $12,000',
-            defaultPrice: 10000,
+            priceRange: '$12,000 - $25,000',
+            defaultPrice: 18500,
             timeline: '5-8 weeks',
             description: 'Full-featured application with user dashboard, profiles, and database-driven functionality.',
             includes: [
@@ -6788,8 +6788,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'enterprise': {
             name: 'Tier 4 — Enterprise',
-            priceRange: '$14,000 - $24,000',
-            defaultPrice: 19000,
+            priceRange: '$25,000 - $50,000',
+            defaultPrice: 37500,
             timeline: '8-14 weeks',
             description: 'Enterprise-grade web application with full infrastructure, role-based access, and scalable architecture.',
             includes: [
@@ -6833,7 +6833,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'basic': {
             name: 'Basic Care',
-            price: '$125-$200/month',
+            price: '$110-$225/month',
             description: 'Ideal for websites requiring occasional updates and minor adjustments (2-3 hrs/month).',
             includes: [
                 'Minor text and image updates (up to 2-3 hours/month)',
@@ -6846,7 +6846,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'professional': {
             name: 'Professional Care',
-            price: '$275-$425/month',
+            price: '$220-$450/month',
             description: 'For businesses requiring regular updates and more hands-on support (4-6 hrs/month).',
             includes: [
                 'Everything in Basic Care',
@@ -6861,7 +6861,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         },
         'premium': {
             name: 'Premium Care',
-            price: '$550-$900/month',
+            price: '$440-$900/month',
             description: 'Comprehensive support for mission-critical websites and applications (8-12 hrs/month).',
             includes: [
                 'Everything in Professional Care',
@@ -7170,12 +7170,12 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
 
     // YOUR VALUE SUMMARY - Personalized, compact, high-impact
     var marketRates = {
-        'essential': { local: '$2,500 - $5,000', localHigh: 5000 },
+        'essential': { local: '$1,500 - $4,000', localHigh: 4000 },
         'starter': { local: '$4,000 - $8,000', localHigh: 8000 },
-        'growth': { local: '$7,000 - $12,000', localHigh: 12000 },
-        'professional': { local: '$12,000 - $20,000', localHigh: 20000 },
-        'enterprise': { local: '$25,000 - $50,000', localHigh: 50000 },
-        'custom': { local: '$15,000 - $75,000+', localHigh: 75000 }
+        'growth': { local: '$8,000 - $15,000', localHigh: 15000 },
+        'professional': { local: '$15,000 - $35,000', localHigh: 35000 },
+        'enterprise': { local: '$35,000 - $80,000', localHigh: 80000 },
+        'custom': { local: '$20,000 - $80,000+', localHigh: 80000 }
     };
     var tierRates = marketRates[packageType] || marketRates['starter'];
     var potentialSavings = Math.max(0, tierRates.localHigh - totalPrice);
@@ -7552,17 +7552,17 @@ ContractFormHandler.prototype.editSOW = function(sow) {
 
         // Pricing data structures (2025 Scarlo Pricing Guide - Revised)
         var packagePricing = {
-            'essential': { min: 1000, max: 2200, default: 1600 },
-            'starter': { min: 2800, max: 4500, default: 3650 },
-            'growth': { min: 5000, max: 7500, default: 6250 },
-            'professional': { min: 8000, max: 12000, default: 10000 },
-            'enterprise': { min: 14000, max: 24000, default: 19000 }
+            'essential': { min: 1000, max: 3000, default: 2000 },
+            'starter': { min: 3000, max: 6000, default: 4500 },
+            'growth': { min: 6000, max: 12000, default: 9000 },
+            'professional': { min: 12000, max: 25000, default: 18500 },
+            'enterprise': { min: 25000, max: 50000, default: 37500 }
         };
         var maintenancePricing = {
             'none': 0,
-            'basic': 162,       // $125-$200/mo avg
-            'professional': 350, // $275-$425/mo avg
-            'premium': 725       // $550-$900/mo avg
+            'basic': 167,       // $110-$225/mo avg
+            'professional': 335, // $220-$450/mo avg
+            'premium': 670       // $440-$900/mo avg
         };
         // Feature pricing based on complexity (Fresno, CA market rates)
         var featurePricing = {
@@ -7595,8 +7595,8 @@ ContractFormHandler.prototype.editSOW = function(sow) {
         // E-Commerce radio options (2025 Scarlo Pricing Guide)
         var ecommercePricing = {
             'none': { price: 0, label: 'No E-Commerce' },
-            'basic_cart': { price: 3250, label: 'Basic E-Commerce Setup', thirdParty: true, note: 'Stripe fees' },  // $2,500-$4,000
-            'full_store': { price: 9000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $6,000-$12,000
+            'basic_cart': { price: 5500, label: 'Basic E-Commerce Setup', thirdParty: true, note: 'Stripe fees' },  // $3,000-$8,000
+            'full_store': { price: 14000, label: 'Full E-Commerce Store', thirdParty: true, note: 'Stripe fees' }    // $8,000-$20,000
         };
         // Package-feature mapping (hosting, ssl, domain included free in all packages)
         // Add-ons (booking, blog, cms, gallery, music, social_feed, newsletter) available separately for any tier
@@ -8659,7 +8659,9 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
     var basePrice = breakdown ? breakdown.basePrice : totalPrice;
     var addOns = breakdown ? breakdown.addOns : [];
     var discounts = breakdown ? breakdown.discounts : [];
-    
+    var couponCode = breakdown ? breakdown.couponCode : null;
+    var couponDiscount = breakdown ? breakdown.couponDiscount : 0;
+
     var html = '' +
 
         // HEADER
@@ -8752,6 +8754,15 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
                 '<td class="discount-price">-$' + discount.price.toFixed(2) + '</td>' +
                 '</tr>';
         });
+    }
+
+    // Coupon discount
+    if (couponCode && couponDiscount > 0) {
+        html += '<tr class="coupon-row">' +
+            '<td>' + couponCode + '</td>' +
+            '<td>Coupon discount</td>' +
+            '<td class="discount-price">-$' + couponDiscount.toFixed(2) + '</td>' +
+            '</tr>';
     }
 
     html += '<tr class="sow-total-row">' +
@@ -10409,9 +10420,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     
     var maintenanceDetails = {
         'none': { name: 'No Maintenance Plan', cost: '$0/month' },
-        'basic': { name: 'Basic Care', cost: '$125-$200/month', desc: 'Minor updates, security patches (2-3 hrs/month)' },
-        'professional': { name: 'Professional Care', cost: '$275-$425/month', desc: 'Regular updates, performance optimization (4-6 hrs/month)' },
-        'premium': { name: 'Premium Care', cost: '$550-$900/month', desc: 'Priority support, new components, SEO optimization (8-12 hrs/month)' }
+        'basic': { name: 'Basic Care', cost: '$110-$225/month', desc: 'Minor updates, security patches (2-3 hrs/month)' },
+        'professional': { name: 'Professional Care', cost: '$220-$450/month', desc: 'Regular updates, performance optimization (4-6 hrs/month)' },
+        'premium': { name: 'Premium Care', cost: '$440-$900/month', desc: 'Priority support, new components, SEO optimization (8-12 hrs/month)' }
     };
     
     var maintenanceInfo = maintenanceDetails[sowData.maintenancePlan || 'none'] || maintenanceDetails['none'];

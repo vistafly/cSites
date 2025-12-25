@@ -31,6 +31,7 @@
             line-height: 1.6;
             padding: 0;
             margin: 0;
+            overflow-x: hidden;
         }
 
         .container {
@@ -105,12 +106,15 @@
             border-collapse: collapse;
             margin-bottom: 1.5rem;
             font-size: 0.95rem;
+            table-layout: fixed;
         }
 
         th, td {
             padding: 0.875rem 1rem;
             text-align: left;
             border-bottom: 1px solid var(--dark-gray);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
 
         th {
@@ -290,6 +294,260 @@
             text-decoration: none;
         }
 
+        /* Mobile Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 2rem 1.25rem;
+            }
+
+            .header {
+                margin-bottom: 2rem;
+                padding-bottom: 1.5rem;
+            }
+
+            .logo {
+                font-size: 2rem;
+            }
+
+            .header h1 {
+                font-size: 1.35rem;
+            }
+
+            .header .subtitle {
+                font-size: 0.9rem;
+            }
+
+            section {
+                margin-bottom: 2rem;
+            }
+
+            h2 {
+                font-size: 1.25rem;
+            }
+
+            h3 {
+                font-size: 1rem;
+            }
+
+            p {
+                font-size: 0.9rem;
+            }
+
+            table {
+                font-size: 0.8rem;
+            }
+
+            th, td {
+                padding: 0.625rem 0.5rem;
+            }
+
+            th {
+                font-size: 0.7rem;
+            }
+
+            .callout {
+                padding: 1.25rem;
+            }
+
+            .callout-title {
+                font-size: 1rem;
+            }
+
+            .callout p {
+                font-size: 0.85rem;
+            }
+
+            .rate-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.75rem;
+            }
+
+            .rate-card {
+                padding: 1rem;
+            }
+
+            .rate-card .label {
+                font-size: 0.75rem;
+            }
+
+            .rate-card .rate {
+                font-size: 1.15rem;
+            }
+
+            .rate-card .source {
+                font-size: 0.65rem;
+            }
+
+            .included-grid {
+                grid-template-columns: 1fr;
+                gap: 0.5rem;
+            }
+
+            .included-item {
+                font-size: 0.85rem;
+            }
+
+            .recommendation {
+                padding: 1.5rem;
+                border-radius: 8px;
+            }
+
+            .sources {
+                margin-top: 2rem;
+                padding-top: 1.5rem;
+            }
+
+            .sources ul {
+                font-size: 0.75rem;
+            }
+
+            .footer {
+                margin-top: 2rem;
+                padding-top: 1.5rem;
+                font-size: 0.8rem;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 1.5rem 1rem;
+            }
+
+            .header {
+                margin-bottom: 1.5rem;
+                padding-bottom: 1rem;
+            }
+
+            .logo {
+                font-size: 1.75rem;
+            }
+
+            .header h1 {
+                font-size: 1.1rem;
+            }
+
+            .header .subtitle {
+                font-size: 0.8rem;
+            }
+
+            section {
+                margin-bottom: 1.5rem;
+            }
+
+            h2 {
+                font-size: 1.1rem;
+                margin-bottom: 0.75rem;
+            }
+
+            h3 {
+                font-size: 0.95rem;
+                margin-top: 1rem;
+            }
+
+            p {
+                font-size: 0.8rem;
+                line-height: 1.5;
+            }
+
+            /* Compact tables for mobile */
+            table {
+                font-size: 0.7rem;
+                margin-bottom: 1rem;
+            }
+
+            th, td {
+                padding: 0.5rem 0.35rem;
+            }
+
+            th {
+                font-size: 0.6rem;
+                letter-spacing: 0.02em;
+            }
+
+            .callout {
+                padding: 1rem;
+                margin: 1rem 0;
+                border-radius: 6px;
+            }
+
+            .callout-title {
+                font-size: 0.9rem;
+            }
+
+            .callout p {
+                font-size: 0.8rem;
+            }
+
+            .rate-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 0.5rem;
+            }
+
+            .rate-card {
+                padding: 0.75rem 0.5rem;
+                border-radius: 6px;
+            }
+
+            .rate-card .label {
+                font-size: 0.65rem;
+                margin-bottom: 0.25rem;
+            }
+
+            .rate-card .rate {
+                font-size: 0.95rem;
+            }
+
+            .rate-card .source {
+                font-size: 0.6rem;
+            }
+
+            .included-grid {
+                gap: 0.4rem;
+            }
+
+            .included-item {
+                font-size: 0.75rem;
+                gap: 0.35rem;
+            }
+
+            .recommendation {
+                padding: 1rem;
+                margin-top: 1.5rem;
+                border-width: 1px;
+            }
+
+            .recommendation h2 {
+                margin-bottom: 0.75rem;
+            }
+
+            .sources {
+                margin-top: 1.5rem;
+                padding-top: 1rem;
+            }
+
+            .sources h3 {
+                font-size: 0.8rem;
+            }
+
+            .sources ul {
+                font-size: 0.65rem;
+            }
+
+            .sources li {
+                margin-bottom: 0.35rem;
+            }
+
+            .footer {
+                margin-top: 1.5rem;
+                padding-top: 1rem;
+                font-size: 0.7rem;
+            }
+
+            .footer p[style] {
+                font-size: 0.65rem !important;
+            }
+        }
+
         /* Print Styles */
         @media print {
             body {
@@ -343,17 +601,15 @@
             <h2>Understanding Web Development Costs</h2>
             <p>
                 In 2025, professional web development costs vary significantly based on location, expertise, and project scope.
-                According to Clutch's December 2025 data, the average web development agency project costs <strong>$66,499</strong>.
-                California-based developers and agencies typically charge premium rates due to the high cost of living and
-                concentration of tech talent. This guide provides a transparent comparison of Scarlo's pricing against
-                current industry standards.
+                A simple business website typically runs <strong>$3,000 - $15,000</strong>, while custom web applications
+                range from <strong>$15,000 - $50,000+</strong> depending on complexity. This guide provides a transparent
+                comparison of Scarlo's pricing against current industry standards.
             </p>
             <div class="callout">
                 <div class="callout-title">Why Choose Scarlo?</div>
                 <p>
-                    Scarlo delivers the same custom React/Next.js development that agencies charge $66K+ for&mdash;at
-                    <strong>20-40% below market rates</strong>. No agency overhead, no middlemen, just quality code
-                    and direct communication with your developer.
+                    Custom React/Next.js development at <strong>15-35% below typical freelancer rates</strong>.
+                    No agency overhead, no middlemen&mdash;just quality code and direct communication with your developer.
                 </p>
             </div>
         </section>
@@ -373,38 +629,38 @@
                 <tbody>
                     <tr>
                         <td>Essential (Landing Page)</td>
-                        <td class="highlight">$1,000 - $2,200</td>
-                        <td>$1,500 - $6,000</td>
-                        <td class="savings">Up to 65%</td>
+                        <td class="highlight">$1,000 - $3,000</td>
+                        <td>$1,500 - $4,000</td>
+                        <td class="savings">Up to 35%</td>
                     </tr>
                     <tr>
                         <td>Starter Website</td>
-                        <td class="highlight">$2,800 - $4,500</td>
-                        <td>$3,000 - $8,000</td>
-                        <td class="savings">Up to 45%</td>
+                        <td class="highlight">$3,000 - $6,000</td>
+                        <td>$4,000 - $8,000</td>
+                        <td class="savings">Up to 25%</td>
                     </tr>
                     <tr>
                         <td>Growth (Auth + Forms)</td>
-                        <td class="highlight">$5,000 - $7,500</td>
-                        <td>$6,000 - $12,000</td>
-                        <td class="savings">Up to 40%</td>
+                        <td class="highlight">$6,000 - $12,000</td>
+                        <td>$8,000 - $15,000</td>
+                        <td class="savings">Up to 25%</td>
                     </tr>
                     <tr>
                         <td>Professional (Dashboard)</td>
-                        <td class="highlight">$8,000 - $12,000</td>
-                        <td>$10,000 - $20,000</td>
-                        <td class="savings">Up to 40%</td>
+                        <td class="highlight">$12,000 - $25,000</td>
+                        <td>$15,000 - $35,000</td>
+                        <td class="savings">Up to 30%</td>
                     </tr>
                     <tr>
                         <td>Enterprise Application</td>
-                        <td class="highlight">$14,000 - $24,000</td>
-                        <td>$25,000 - $75,000+</td>
-                        <td class="savings">Up to 45%</td>
+                        <td class="highlight">$25,000 - $50,000</td>
+                        <td>$35,000 - $80,000+</td>
+                        <td class="savings">Up to 40%</td>
                     </tr>
                 </tbody>
             </table>
             <p style="font-size: 0.9rem; color: var(--medium-gray);">
-                * Industry averages from Clutch, GoodFirms, and Digital Present (2024-2025). Average Clutch agency project: $66,499.
+                * Industry averages from Clutch, GoodFirms, and Digital Present (2024-2025).
             </p>
         </section>
 
@@ -423,21 +679,21 @@
                 <tbody>
                     <tr>
                         <td>MVP / Simple App</td>
-                        <td class="highlight">$12,000 - $25,000</td>
-                        <td>$15,000 - $30,000</td>
-                        <td class="savings">Up to 20%</td>
+                        <td class="highlight">$15,000 - $35,000</td>
+                        <td>$20,000 - $45,000</td>
+                        <td class="savings">Up to 25%</td>
                     </tr>
                     <tr>
                         <td>Standard App (Both Platforms)</td>
-                        <td class="highlight">$28,000 - $50,000</td>
-                        <td>$30,000 - $70,000</td>
-                        <td class="savings">Up to 30%</td>
+                        <td class="highlight">$35,000 - $70,000</td>
+                        <td>$45,000 - $90,000</td>
+                        <td class="savings">Up to 25%</td>
                     </tr>
                     <tr>
                         <td>Complex / Enterprise App</td>
-                        <td class="highlight">$50,000 - $95,000</td>
-                        <td>$70,000 - $150,000</td>
-                        <td class="savings">Up to 35%</td>
+                        <td class="highlight">$70,000 - $150,000</td>
+                        <td>$90,000 - $200,000</td>
+                        <td class="savings">Up to 25%</td>
                     </tr>
                 </tbody>
             </table>
@@ -461,15 +717,15 @@
                 <tbody>
                     <tr>
                         <td>Basic E-Commerce Setup</td>
-                        <td class="highlight">+$2,500 - $4,000</td>
-                        <td>$5,000 - $10,000</td>
-                        <td class="savings">Up to 60%</td>
+                        <td class="highlight">+$3,000 - $8,000</td>
+                        <td>$4,000 - $10,000</td>
+                        <td class="savings">Up to 25%</td>
                     </tr>
                     <tr>
                         <td>Full E-Commerce Store</td>
-                        <td class="highlight">+$6,000 - $12,000</td>
-                        <td>$7,000 - $50,000+</td>
-                        <td class="savings">Up to 75%</td>
+                        <td class="highlight">+$8,000 - $20,000</td>
+                        <td>$10,000 - $30,000</td>
+                        <td class="savings">Up to 35%</td>
                     </tr>
                 </tbody>
             </table>
@@ -493,27 +749,27 @@
                 <tbody>
                     <tr>
                         <td>Basic Care (2-3 hrs/mo)</td>
-                        <td class="highlight">$125 - $200/mo</td>
-                        <td>$200 - $350/mo</td>
-                        <td class="savings">Up to 40%</td>
+                        <td class="highlight">$110 - $225/mo</td>
+                        <td>$150 - $350/mo</td>
+                        <td class="savings">Up to 35%</td>
                     </tr>
                     <tr>
                         <td>Professional Care (4-6 hrs/mo)</td>
-                        <td class="highlight">$275 - $425/mo</td>
-                        <td>$350 - $750/mo</td>
-                        <td class="savings">Up to 45%</td>
+                        <td class="highlight">$220 - $450/mo</td>
+                        <td>$300 - $750/mo</td>
+                        <td class="savings">Up to 40%</td>
                     </tr>
                     <tr>
                         <td>Premium Care (8-12 hrs/mo)</td>
-                        <td class="highlight">$550 - $900/mo</td>
-                        <td>$750 - $1,500/mo</td>
+                        <td class="highlight">$440 - $900/mo</td>
+                        <td>$600 - $1,500/mo</td>
                         <td class="savings">Up to 40%</td>
                     </tr>
                     <tr>
                         <td>Enterprise Retainer (15-25 hrs/mo)</td>
-                        <td class="highlight">$1,200 - $2,200/mo</td>
-                        <td>$1,500 - $5,000/mo</td>
-                        <td class="savings">Up to 55%</td>
+                        <td class="highlight">$825 - $1,875/mo</td>
+                        <td>$1,125 - $5,000/mo</td>
+                        <td class="savings">Up to 65%</td>
                     </tr>
                 </tbody>
             </table>
@@ -542,19 +798,19 @@
                 </div>
                 <div class="rate-card">
                     <div class="label">California Freelancers</div>
-                    <div class="rate">$58 - $150/hr</div>
+                    <div class="rate">$50 - $125/hr</div>
                     <div class="source">TechReviewer 2025</div>
                 </div>
                 <div class="rate-card scarlo">
                     <div class="label">Scarlo Rate</div>
-                    <div class="rate">$65 - $95/hr</div>
-                    <div class="source">20-35% Below Market</div>
+                    <div class="rate">$55 - $75/hr</div>
+                    <div class="source">15-30% Below Market</div>
                 </div>
             </div>
             <div class="callout">
                 <div class="callout-title">The Scarlo Advantage</div>
                 <p>
-                    You get California-quality React/Next.js development at <strong>20-35% below typical rates</strong>.
+                    You get California-quality React/Next.js development at <strong>15-30% below typical rates</strong>.
                     No agency markup, no project manager fees, no office overhead. Just skilled development at a fair price.
                 </p>
             </div>
@@ -598,13 +854,13 @@
                         <td>Typical Website</td>
                         <td>$3,000 - $15,000</td>
                         <td>$5,000 - $50,000+</td>
-                        <td class="highlight">$1,000 - $24,000</td>
+                        <td class="highlight">$1,000 - $50,000</td>
                     </tr>
                     <tr>
                         <td>Hourly Rate</td>
                         <td>$50 - $100/hr</td>
                         <td>$75 - $200/hr</td>
-                        <td class="highlight">$65 - $95/hr</td>
+                        <td class="highlight">$55 - $75/hr</td>
                     </tr>
                     <tr>
                         <td>Tech Stack</td>
@@ -653,14 +909,14 @@
                     <tr>
                         <td>Average Project Cost</td>
                         <td>$3,000 - $15,000</td>
-                        <td>$66,499 (Clutch avg.)</td>
-                        <td class="highlight">$1,000 - $24,000</td>
+                        <td>$10,000 - $80,000+</td>
+                        <td class="highlight">$1,000 - $50,000</td>
                     </tr>
                     <tr>
                         <td>Hourly Rate</td>
                         <td>$50 - $100/hr</td>
                         <td>$75 - $200/hr</td>
-                        <td class="highlight">$65 - $95/hr</td>
+                        <td class="highlight">$55 - $75/hr</td>
                     </tr>
                     <tr>
                         <td>What You Get</td>
