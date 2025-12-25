@@ -1514,7 +1514,7 @@ section {
 }
 
 .contract-form {
-    padding: .5rem .3rem;
+    padding: 1rem .5rem;
     padding-bottom: 0px;
     overflow-x: hidden;
     max-width: 100%;
@@ -1534,6 +1534,12 @@ section {
     margin-bottom: 1rem;
     overflow-x: hidden;
     max-width: 100%;
+}
+
+.contract-section-inner.acknowledgment {
+    background: none;
+    border: none;
+    padding: 0;
 }
 
 .contract-section-inner h2 {
@@ -1714,6 +1720,12 @@ section {
     box-shadow: 0 0 15px rgba(100, 120, 160, 0.08);
 }
 
+@media (max-width: 768px) {
+.checkbox-group {
+    padding: .5rem;
+}
+}
+
 .checkbox-label {
     display: flex;
     align-items: flex-start;
@@ -1761,7 +1773,7 @@ section {
 .signature-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 2rem;
+    gap: 0rem;
 }
 
 .signature-block h3 {
@@ -2020,7 +2032,7 @@ section {
 
 .auth-btn:hover {
     transform: translateY(-2px);
-    box-shadow: 0 10px 20px rgba(183, 255, 150, 0.144);
+    box-shadow: 0 10px 20px rgb(255 255 255 / 18%);
 }
 
 .auth-error {
@@ -3436,6 +3448,12 @@ body:has(.sphere-root[data-enlarging='true']) {
     margin-bottom: 0.5rem;
     font-size: 1.125rem;
 }
+
+@media (max-width: 768px) {
+.pending-notice {
+    padding: 1rem;
+    }
+    }
 
 .contract-note {
     background: rgba(46, 204, 113, 0.1);
@@ -5414,7 +5432,7 @@ body.modal-open .custom-cursor {
     background: rgba(99, 102, 241, 0.05);
     border: 1px solid rgba(99, 102, 241, 0.2);
     border-radius: 0.75rem;
-    padding: 1.5rem;
+    padding: .8rem;
 }
 
 .client-info-populated .form-group {
@@ -6263,7 +6281,7 @@ body.modal-open .custom-cursor {
 }
 /* Dual Signing Tabs */
 .client-signing-tabs {
-    margin: 40px 0;
+    margin: 3rem 0rem 1.5rem 0;
 }
 
 .signing-tabs-header {
@@ -6282,7 +6300,7 @@ body.modal-open .custom-cursor {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 8px;
+    gap: 3px;
     transition: all 0.3s ease;
     color: #fff;
 }
@@ -6315,15 +6333,26 @@ body.modal-open .custom-cursor {
     display: block;
 }
 
-#contractSigningContent,
+#contractSigningContent {
+    padding: 0rem;
+}
+
 #sowSigningContent {
-    padding: 1rem;
+    padding: 1rem .5rem;
+    padding-bottom: 0px;
+}
+
+#sowSigningContent .modal-header {
+    margin-bottom: .5rem;
 }
 
 @media (max-width: 768px) {
-#contractSigningContent,
-#sowSigningContent {
+#contractSigningContent {
     padding: 0rem;
+}
+
+#sowSigningContent {
+    padding: .5rem;
 }
 }
 
@@ -6878,7 +6907,7 @@ body.modal-open .custom-cursor {
 /* === STICKY MODAL CLOSE BUTTON === */
 .modal-close {
     position: sticky;
-    top: 1.5rem;
+    top: .5rem;
     right: 1.5rem;
     background: rgba(255, 255, 255, 0.1);
     border: none;
@@ -8503,7 +8532,6 @@ section.separator-visible::after {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    margin-top: 1rem;
     padding: 0.625rem 1rem;
     background: linear-gradient(135deg, rgba(228, 216, 196, 0.15) 0%, rgba(228, 216, 196, 0.05) 100%);
     border: 1px solid rgba(228, 216, 196, 0.3);
