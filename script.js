@@ -8462,8 +8462,39 @@ ContractFormHandler.prototype.showDualSigningInterface = function(sowData) {
         contractContent.appendChild(contractHeader);
         contractContent.appendChild(contractForm);
         contractForm.style.display = 'block';
+
+        // ENSURE CLIENT FORM INPUTS ARE ENABLED AFTER DOM MOVE
+        // This fixes the first-load issue where inputs become unresponsive
+        var clientSignerName = document.getElementById('clientSignerName');
+        if (clientSignerName) {
+            clientSignerName.disabled = false;
+            clientSignerName.required = true;
+            clientSignerName.style.pointerEvents = 'auto';
+        }
+
+        var clientDate = document.getElementById('clientDate');
+        if (clientDate) {
+            clientDate.disabled = false;
+            clientDate.required = true;
+            clientDate.style.pointerEvents = 'auto';
+            if (!clientDate.value) {
+                clientDate.value = new Date().toISOString().split('T')[0];
+            }
+        }
+
+        // Ensure acknowledgment checkbox section is visible and enabled
+        var ackSection = document.querySelector('.acknowledgment');
+        if (ackSection) {
+            ackSection.style.display = 'block';
+        }
+
+        var acknowledgment = document.getElementById('acknowledgment');
+        if (acknowledgment) {
+            acknowledgment.disabled = false;
+            acknowledgment.required = true;
+        }
     }
-    
+
     // Load SOW content into second tab
     this.renderSOWForClientSigning(sowData);
     
@@ -8555,10 +8586,35 @@ ContractFormHandler.prototype.showDualSigningInterface = function(sowData) {
         }
         
         console.log('ℹ️ SOW signature pad will be initialized when SOW tab is opened');
-        
+
+        // Re-enable form inputs after DOM is fully ready (backup initialization)
+        // This ensures inputs work even if the immediate initialization didn't take effect
+        var clientSignerNameBackup = document.getElementById('clientSignerName');
+        if (clientSignerNameBackup) {
+            clientSignerNameBackup.disabled = false;
+        }
+
+        var clientDateBackup = document.getElementById('clientDate');
+        if (clientDateBackup) {
+            clientDateBackup.disabled = false;
+            if (!clientDateBackup.value) {
+                clientDateBackup.value = new Date().toISOString().split('T')[0];
+            }
+        }
+
+        var ackSectionBackup = document.querySelector('.acknowledgment');
+        if (ackSectionBackup) {
+            ackSectionBackup.style.display = 'block';
+        }
+
+        var acknowledgmentBackup = document.getElementById('acknowledgment');
+        if (acknowledgmentBackup) {
+            acknowledgmentBackup.disabled = false;
+        }
+
         // Check if signatures already exist
         self.checkExistingSignatures();
-        
+
     }, 400); // Increased timeout to ensure DOM is fully ready
 };
 ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
@@ -8763,6 +8819,7 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
 
         '<div class="signature-block">' +
         '<h3>Client Signature — ' + sowData.clientName + '</h3>' +
+        '<div class="form-row">' +
         '<div class="form-group">' +
         '<label>Full Name *</label>' +
         '<input type="text" id="sowClientName" value="' + sowData.clientName + '" required />' +
@@ -8770,6 +8827,7 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         '<div class="form-group">' +
         '<label>Date *</label>' +
         '<input type="date" id="sowClientDate" required />' +
+        '</div>' +
         '</div>' +
         '<div class="signature-pad-container">' +
         '<canvas id="sowClientSignaturePad" class="signature-pad"></canvas>' +

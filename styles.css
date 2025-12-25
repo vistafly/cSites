@@ -6805,6 +6805,16 @@ body.modal-open .custom-cursor {
     .signature-block .form-group {
         width: 100%;
     }
+
+    /* Stack name/date fields on narrow mobile screens */
+    .signature-block .form-row {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .signature-block .form-row .form-group {
+        margin-bottom: 0;
+    }
 }
 /* === STICKY MODAL CLOSE BUTTON === */
 .modal-close {
