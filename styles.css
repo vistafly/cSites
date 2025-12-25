@@ -1435,6 +1435,7 @@ section {
     max-height: 90%;
     max-width: 2000px;
     overflow-y: auto;
+    overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-y;
@@ -1515,6 +1516,8 @@ section {
 .contract-form {
     padding: .5rem .3rem;
     padding-bottom: 0px;
+    overflow-x: hidden;
+    max-width: 100%;
 }
 
 @media (max-width: 768px) {
@@ -1529,6 +1532,8 @@ section {
     border-radius: 0.75rem;
     padding: 1rem;
     margin-bottom: 1rem;
+    overflow-x: hidden;
+    max-width: 100%;
 }
 
 .contract-section-inner h2 {
@@ -1545,6 +1550,13 @@ section {
     font-size: 1.125rem;
     font-weight: 600;
     margin: 1.5rem 0 0.75rem;
+
+}
+
+@media (max-width: 768px) {
+.contract-section-inner h3 {
+    margin: 0 0 0.5rem;
+}
 }
 
 .contract-section-inner p {
@@ -1613,6 +1625,7 @@ section {
 .form-group input[type="date"] {
     max-width: 100%;
     min-width: 0;
+    box-sizing: border-box;
 }
 
 /* Ensure signature containers don't overflow */
@@ -1623,10 +1636,25 @@ section {
 .signature-block {
     min-width: 0;
     overflow: hidden;
+    max-width: 100%;
+}
+
+.signature-block .form-row {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .signature-block .form-group {
     min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+.signature-block .form-group input {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
 }
 
 .form-group input:focus {
@@ -6276,6 +6304,13 @@ body.modal-open .custom-cursor {
     padding: 1rem;
 }
 
+@media (max-width: 768px) {
+#contractSigningContent,
+#sowSigningContent {
+    padding: .4rem;
+}
+}
+
 .signing-footer {
     text-align: center;
     padding-top: 20px;
@@ -6814,6 +6849,14 @@ body.modal-open .custom-cursor {
 
     .signature-block .form-row .form-group {
         margin-bottom: 0;
+    }
+
+    /* Fix date input overflow in signature blocks only */
+    .signature-block input[type="date"] {
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0 !important;
+        box-sizing: border-box !important;
     }
 }
 /* === STICKY MODAL CLOSE BUTTON === */
