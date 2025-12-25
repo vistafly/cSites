@@ -8400,8 +8400,8 @@ ContractFormHandler.prototype.showDualSigningInterface = function(sowData) {
         existingTabs.remove();
     }
     
-    // Insert tabs after modal header
-    var modalHeader = $('.modal-header');
+    // Insert tabs after close button
+    var closeBtn = $('#closeModalBtn');
     var tabsContainer = document.createElement('div');
     tabsContainer.id = 'clientSigningTabs';
     tabsContainer.className = 'client-signing-tabs';
@@ -8445,8 +8445,8 @@ ContractFormHandler.prototype.showDualSigningInterface = function(sowData) {
         '<span id="dualSignBtnText">Next: Sign SOW →</span>' +
         '</button>' +
         '</div>';    
-    if (modalHeader && modalHeader.nextSibling) {
-        modalContent.insertBefore(tabsContainer, modalHeader.nextSibling);
+    if (closeBtn && closeBtn.nextSibling) {
+        modalContent.insertBefore(tabsContainer, closeBtn.nextSibling);
     } else {
         modalContent.appendChild(tabsContainer);
     }
@@ -9714,9 +9714,9 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
         completedContainer.className = 'dual-signing-completed';
         
         var modalContent = $('.modal-content');
-        var modalHeader = $('.modal-header');
-        if (modalHeader && modalHeader.nextSibling) {
-            modalContent.insertBefore(completedContainer, modalHeader.nextSibling);
+        var closeBtn = $('#closeModalBtn');
+        if (closeBtn && closeBtn.nextSibling) {
+            modalContent.insertBefore(completedContainer, closeBtn.nextSibling);
         } else if (modalContent) {
             modalContent.appendChild(completedContainer);
         }
@@ -9970,9 +9970,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 '</div>';
 
     // Insert completed view
-    var modalHeader = $('.modal-header');
-    if (modalHeader && modalHeader.nextSibling) {
-        modalContent.insertBefore(completedContainer, modalHeader.nextSibling);
+    var closeBtn = $('#closeModalBtn');
+    if (closeBtn && closeBtn.nextSibling) {
+        modalContent.insertBefore(completedContainer, closeBtn.nextSibling);
     } else {
         modalContent.appendChild(completedContainer);
     }

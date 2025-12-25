@@ -1596,6 +1596,8 @@ section {
 
 .form-group {
     margin-bottom: 1.5rem;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 .form-group label {
@@ -1623,9 +1625,23 @@ section {
 
 /* === DATE INPUT OVERFLOW FIX === */
 .form-group input[type="date"] {
+    width: 100%;
     max-width: 100%;
     min-width: 0;
     box-sizing: border-box;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.signature-block input[type="date"] {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+    box-sizing: border-box !important;
+    -webkit-appearance: none !important;
+    -moz-appearance: none !important;
+    appearance: none !important;
 }
 
 /* Ensure signature containers don't overflow */
@@ -1691,7 +1707,7 @@ section {
 
 .checkbox-group {
     background: rgba(60, 70, 100, 0.2);
-    padding: 1.5rem;
+    padding: 1rem;
     border-radius: 0.75rem;
     border: 1.5px solid rgba(180, 190, 220, 0.25);
     margin-bottom: 0px;
@@ -2122,7 +2138,7 @@ section {
     }
 
     .contract-section-inner {
-        padding: .5rem 1rem 1rem;
+        padding: .5rem .7rem .7rem;
     }
 
     .auth-content {
@@ -6247,7 +6263,7 @@ body.modal-open .custom-cursor {
 }
 /* Dual Signing Tabs */
 .client-signing-tabs {
-    margin: 20px 0;
+    margin: 40px 0;
 }
 
 .signing-tabs-header {
@@ -6307,7 +6323,7 @@ body.modal-open .custom-cursor {
 @media (max-width: 768px) {
 #contractSigningContent,
 #sowSigningContent {
-    padding: .4rem;
+    padding: 0rem;
 }
 }
 
