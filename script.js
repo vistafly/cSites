@@ -6932,6 +6932,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     var htmlContent = '<!DOCTYPE html>' +
     '<html><head>' +
     '<title>Statement of Work - ' + clientName + '</title>' +
+    '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
     '<style>' +
     '* { margin: 0; padding: 0; box-sizing: border-box; }' +
     'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.35; color: #000; background: #fff; padding: 0.5in 0.75in; }' +
@@ -10148,6 +10149,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
         '<title>Website Development Agreement - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
+        '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
         '<style>' +
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
         'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
@@ -10430,6 +10432,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
         '<title>Complete Agreement Package - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
+        '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
         '<style>' +
         '* { margin: 0; padding: 0; box-sizing: border-box; }' +
         'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
