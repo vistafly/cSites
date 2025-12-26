@@ -909,6 +909,17 @@ body {
     opacity: 0;
     animation: fadeInUp 0.6s var(--ease-smooth) 0.9s forwards;
 }
+
+.hero-description a {
+    color: var(--secondary-color);
+    text-decoration: none;
+    transition: color 0.2s ease;
+}
+
+.hero-description a:hover {
+    color: var(--white);
+    text-decoration: underline;
+}
 /* === RESPONSIVE HERO DESCRIPTION === */
 .hero-description br {
     display: inline; /* Show on desktop */
@@ -1358,10 +1369,12 @@ section {
     opacity: 0.8;
 }
 
-.feature-item h4 {
+.feature-item h4,
+.feature-title {
     font-size: 1.125rem;
     font-weight: 600;
     margin-bottom: 0.5rem;
+    color: var(--white);
 }
 
 .feature-item p {
@@ -1530,7 +1543,7 @@ section {
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 0.75rem;
-    padding: 1rem;
+    padding: 1rem 1rem 0rem 1rem;
     margin-bottom: 1rem;
     overflow-x: hidden;
     max-width: 100%;
@@ -1551,16 +1564,24 @@ section {
     border-bottom: 2px solid rgba(255, 255, 255, 0.1);
 }
 
-.contract-section-inner h3 {
+.contract-section-inner h3,
+.contract-heading {
     color: var(--white);
     font-size: 1.125rem;
     font-weight: 600;
-    margin: 1.5rem 0 0.75rem;
+    margin: 0rem 0 0.75rem;
+}
 
+.contract-subheading {
+    color: var(--white);
+    font-size: 1rem;
+    font-weight: 600;
+    margin: 1rem 0 0.5rem;
 }
 
 @media (max-width: 768px) {
-.contract-section-inner h3 {
+.contract-section-inner h3,
+.contract-heading {
     margin: 0 0 0.5rem;
 }
 }
@@ -2347,7 +2368,6 @@ section {
 .footer-content {
     display: grid;
     grid-template-columns: 1.5fr 1fr;
-    gap: 4rem;
     margin-bottom: 3rem;
     align-items: start;
 }
@@ -2457,8 +2477,8 @@ section {
 /* Links Section */
 .footer-links {
     display: grid;
-    grid-template-columns: repeat(2, auto);
-    gap: 10rem;
+    grid-template-columns: repeat(3, auto);
+    gap: 6rem;
     justify-content: start;
 }
 
@@ -2730,7 +2750,7 @@ section {
     }
 
     .footer-links {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 1.5rem;
     }
 
