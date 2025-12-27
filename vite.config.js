@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
+import { resolve } from 'path';
 
 export default defineConfig({
   base: './',  // Keep this as-is for GitHub Pages
@@ -23,6 +24,12 @@ export default defineConfig({
   sourcemap: false,
   minify: 'esbuild',
     rollupOptions: {
+      input: {
+        main: resolve(__dirname, 'index.html'),
+        agreement: resolve(__dirname, 'agreement/index.html'),
+        privacy: resolve(__dirname, 'privacy/index.html'),
+        terms: resolve(__dirname, 'terms/index.html'),
+      },
       output: {
         manualChunks: undefined,
         assetFileNames: 'assets/[name].[hash][extname]',
