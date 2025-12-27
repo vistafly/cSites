@@ -2392,55 +2392,106 @@ $$('.btn-resolve-help').forEach(function(btn) {
 };
     ContractFormHandler.prototype.fetchAllContracts = function() {
         var self = this;
-        
-        var pendingContracts = [];
-        var completedContracts = [];
-        
-        // Fetch pending contracts
-        firebase.firestore().collection('contracts')
+
+        // Fetch ALL data in parallel for faster loading
+        var pendingPromise = firebase.firestore().collection('contracts')
             .where('status', '==', 'pending_developer')
-            .get()
-            .then(function(pendingSnapshot) {
+            .get();
+
+        var completedPromise = firebase.firestore().collection('contracts')
+            .where('status', '==', 'completed')
+            .get();
+
+        var helpPromise = new Promise(function(resolve) {
+            self.fetchHelpRequests(function(helpRequests) {
+                resolve(helpRequests);
+            });
+        });
+
+        var sowPromise = firebase.firestore().collection('sow_documents')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        var couponsPromise = firebase.firestore().collection('coupons')
+            .orderBy('createdAt', 'desc')
+            .get();
+
+        Promise.all([pendingPromise, completedPromise, helpPromise, sowPromise, couponsPromise])
+            .then(function(results) {
+                var pendingSnapshot = results[0];
+                var completedSnapshot = results[1];
+                var helpRequests = results[2];
+                var sowSnapshot = results[3];
+                var couponsSnapshot = results[4];
+
+                // Process pending contracts
+                var pendingContracts = [];
                 pendingSnapshot.forEach(function(doc) {
                     var data = doc.data();
                     data.id = doc.id;
                     data.daysSinceSubmission = self.calculateDaysSince(data.timestamp);
                     pendingContracts.push(data);
                 });
-                
-                // Sort by days since submission (most urgent first)
                 pendingContracts.sort(function(a, b) {
                     return b.daysSinceSubmission - a.daysSinceSubmission;
                 });
-                
-                // Now fetch completed contracts
-                return firebase.firestore().collection('contracts')
-                    .where('status', '==', 'completed')
-                    .get();
-            })
-            .then(function(completedSnapshot) {
+
+                // Process completed contracts
+                var completedContracts = [];
                 completedSnapshot.forEach(function(doc) {
                     var data = doc.data();
                     data.id = doc.id;
                     data.daysSinceSubmission = self.calculateDaysSince(data.timestamp);
                     completedContracts.push(data);
                 });
-                
-                // Sort completed by finalized date (most recent first)
                 completedContracts.sort(function(a, b) {
                     var aTime = a.finalizedTimestamp ? a.finalizedTimestamp.toDate().getTime() : 0;
                     var bTime = b.finalizedTimestamp ? b.finalizedTimestamp.toDate().getTime() : 0;
                     return bTime - aTime;
                 });
-                
-                // Render the dashboard
-                // Render the dashboard
-self.renderDeveloperDashboard(pendingContracts, completedContracts);
 
-// Fetch and render help requests
-self.fetchHelpRequests(function(helpRequests) {
-    self.renderHelpRequestsSection(helpRequests);
-});
+                // Process SOW documents
+                var sows = [];
+                var changeRequestIds = [];
+                sowSnapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    data.id = doc.id;
+                    sows.push(data);
+                    if (data.changeRequestId) {
+                        changeRequestIds.push(data.changeRequestId);
+                    }
+                });
+
+                // Process coupons
+                var coupons = [];
+                couponsSnapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    data.id = doc.id;
+                    coupons.push(data);
+                });
+                self.coupons = coupons;
+
+                // Render the dashboard (this will show loading states for tabs)
+                self.renderDeveloperDashboard(pendingContracts, completedContracts);
+
+                // Immediately render help requests (already loaded)
+                self.renderHelpRequestsSection(helpRequests);
+
+                // Immediately render coupons (already loaded)
+                var couponsContainer = document.getElementById('couponsTabContent');
+                if (couponsContainer) {
+                    var badge = document.getElementById('couponCountBadge');
+                    if (badge) badge.textContent = coupons.length;
+                    couponsContainer.innerHTML = self.renderCouponsTab(coupons);
+                    self.attachCouponEventListeners();
+                }
+
+                // Handle SOW documents (may need additional change request fetch)
+                if (changeRequestIds.length > 0) {
+                    self.fetchChangeRequestsUnreadStatus(changeRequestIds, sows);
+                } else {
+                    self.renderSOWTab(sows);
+                }
             })
             .catch(function(error) {
                 console.error('Error fetching contracts:', error);
@@ -2659,12 +2710,9 @@ html += '<div class="dashboard-tabs">' +
             self.switchTab(tabName);
         });
     });
-    
-    // Load SOWs for the SOW tab
-    this.loadSOWDocuments();
 
-    // Load Coupons for the Coupons tab
-    this.loadCoupons();
+    // Note: SOW documents, coupons, and help requests are now loaded in parallel
+    // via fetchAllContracts() for faster dashboard loading
 };
 
 // New function to render contracts tab content
@@ -3562,7 +3610,7 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
                 '</div>' +
                 '<div class="sow-detail-row">' +
                 '<span class="detail-label">⏱️ Timeline:</span>' +
-                '<span class="detail-value">' + (sow.estimatedWeeks || 'TBD') + ' weeks</span>' +
+                '<span class="detail-value">' + (sow.estimatedWeeks || 'TBD') + ' ' + (sow.devDurationUnit || 'weeks') + '</span>' +
                 '</div>' +
                 '<div class="sow-detail-row">' +
                 '<span class="detail-label">📅 Created:</span>' +
@@ -4722,15 +4770,15 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         // Project Timeline
         '<div class="sow-form-section">' +
         '<h5><span class="section-icon">⏱️</span> Project Timeline</h5>' +
-        '<div class="sow-input-group">' +
-        '<input type="number" id="sowWeeks" placeholder="Estimated Weeks *" class="sow-input" min="1" max="52" required />' +
-        '<input type="date" id="sowStartDate" class="sow-input" title="Target completion date" />' +
-        '</div>' +
-        '<label class="sow-checkbox retroactive-toggle" style="margin-top: 10px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.3);">' +
+        '<label class="sow-checkbox retroactive-toggle" style="margin-bottom: 10px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border-radius: 6px; border: 1px solid rgba(245, 158, 11, 0.3);">' +
         '<input type="checkbox" id="sowRetroactive" onchange="toggleRetroactiveFields()" />' +
         '<span style="color: #f59e0b; font-weight: 500;">Retroactive Project</span>' +
         '<span style="font-size: 0.8em; color: #888; margin-left: 8px;">(project already in development)</span>' +
         '</label>' +
+        '<div class="sow-input-group">' +
+        '<input type="number" id="sowWeeks" placeholder="Estimated Weeks *" class="sow-input" min="1" max="52" required />' +
+        '<input type="date" id="sowStartDate" class="sow-input" title="Target completion date" />' +
+        '</div>' +
         '<div id="retroactiveDurationFields" style="display: none; margin-top: 10px; padding: 10px; background: rgba(245, 158, 11, 0.05); border-radius: 6px; border: 1px dashed rgba(245, 158, 11, 0.3);">' +
         '<label style="font-size: 0.85em; color: #f59e0b; margin-bottom: 5px; display: block;">Development Duration</label>' +
         '<div class="sow-input-group">' +
@@ -4740,6 +4788,8 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<option value="months">Months</option>' +
         '</select>' +
         '</div>' +
+        '<label style="font-size: 0.85em; color: #f59e0b; margin-bottom: 5px; margin-top: 10px; display: block;">Estimated Final Revision</label>' +
+        '<input type="date" id="sowRetroactiveEndDate" class="sow-input" title="Estimated final revision date" />' +
         '</div>' +
         '</div>' +
         
@@ -5000,8 +5050,34 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     window.toggleRetroactiveFields = function() {
         var checkbox = $('#sowRetroactive');
         var durationFields = $('#retroactiveDurationFields');
-        if (checkbox && durationFields) {
-            durationFields.style.display = checkbox.checked ? 'block' : 'none';
+        var weeksInput = $('#sowWeeks');
+        var standardInputGroup = weeksInput ? weeksInput.parentElement : null;
+
+        if (checkbox && checkbox.checked) {
+            // Retroactive: hide standard weeks/date, show development duration
+            if (durationFields) durationFields.style.display = 'block';
+            if (standardInputGroup) standardInputGroup.style.display = 'none';
+        } else {
+            // Standard: show weeks/date, hide development duration
+            if (durationFields) durationFields.style.display = 'none';
+            if (standardInputGroup) standardInputGroup.style.display = 'flex';
+        }
+
+        // For retroactive projects, hide deposit/milestone breakdown and show only total + maintenance
+        var depositRow = document.querySelector('.deposit-row');
+        var milestoneRow = $('#sowMilestone1Calc');
+        var finalRow = $('#sowFinalCalc');
+
+        if (checkbox && checkbox.checked) {
+            // Hide deposit, milestone, and final payment rows
+            if (depositRow) depositRow.style.display = 'none';
+            if (milestoneRow && milestoneRow.parentElement) milestoneRow.parentElement.style.display = 'none';
+            if (finalRow && finalRow.parentElement) finalRow.parentElement.style.display = 'none';
+        } else {
+            // Show all payment rows
+            if (depositRow) depositRow.style.display = 'flex';
+            if (milestoneRow && milestoneRow.parentElement) milestoneRow.parentElement.style.display = 'flex';
+            if (finalRow && finalRow.parentElement) finalRow.parentElement.style.display = 'flex';
         }
     };
 
@@ -5971,6 +6047,7 @@ ContractFormHandler.prototype.saveSOW = function() {
     // Check if retroactive project (weeks not required if retroactive)
     var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
     var devDuration = $('#sowDevDuration') ? $('#sowDevDuration').value : '';
+    var retroactiveEndDate = $('#sowRetroactiveEndDate') ? $('#sowRetroactiveEndDate').value : '';
 
     // Normalize phone to E.164 format (+1XXXXXXXXXX) for Firebase Auth matching
     var clientPhone = '';
@@ -6089,13 +6166,14 @@ ContractFormHandler.prototype.saveSOW = function() {
         clientPhone: isBusinessEntity ? (normalizeToE164(businessPhone) || '') : (normalizeToE164(clientPhone) || ''),
         packageType: packageType,
         estimatedWeeks: isRetroactive ? (devDurationParsed || null) : parseInt(weeks),
-        startDate: startDate || null,
+        startDate: isRetroactive ? (retroactiveEndDate || null) : (startDate || null),
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
         isRetroactive: isRetroactive,
         devDuration: devDurationParsed,
         devDurationUnit: devDurationUnit,
+        retroactiveEndDate: isRetroactive ? (retroactiveEndDate || null) : null,
         couponCode: selectedCouponCode || null,
         // Business entity information
         isBusinessEntity: isBusinessEntity,
@@ -7492,12 +7570,23 @@ ContractFormHandler.prototype.editSOW = function(sow) {
         var devDurationField = $('#sowDevDuration');
         var devDurationUnitField = $('#sowDevDurationUnit');
         var retroactiveDurationFields = $('#retroactiveDurationFields');
+        var retroactiveEndDateField = $('#sowRetroactiveEndDate');
+        var weeksInput = $('#sowWeeks');
+        var standardInputGroup = weeksInput ? weeksInput.parentElement : null;
 
         if (retroactiveCheckbox && sow.isRetroactive) {
             retroactiveCheckbox.checked = true;
             if (retroactiveDurationFields) retroactiveDurationFields.style.display = 'block';
+            if (standardInputGroup) standardInputGroup.style.display = 'none';
             if (devDurationField && sow.devDuration) devDurationField.value = sow.devDuration;
             if (devDurationUnitField && sow.devDurationUnit) devDurationUnitField.value = sow.devDurationUnit;
+            if (retroactiveEndDateField && (sow.retroactiveEndDate || sow.startDate)) {
+                retroactiveEndDateField.value = sow.retroactiveEndDate || sow.startDate;
+            }
+            // Also hide deposit/milestone/final payment rows
+            if (typeof toggleRetroactiveFields === 'function') {
+                toggleRetroactiveFields();
+            }
         }
 
         // Populate business entity fields
@@ -7747,6 +7836,7 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
     // Check if retroactive project (weeks not required if retroactive)
     var isRetroactive = $('#sowRetroactive') && $('#sowRetroactive').checked;
     var devDuration = $('#sowDevDuration') ? $('#sowDevDuration').value : '';
+    var retroactiveEndDate = $('#sowRetroactiveEndDate') ? $('#sowRetroactiveEndDate').value : '';
 
     // Normalize phone to E.164 format (+1XXXXXXXXXX) for Firebase Auth matching
     var clientPhone = '';
@@ -7865,13 +7955,14 @@ ContractFormHandler.prototype.updateSOW = function(sowId) {
         clientPhone: isBusinessEntity ? (normalizeToE164(businessPhone) || '') : (normalizeToE164(clientPhone) || ''),
         packageType: packageType,
         estimatedWeeks: isRetroactive ? (devDurationParsed || null) : parseInt(weeks),
-        startDate: startDate || null,
+        startDate: isRetroactive ? (retroactiveEndDate || null) : (startDate || null),
         features: features,
         notes: notes,
         maintenancePlan: maintenancePlan,
         isRetroactive: isRetroactive,
         devDuration: devDurationParsed,
         devDurationUnit: devDurationUnit,
+        retroactiveEndDate: isRetroactive ? (retroactiveEndDate || null) : null,
         couponCode: selectedCouponCode || null,
         // Business entity information
         isBusinessEntity: isBusinessEntity,
