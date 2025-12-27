@@ -339,6 +339,25 @@ export const StaggeredMenu = ({
     return () => document.removeEventListener('keydown', handleEscape);
   }, [closeMenu]);
 
+  // Close on click outside the panel
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (!openRef.current) return;
+
+      const panel = panelRef.current;
+      const toggle = toggleBtnRef.current;
+
+      // Don't close if clicking inside the panel or on the toggle button
+      if (panel && panel.contains(e.target)) return;
+      if (toggle && toggle.contains(e.target)) return;
+
+      closeMenu();
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [closeMenu]);
+
   // Handle item click
   const handleItemClick = useCallback((item, e) => {
     // Close menu after a short delay to show the click effect
@@ -422,20 +441,26 @@ export const StaggeredMenu = ({
               </li>
             )}
           </ul>
-          {/* {displaySocials && socialItems && socialItems.length > 0 && (
+          {displaySocials && socialItems && socialItems.length > 0 && (
             <div className="sm-socials" aria-label="Social links">
               <h3 className="sm-socials-title">Connect</h3>
               <ul className="sm-socials-list" role="list">
                 {socialItems.map((s, i) => (
                   <li key={s.label + i} className="sm-socials-item">
-                    <a href={s.link} target="_blank" rel="noopener noreferrer" className="sm-socials-link">
-                      {s.label}
+                    <a
+                      href={s.link}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="sm-socials-link"
+                    >
+                      {s.icon && <span className="sm-socials-icon">{s.icon}</span>}
+                      <span className="sm-socials-label">{s.label}</span>
                     </a>
                   </li>
                 ))}
               </ul>
             </div>
-          )} */}
+          )}
         </div>
       </aside>
 
