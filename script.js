@@ -7075,66 +7075,65 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     var htmlContent = '<!DOCTYPE html>' +
     '<html><head>' +
     '<meta charset="UTF-8">' +
-    '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
     '<title>Statement of Work - ' + clientName + '</title>' +
     '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
     '<style>' +
-    '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-    'html { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; text-size-adjust: 100%; }' +
-    'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.35; color: #000; background: #fff; padding: 0.5in 0.75in; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }' +
+    '* { margin: 0; padding: 0; box-sizing: border-box; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; text-size-adjust: 100%; }' +
+    'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.35; color: #000; background: #fff; padding: 0.5in 0.75in; }' +
     '.sow-container { max-width: 900px; margin: 0 auto; }' +
-    'h1 { font-size: 16pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
+    'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
     'h2 { font-size: 10pt; margin-top: 12px; margin-bottom: 6px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 2px; }' +
     'h3 { font-size: 10pt; margin-top: 8px; margin-bottom: 4px; font-weight: bold; }' +
-    'p { font-size: 10pt; margin-bottom: 6px; text-align: justify; }' +
-    'ul, ol { margin-left: 20px; margin-bottom: 6px; font-size: 10pt; }' +
-    'li { margin-bottom: 2px; font-size: 10pt; }' +
+    'p { margin-bottom: 6px; text-align: justify; }' +
+    'ul, ol { margin-left: 20px; margin-bottom: 6px; }' +
+    'li { margin-bottom: 2px; }' +
     '.header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000; }' +
-    '.subtitle { font-size: 10pt; margin-top: 6px; font-style: italic; }' +
-    '.meta-date { font-size: 10pt; margin-top: 6px; font-style: italic; }' +
+    '.subtitle { font-size: 11pt; margin-top: 6px; font-style: italic; }' +
+    '.meta-date { font-size: 9pt; margin-top: 6px; font-style: italic; }' +
     '.info-box { padding: 8px 12px; border: 1px solid #000; border-left: 3px solid #000; margin: 8px 0; }' +
     '.info-box h3 { margin-top: 0; }' +
     '.info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 20px; margin-top: 6px; }' +
-    '.info-item { font-size: 10pt; white-space: nowrap; }' +
+    '.info-item { font-size: 9pt; word-wrap: break-word; overflow-wrap: break-word; }' +
     '.section { margin-bottom: 10px; page-break-inside: avoid; }' +
     '.package-box { border: 1px solid #000; padding: 8px 12px; margin: 8px 0; }' +
     '.package-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding-bottom: 6px; border-bottom: 1px solid #000; }' +
     '.package-name { font-size: 11pt; font-weight: bold; }' +
     '.package-price { font-size: 10pt; font-weight: bold; }' +
-    '.feature-list { columns: 2; column-gap: 20px; font-size: 10pt; }' +
-    '.feature-list li { break-inside: avoid; margin-bottom: 1px; font-size: 10pt; }' +
+    '.feature-list { columns: 2; column-gap: 20px; font-size: 9pt; }' +
+    '.feature-list li { break-inside: avoid; margin-bottom: 1px; }' +
     '.not-included { border-left: 3px solid #000; }' +
     '.not-included h3 { font-style: italic; }' +
-    '.payment-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 10pt; }' +
-    '.payment-table th, .payment-table td { border: 1px solid #000; padding: 5px 8px; text-align: left; font-size: 10pt; }' +
+    '.payment-table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9pt; }' +
+    '.payment-table th, .payment-table td { border: 1px solid #000; padding: 5px 8px; text-align: left; }' +
     '.payment-table th { font-weight: bold; background: #f5f5f5; }' +
     '.payment-table .total-row { font-weight: bold; font-size: 10pt; border-top: 2px solid #000; }' +
     '.timeline-box { border: 1px solid #000; padding: 8px 12px; margin: 8px 0; }' +
     '.timeline-header { font-weight: bold; margin-bottom: 8px; font-size: 10pt; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
     '.milestone { margin-bottom: 6px; padding-left: 8px; border-left: 2px solid #000; }' +
     '.milestone:last-child { margin-bottom: 0; }' +
-    '.milestone-title { font-weight: bold; font-size: 10pt; }' +
-    '.milestone-desc { font-size: 10pt; }' +
+    '.milestone-title { font-weight: bold; font-size: 9pt; }' +
+    '.milestone-desc { font-size: 9pt; }' +
     '.assumptions-box { border: 1px solid #000; border-left: 3px solid #000; padding: 8px 12px; margin: 8px 0; }' +
-    '.assumptions-box h3 { margin-top: 0; font-size: 10pt; }' +
-    '.assumptions-box li { font-size: 10pt; }' +
-    '.legal-notice { border: 1px solid #000; padding: 8px 12px; margin: 10px 0; font-size: 10pt; }' +
+    '.assumptions-box h3 { margin-top: 0; font-size: 9pt; }' +
+    '.assumptions-box li { font-size: 9pt; }' +
+    '.legal-notice { border: 1px solid #000; padding: 8px 12px; margin: 10px 0; font-size: 9pt; }' +
     '.signature-section { margin-top: 20px; page-break-before: always; }' +
     '.signature-grid { display: flex; justify-content: space-between; gap: 30px; margin-top: 15px; }' +
     '.signature-block { flex: 1; }' +
-    '.signature-block h3 { font-size: 10pt; margin-bottom: 6px; }' +
+    '.signature-block h3 { font-size: 9pt; margin-bottom: 6px; }' +
     '.signature-line { border-bottom: 1px solid #000; height: 50px; margin: 6px 0; display: flex; align-items: flex-end; justify-content: center; }' +
     '.signature-line img { max-height: 45px; max-width: 100%; filter: invert(1) grayscale(1); }' +
-    '.signature-label { font-size: 9pt; font-style: italic; margin-top: 3px; }' +
-    '.signature-name { font-weight: bold; margin-top: 6px; font-size: 10pt; }' +
-    '.signature-date { font-size: 10pt; margin-top: 3px; }' +
-    '.footer { margin-top: 20px; text-align: center; font-size: 9pt; border-top: 1px solid #000; padding-top: 10px; }' +
-    '.sow-id { font-size: 9pt; margin-top: 4px; font-style: italic; }' +
+    '.signature-label { font-size: 8pt; font-style: italic; margin-top: 3px; }' +
+    '.signature-name { font-weight: bold; margin-top: 6px; font-size: 9pt; }' +
+    '.signature-date { font-size: 9pt; margin-top: 3px; }' +
+    '.footer { margin-top: 20px; text-align: center; font-size: 8pt; border-top: 1px solid #000; padding-top: 10px; }' +
+    '.sow-id { font-size: 7pt; margin-top: 4px; font-style: italic; }' +
     '.highlight { font-weight: bold; }' +
     '.maintenance-box { border: 1px solid #000; padding: 8px 12px; margin: 8px 0; }' +
     '.maintenance-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 6px; border-bottom: 1px solid #000; margin-bottom: 6px; }' +
     '.maintenance-name { font-weight: bold; font-size: 10pt; }' +
-    '.maintenance-price { font-weight: bold; font-size: 10pt; }' +
+    '.maintenance-price { font-weight: bold; }' +
     '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
     '@media print { body { padding: 0.4in 0.6in; } @page { margin: 0.5in 0.75in 0.5in 0.75in; } }' +
     '@page { margin: 0.5in 0.75in; size: letter; }' +
@@ -10358,25 +10357,24 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
         '<meta charset="UTF-8">' +
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
         '<title>Website Development Agreement - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
         '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
         '<style>' +
-        '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-        'html { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; text-size-adjust: 100%; }' +
-        'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }' +
+        '* { margin: 0; padding: 0; box-sizing: border-box; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; text-size-adjust: 100%; }' +
+        'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
         '.contract-container { max-width: 750px; margin: 0 auto; }' +
-        'h1 { font-size: 16pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
-        'h2 { font-size: 10pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
-        'h3 { font-size: 10pt; margin-top: 14px; margin-bottom: 6px; font-weight: bold; }' +
-        'p { font-size: 10pt; margin-bottom: 10px; text-align: justify; }' +
-        'ul, ol { margin-left: 30px; margin-bottom: 10px; font-size: 10pt; }' +
-        'li { margin-bottom: 5px; font-size: 10pt; }' +
+        'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
+        'h2 { font-size: 11pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
+        'h3 { font-size: 10.5pt; margin-top: 14px; margin-bottom: 6px; font-weight: bold; }' +
+        'p { margin-bottom: 10px; text-align: justify; }' +
+        'ul, ol { margin-left: 30px; margin-bottom: 10px; }' +
+        'li { margin-bottom: 5px; }' +
         '.header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000; }' +
-        '.subtitle { font-size: 10pt; margin-top: 6px; font-style: italic; }' +
-        '.parties { padding: 15px 20px; border: 1px solid #000; margin: 20px 0; font-size: 10pt; }' +
+        '.subtitle { font-size: 11pt; margin-top: 6px; font-style: italic; }' +
+        '.parties { padding: 15px 20px; border: 1px solid #000; margin: 20px 0; }' +
         '.section { margin-bottom: 18px; page-break-inside: avoid; }' +
-        '.caps-section { text-transform: uppercase; font-weight: bold; font-size: 10pt; }' +
+        '.caps-section { text-transform: uppercase; font-weight: bold; }' +
         '.highlight-box { padding: 15px 20px; margin: 15px 0; border: 1px solid #000; border-left: 4px solid #000; }' +
         '.signature-page { page-break-before: always; margin-top: 50px; }' +
         '.signature-block { display: inline-block; width: 45%; vertical-align: top; margin: 20px 2%; }' +
@@ -10385,9 +10383,9 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '.signature-label { font-size: 9pt; margin-top: 5px; font-style: italic; }' +
         '.signature-name { font-weight: bold; margin-top: 10px; font-size: 10pt; }' +
         '.signature-date { margin-top: 5px; font-size: 10pt; }' +
-        '.signature-email { font-size: 10pt; font-style: italic; }' +
+        '.signature-email { font-size: 9pt; font-style: italic; }' +
         '.footer { margin-top: 50px; text-align: center; font-size: 9pt; border-top: 1px solid #000; padding-top: 20px; }' +
-        '.contract-id { font-size: 9pt; margin-top: 10px; font-style: italic; }' +
+        '.contract-id { font-size: 8pt; margin-top: 10px; font-style: italic; }' +
         '.important { font-weight: bold; text-transform: uppercase; }' +
         '.indented { margin-left: 25px; }' +
         '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
@@ -10644,22 +10642,21 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
         '<meta charset="UTF-8">' +
-        '<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">' +
+        '<meta name="viewport" content="width=device-width, initial-scale=1.0">' +
         '<title>Complete Agreement Package - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
         '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
         '<style>' +
-        '* { margin: 0; padding: 0; box-sizing: border-box; }' +
-        'html { -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; text-size-adjust: 100%; }' +
-        'body { font-family: "Times New Roman", Times, serif; font-size: 10pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; }' +
-        'h1 { font-size: 16pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
-        'h2 { font-size: 10pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
-        'h3 { font-size: 10pt; margin-top: 14px; margin-bottom: 6px; font-weight: bold; }' +
-        'p { font-size: 10pt; margin-bottom: 10px; text-align: justify; }' +
-        'ul, ol { margin-left: 30px; margin-bottom: 10px; font-size: 10pt; }' +
-        'li { margin-bottom: 5px; font-size: 10pt; }' +
+        '* { margin: 0; padding: 0; box-sizing: border-box; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; text-size-adjust: 100%; }' +
+        'body { font-family: "Times New Roman", Times, serif; font-size: 11pt; line-height: 1.6; color: #000; background: #fff; padding: 0.75in 1in; }' +
+        'h1 { font-size: 18pt; text-align: center; margin-bottom: 8px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }' +
+        'h2 { font-size: 11pt; margin-top: 20px; margin-bottom: 10px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 1px solid #000; padding-bottom: 4px; }' +
+        'h3 { font-size: 10.5pt; margin-top: 14px; margin-bottom: 6px; font-weight: bold; }' +
+        'p { margin-bottom: 10px; text-align: justify; }' +
+        'ul, ol { margin-left: 30px; margin-bottom: 10px; }' +
+        'li { margin-bottom: 5px; }' +
         '.header { text-align: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 2px solid #000; }' +
-        '.subtitle { font-size: 10pt; margin-top: 6px; font-style: italic; }' +
-        '.parties { padding: 15px 20px; border: 1px solid #000; margin: 20px 0; font-size: 10pt; }' +
+        '.subtitle { font-size: 11pt; margin-top: 6px; font-style: italic; }' +
+        '.parties { padding: 15px 20px; border: 1px solid #000; margin: 20px 0; }' +
         '.section { margin-bottom: 18px; page-break-inside: avoid; }' +
         '.signature-page { page-break-before: always; margin-top: 50px; }' +
         '.signature-block { display: inline-block; width: 45%; vertical-align: top; margin: 20px 2%; }' +
@@ -10668,16 +10665,16 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '.signature-label { font-size: 9pt; margin-top: 5px; font-style: italic; }' +
         '.signature-name { font-weight: bold; margin-top: 10px; font-size: 10pt; }' +
         '.signature-date { margin-top: 5px; font-size: 10pt; }' +
-        '.signature-email { font-size: 10pt; font-style: italic; }' +
+        '.signature-email { font-size: 9pt; font-style: italic; }' +
         '.footer { margin-top: 50px; text-align: center; font-size: 9pt; border-top: 1px solid #000; padding-top: 20px; }' +
-        '.contract-id { font-size: 9pt; margin-top: 10px; font-style: italic; }' +
+        '.contract-id { font-size: 8pt; margin-top: 10px; font-style: italic; }' +
         '.page-break { page-break-before: always; }' +
-        '.info-box { padding: 15px 20px; border: 1px solid #000; border-left: 4px solid #000; margin: 20px 0; font-size: 10pt; }' +
+        '.info-box { padding: 15px 20px; border: 1px solid #000; border-left: 4px solid #000; margin: 20px 0; }' +
         '.info-box h3 { margin-top: 0; }' +
         '.payment-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 10pt; }' +
-        '.payment-table th, .payment-table td { border: 1px solid #000; padding: 10px 12px; text-align: left; font-size: 10pt; }' +
+        '.payment-table th, .payment-table td { border: 1px solid #000; padding: 10px 12px; text-align: left; }' +
         '.payment-table th { font-weight: bold; }' +
-        '.total-row { font-weight: bold; font-size: 10pt; border-top: 2px solid #000; }' +
+        '.total-row { font-weight: bold; font-size: 11pt; border-top: 2px solid #000; }' +
         '.highlight { font-weight: bold; }' +
         '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
         '@media print { body { padding: 0.5in 0.75in; } .signature-page, .page-break { page-break-before: always; } }' +
