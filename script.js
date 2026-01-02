@@ -7074,6 +7074,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     // Build HTML first, then open window with Blob URL
     var htmlContent = '<!DOCTYPE html>' +
     '<html><head>' +
+    '<meta charset="UTF-8">' +
     '<title>Statement of Work - ' + clientName + '</title>' +
     '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
     '<style>' +
@@ -7575,8 +7576,8 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '</script>' +
     '</body></html>';
 
-    // Create Blob URL for cleaner print footer
-    var blob = new Blob([htmlContent], { type: 'text/html' });
+    // Create Blob URL for cleaner print footer (with UTF-8 charset for special characters)
+    var blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
     var blobUrl = URL.createObjectURL(blob);
     var printWindow = window.open(blobUrl, '_blank');
 
@@ -10354,6 +10355,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
 
         var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
+        '<meta charset="UTF-8">' +
         '<title>Website Development Agreement - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
         '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
         '<style>' +
@@ -10637,6 +10639,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
     
     var htmlContent = '<!DOCTYPE html>' +
         '<html><head>' +
+        '<meta charset="UTF-8">' +
         '<title>Complete Agreement Package - ' + (isBusinessEntity ? businessName : clientName) + '</title>' +
         '<link rel="icon" type="image/png" href="https://scarlo.dev/favicons/favicon-96x96.png">' +
         '<style>' +
