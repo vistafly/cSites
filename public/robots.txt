@@ -5,6 +5,10 @@ User-agent: *
 Allow: /
 Crawl-delay: 1
 
+# Explicitly allow favicon access for all crawlers
+Allow: /favicon.ico
+Allow: /favicons/
+
 # Disallow admin/private areas
 Disallow: /admin/
 Disallow: /private/

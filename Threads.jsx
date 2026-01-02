@@ -191,15 +191,43 @@ function getResponsiveScaling() {
   return { distanceScale, amplitudeScale };
 }
 
+// Detect if device is a laptop (has battery but large screen)
+function detectLaptopSync() {
+  const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const isLargeScreen = window.innerWidth >= 1024;
+
+  // Large non-touch screen is likely a laptop or desktop
+  // We'll refine this with Battery API async check
+  return isLargeScreen && !isTouch;
+}
+
+// Async laptop detection using Battery API (called after initial render)
+async function detectLaptopAsync() {
+  if ('getBattery' in navigator) {
+    try {
+      const battery = await navigator.getBattery();
+      // Device has battery = laptop/tablet (desktops don't have batteries)
+      return battery && typeof battery.charging !== 'undefined';
+    } catch (e) {
+      // Battery API blocked or unavailable
+    }
+  }
+  return null; // Unknown
+}
+
 // Enhanced device detection with GPU profiling (optimized for immediate execution)
-function getDeviceProfile() {
+function getDeviceProfile(isConfirmedLaptop = null) {
   const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
   const isTouch = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   const cores = navigator.hardwareConcurrency || 4;
   const memory = navigator.deviceMemory || 4; // GB
 
+  // Laptop detection: use async result if available, otherwise use sync heuristic
+  const isLikelyLaptop = isConfirmedLaptop !== null ? isConfirmedLaptop : detectLaptopSync();
+
   // Fast GPU tier detection - check only if not mobile (skip for mobile since we have a default profile)
   let gpuTier = 'high';
+  let gpuRenderer = '';
   if (!isMobile) {
     try {
       const canvas = document.createElement('canvas');
@@ -210,10 +238,15 @@ function getDeviceProfile() {
       if (gl) {
         const debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
         if (debugInfo) {
-          const renderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL).toLowerCase();
+          gpuRenderer = gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL).toLowerCase();
           // Intel integrated graphics or old GPUs
-          if (renderer.includes('intel') && !renderer.includes('iris xe')) {
+          if (gpuRenderer.includes('intel') && !gpuRenderer.includes('iris xe')) {
             gpuTier = 'low';
+          }
+          // Detect mobile/laptop GPUs (MX series, Max-Q, etc.)
+          const mobileGpuIndicators = ['mx', 'max-q', 'mobile', 'laptop'];
+          if (mobileGpuIndicators.some(ind => gpuRenderer.includes(ind))) {
+            gpuTier = 'mid';
           }
         }
         // Clean up immediately
@@ -224,54 +257,72 @@ function getDeviceProfile() {
       gpuTier = 'low';
     }
   }
-  
+
   // Touch-specific smoothing (higher = smoother but slightly more lag)
   const touchSmoothing = isTouch ? 0.12 : 0.06;
-  
+
   // Ultra-low end: Old laptops, budget devices
   if ((cores < 4 || memory < 4) && gpuTier === 'low') {
-    console.log('🎮 Threads: Ultra-low profile (15 lines)');
+    console.log('Threads: Ultra-low profile (15 lines)');
     return {
       lineCount: 15,
       amplitude: 0.8,
       smoothing: touchSmoothing,
       quality: 'ultra-low',
-      isTouch
+      isTouch,
+      targetFPS: 60
     };
   }
-  
+
   // Low-end: Older laptops with integrated graphics
   if (cores === 4 || gpuTier === 'low') {
-    console.log('🎮 Threads: Low-end profile (20 lines)');
+    console.log('Threads: Low-end profile (20 lines)');
     return {
       lineCount: 20,
       amplitude: 1.0,
       smoothing: touchSmoothing,
       quality: 'low',
-      isTouch
+      isTouch,
+      targetFPS: 60
     };
   }
-  
+
   // Mobile: Even high-end mobile prioritizes battery
   if (isMobile) {
-    console.log('🎮 Threads: Mobile profile (25 lines)');
+    console.log('Threads: Mobile profile (25 lines)');
     return {
       lineCount: 25,
       amplitude: 0.8,
       smoothing: touchSmoothing,
       quality: 'mobile',
-      isTouch
+      isTouch,
+      targetFPS: 60
     };
   }
-  
-  // High-end: Modern laptops/desktops
-  console.log('🎮 Threads: High-end profile (40 lines)');
+
+  // Laptop: Balance between visuals and responsiveness
+  // Detected via Battery API, large non-touch screen, or mobile GPU
+  if (isLikelyLaptop || gpuTier === 'mid') {
+    console.log('Threads: Laptop profile (28 lines, 45fps)');
+    return {
+      lineCount: 28,
+      amplitude: 1.2,
+      smoothing: 0.09, // More smoothing than desktop
+      quality: 'laptop',
+      isTouch,
+      targetFPS: 45 // Throttle to 45fps for better responsiveness
+    };
+  }
+
+  // High-end: Modern desktops with dedicated GPUs
+  console.log('Threads: High-end profile (40 lines)');
   return {
     lineCount: 40,
     amplitude: 1.5,
     smoothing: touchSmoothing,
     quality: 'desktop',
-    isTouch
+    isTouch,
+    targetFPS: 60
   };
 }
 
@@ -342,11 +393,25 @@ const Threads = ({
 
     function resize() {
       const { clientWidth, clientHeight } = container;
-      renderer.setSize(clientWidth, clientHeight);
-      program.uniforms.iResolution.value.r = clientWidth;
-      program.uniforms.iResolution.value.g = clientHeight;
-      program.uniforms.iResolution.value.b = clientWidth / clientHeight;
-      
+
+      // Resolution scaling - render at lower resolution for laptops to reduce GPU load
+      const resolutionScale = deviceProfile.current.quality === 'laptop' ? 0.8 :
+                              deviceProfile.current.quality === 'low' ? 0.75 :
+                              deviceProfile.current.quality === 'ultra-low' ? 0.6 : 1.0;
+
+      const renderWidth = Math.floor(clientWidth * resolutionScale);
+      const renderHeight = Math.floor(clientHeight * resolutionScale);
+
+      renderer.setSize(renderWidth, renderHeight);
+
+      // CSS scales the canvas back to full size (slight blur but much faster)
+      gl.canvas.style.width = clientWidth + 'px';
+      gl.canvas.style.height = clientHeight + 'px';
+
+      program.uniforms.iResolution.value.r = renderWidth;
+      program.uniforms.iResolution.value.g = renderHeight;
+      program.uniforms.iResolution.value.b = renderWidth / renderHeight;
+
       // Update responsive scaling on resize
       responsiveScaling.current = getResponsiveScaling();
       const newScaledAmplitude = amplitude * deviceProfile.current.amplitude * responsiveScaling.current.amplitudeScale;
@@ -383,10 +448,12 @@ let currentMouse = [0.5, 0.5];
 let targetMouse = [0.5, 0.5];
 let velocity = [0, 0];
 let lastTime = performance.now();
+let lastRenderTime = 0; // For frame rate throttling
 let frameCount = 0;
 let reEntryFrames = 0; // Track frames since re-entry
 const qualityCheckInterval = 120; // Check performance every 2 seconds
 const RE_ENTRY_SMOOTH_FRAMES = 10; // Extra smoothing for 10 frames after re-entry (~167ms at 60fps)
+const targetFrameTime = 1000 / (deviceProfile.current.targetFPS || 60); // Frame time based on target FPS
 
 function update(t) {
   // Don't render if not visible
@@ -394,6 +461,13 @@ function update(t) {
     animationFrameId.current = null;
     return;
   }
+
+  // Frame rate throttling - skip frame if we're ahead of target FPS
+  if (t - lastRenderTime < targetFrameTime) {
+    animationFrameId.current = requestAnimationFrame(update);
+    return;
+  }
+  lastRenderTime = t;
 
   const deltaTime = Math.min((t - lastTime) / 16.67, 2); // Cap at 2x for consistency
   lastTime = t;
