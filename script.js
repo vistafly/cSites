@@ -2486,12 +2486,14 @@ $$('.btn-resolve-help').forEach(function(btn) {
                     self.attachCouponEventListeners();
                 }
 
-                // Handle SOW documents (may need additional change request fetch)
-                if (changeRequestIds.length > 0) {
-                    self.fetchChangeRequestsUnreadStatus(changeRequestIds, sows);
-                } else {
-                    self.renderSOWTab(sows);
-                }
+                // Handle SOW documents - fetch lastLogin data first
+                self.fetchClientLastLogins(sows).then(function() {
+                    if (changeRequestIds.length > 0) {
+                        self.fetchChangeRequestsUnreadStatus(changeRequestIds, sows);
+                    } else {
+                        self.renderSOWTab(sows);
+                    }
+                });
             })
             .catch(function(error) {
                 console.error('Error fetching contracts:', error);
@@ -3395,6 +3397,53 @@ ContractFormHandler.prototype.validateCoupon = function(code, packageType, order
 // END COUPON MANAGEMENT SYSTEM
 // ============================================
 
+// Fetch client lastLogin data for SOWs
+ContractFormHandler.prototype.fetchClientLastLogins = function(sows) {
+    if (!sows || sows.length === 0) return Promise.resolve();
+
+    // Collect unique client emails (preserve original casing for query)
+    var emailsSet = {};
+    sows.forEach(function(sow) {
+        if (sow.clientEmail) {
+            emailsSet[sow.clientEmail.toLowerCase()] = sow.clientEmail;
+        }
+    });
+    var emails = Object.values(emailsSet);
+
+    if (emails.length === 0) return Promise.resolve();
+
+    // Query users by email (chunk if needed for Firestore limit)
+    var chunks = [];
+    for (var i = 0; i < emails.length; i += 10) {
+        chunks.push(emails.slice(i, i + 10));
+    }
+
+    var userLastLogins = {};
+    var promises = chunks.map(function(chunk) {
+        return firebase.firestore().collection('users')
+            .where('email', 'in', chunk)
+            .get()
+            .then(function(snapshot) {
+                console.log('👥 Found', snapshot.size, 'users for lastLogin lookup');
+                snapshot.forEach(function(doc) {
+                    var data = doc.data();
+                    if (data.email) {
+                        userLastLogins[data.email.toLowerCase()] = data.lastLogin;
+                    }
+                });
+            });
+    });
+
+    return Promise.all(promises).then(function() {
+        // Attach lastLogin to each SOW
+        sows.forEach(function(sow) {
+            if (sow.clientEmail) {
+                sow.clientLastLogin = userLastLogins[sow.clientEmail.toLowerCase()] || null;
+            }
+        });
+    });
+};
+
 // New function to load SOW documents
 ContractFormHandler.prototype.loadSOWDocuments = function() {
     var self = this;
@@ -3417,12 +3466,15 @@ ContractFormHandler.prototype.loadSOWDocuments = function() {
                 }
             });
 
-            // If there are change requests, fetch them to check for unread messages
-            if (changeRequestIds.length > 0) {
-                self.fetchChangeRequestsUnreadStatus(changeRequestIds, sows);
-            } else {
-                self.renderSOWTab(sows);
-            }
+            // Fetch user lastLogin data for all SOWs
+            return self.fetchClientLastLogins(sows).then(function() {
+                // If there are change requests, fetch them to check for unread messages
+                if (changeRequestIds.length > 0) {
+                    self.fetchChangeRequestsUnreadStatus(changeRequestIds, sows);
+                } else {
+                    self.renderSOWTab(sows);
+                }
+            });
         })
         .catch(function(error) {
             console.error('Error loading SOWs:', error);
@@ -3586,6 +3638,7 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
                 '<div class="sow-client-info">' +
                 '<h4>' + (sow.clientName || 'Unknown Client') + '</h4>' +
                 '<p class="sow-package">' + (packageNames[sow.packageType] || sow.packageType) + '</p>' +
+                '<p style="margin: 0.25rem 0 0; font-size: 0.7rem; color: #6b7280; opacity: 0.8;">Last sign in: ' + (sow.clientLastLogin ? (sow.clientLastLogin.toDate ? sow.clientLastLogin.toDate().toLocaleString([], {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'}) : new Date(sow.clientLastLogin).toLocaleString([], {month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit'})) : 'Never') + '</p>' +
                 '</div>' +
                 '<div style="display: flex; flex-direction: column; align-items: flex-end; gap: 8px;">' +
                 '<span class="sow-status" style="background: ' + statusStyle.bg + '; color: ' + statusStyle.color + ';">' +
@@ -7018,15 +7071,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         new Date(startDate).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) :
         'To be determined';
 
-    // Open new window for PDF
-    var printWindow = window.open('', '_blank');
-
-    if (!printWindow) {
-        alert('Please allow popups to download the PDF');
-        return;
-    }
-
-    // Build HTML
+    // Build HTML first, then open window with Blob URL
     var htmlContent = '<!DOCTYPE html>' +
     '<html><head>' +
     '<title>Statement of Work - ' + clientName + '</title>' +
@@ -7088,7 +7133,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '.maintenance-name { font-weight: bold; font-size: 10pt; }' +
     '.maintenance-price { font-weight: bold; }' +
     '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
-    '@media print { body { padding: 0.4in 0.6in; } }' +
+    '@media print { body { padding: 0.4in 0.6in; } @page { margin: 0.5in 0.75in 0.5in 0.75in; } }' +
     '@page { margin: 0.5in 0.75in; size: letter; }' +
     '</style>' +
     '</head><body>' +
@@ -7140,20 +7185,32 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<h3 style="font-size: 9pt; margin-top: 10px;">Included in This Package:</h3>' +
     '<ul class="feature-list">';
 
-    packageInfo.includes.forEach(function(item) {
-        htmlContent += '<li>' + item + '</li>';
-    });
+    // For custom quotes, show selected features; for packages, show package includes
+    if (packageType === 'custom' && addOns && addOns.length > 0) {
+        addOns.forEach(function(addon) {
+            htmlContent += '<li>' + addon.label + '</li>';
+        });
+    } else {
+        packageInfo.includes.forEach(function(item) {
+            htmlContent += '<li>' + item + '</li>';
+        });
+    }
 
     htmlContent += '</ul></div></div>';
 
-    // ADDITIONAL FEATURES
-    if (features && features.length > 0) {
+    // ADDITIONAL FEATURES - Only show true add-ons (priced items not included in base package)
+    // For custom quotes, all features are included in the custom price, so skip this section
+    var trueAddOns = (addOns && packageType !== 'custom') ? addOns.filter(function(addon) {
+        return addon.price > 0;
+    }) : [];
+
+    if (trueAddOns.length > 0) {
         htmlContent += '<div class="section">' +
         '<h2>3. Additional Features</h2>' +
         '<div class="info-box">' +
         '<ul class="feature-list">';
-        features.forEach(function(feature) {
-            htmlContent += '<li>' + feature + '</li>';
+        trueAddOns.forEach(function(addon) {
+            htmlContent += '<li>' + addon.label + '</li>';
         });
         htmlContent += '</ul></div></div>';
     }
@@ -7161,14 +7218,14 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     // SPECIAL REQUIREMENTS
     if (notes && notes.trim()) {
         htmlContent += '<div class="section">' +
-        '<h2>' + (features && features.length > 0 ? '4' : '3') + '. Special Requirements & Notes</h2>' +
+        '<h2>' + (trueAddOns.length > 0 ? '4' : '3') + '. Special Requirements & Notes</h2>' +
         '<div class="info-box">' +
         '<p style="font-size: 9pt; margin-bottom: 0;">' + notes + '</p>' +
         '</div>' +
         '</div>';
     }
 
-    var sectionNum = 3 + (features && features.length > 0 ? 1 : 0) + (notes && notes.trim() ? 1 : 0);
+    var sectionNum = 3 + (trueAddOns.length > 0 ? 1 : 0) + (notes && notes.trim() ? 1 : 0);
 
     // PROJECT TIMELINE (hidden for retroactive projects)
     if (!isRetroactive) {
@@ -7518,8 +7575,21 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '</script>' +
     '</body></html>';
 
-    printWindow.document.write(htmlContent);
-    printWindow.document.close();
+    // Create Blob URL for cleaner print footer
+    var blob = new Blob([htmlContent], { type: 'text/html' });
+    var blobUrl = URL.createObjectURL(blob);
+    var printWindow = window.open(blobUrl, '_blank');
+
+    if (!printWindow) {
+        URL.revokeObjectURL(blobUrl);
+        alert('Please allow popups to download the PDF');
+        return;
+    }
+
+    // Clean up blob URL after window loads
+    printWindow.onload = function() {
+        URL.revokeObjectURL(blobUrl);
+    };
 };
 
 // ============= FIXED: generateSOWPDFFromData - now passes data directly =============
