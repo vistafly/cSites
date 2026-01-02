@@ -2963,6 +2963,7 @@ ContractFormHandler.prototype.renderCouponsTab = function(coupons) {
         '<label class="tier-checkbox"><input type="checkbox" value="growth" checked> Growth</label>' +
         '<label class="tier-checkbox"><input type="checkbox" value="professional" checked> Professional</label>' +
         '<label class="tier-checkbox"><input type="checkbox" value="enterprise" checked> Enterprise</label>' +
+        '<label class="tier-checkbox"><input type="checkbox" value="custom" checked> Custom</label>' +
         '</div>' +
         '<small>Select which tiers this coupon can be applied to</small>' +
         '</div>' +
@@ -4859,6 +4860,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<h5><span class="section-icon">🔧</span> Ongoing Maintenance Plan</h5>' +
         '<select id="sowMaintenance" class="sow-select" required>' +
         '<option value="">Select a maintenance plan...</option>' +
+        '<option value="none">No Maintenance — $0/month</option>' +
         '<option value="basic" selected>Basic Care — $110-$225/month (2-3 hrs/mo)</option>' +
         '<option value="professional">Professional Care — $220-$450/month (4-6 hrs/mo)</option>' +
         '<option value="premium">Premium Care — $440-$900/month (8-12 hrs/mo)</option>' +
@@ -5732,10 +5734,11 @@ ContractFormHandler.prototype.calculateFeatureBasedPricing = function(packagePri
 
         if (isChecked && !isIncluded) {
             // Add-on: checked but not included in package
+            // For custom quotes: list feature but with $0 price (custom price already includes everything)
             result.addOns.push({
                 key: featureKey,
                 label: labelText,
-                price: pricing.default,
+                price: packageType === 'custom' ? 0 : pricing.default,
                 thirdParty: pricing.thirdParty,
                 note: pricing.note || ''
             });
@@ -5756,10 +5759,11 @@ ContractFormHandler.prototype.calculateFeatureBasedPricing = function(packagePri
         if (ecommercePricing[result.ecommerceOption]) {
             result.ecommercePrice = ecommercePricing[result.ecommerceOption].price;
             if (result.ecommercePrice > 0) {
+                // For custom quotes: list e-commerce but with $0 price (custom price already includes everything)
                 result.addOns.push({
                     key: 'ecommerce_' + result.ecommerceOption,
                     label: ecommercePricing[result.ecommerceOption].label,
-                    price: result.ecommercePrice,
+                    price: packageType === 'custom' ? 0 : result.ecommercePrice,
                     thirdParty: ecommercePricing[result.ecommerceOption].thirdParty,
                     note: ecommercePricing[result.ecommerceOption].note || ''
                 });
@@ -5863,14 +5867,18 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
     });
 
     if (nonEcommerceAddOns.length > 0) {
-        html += '<div class="pricing-section-header">Add-Ons</div>';
+        // For custom quotes, show as "Included Features" instead of "Add-Ons"
+        html += '<div class="pricing-section-header">' + (packageType === 'custom' ? 'Included Features' : 'Add-Ons') + '</div>';
         nonEcommerceAddOns.forEach(function(item) {
             var label = featureLabels[item.key] || item.label;
+            var priceDisplay = item.price === 0 ?
+                '<span class="included-badge">Included</span>' :
+                '+$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
             html += '<div class="pricing-line-item add-on">' +
                 '<span class="item-label">' + label +
                 (item.thirdParty ? ' <span class="third-party-note">+ ' + item.note + '</span>' : '') +
                 '</span>' +
-                '<span class="item-price">+$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
+                '<span class="item-price">' + priceDisplay + '</span>' +
                 '</div>';
         });
     }
@@ -5878,13 +5886,16 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
     // E-commerce (if selected)
     if (ecommerceAddOn) {
         if (nonEcommerceAddOns.length === 0) {
-            html += '<div class="pricing-section-header">Add-Ons</div>';
+            html += '<div class="pricing-section-header">' + (packageType === 'custom' ? 'Included Features' : 'Add-Ons') + '</div>';
         }
+        var ecommercePriceDisplay = ecommerceAddOn.price === 0 ?
+            '<span class="included-badge">Included</span>' :
+            '+$' + ecommerceAddOn.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
         html += '<div class="pricing-line-item add-on ecommerce-item">' +
             '<span class="item-label">' + ecommerceAddOn.label +
             (ecommerceAddOn.thirdParty ? ' <span class="third-party-note">+ ' + ecommerceAddOn.note + '</span>' : '') +
             '</span>' +
-            '<span class="item-price">+$' + ecommerceAddOn.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
+            '<span class="item-price">' + ecommercePriceDisplay + '</span>' +
             '</div>';
     }
 
@@ -5958,12 +5969,21 @@ ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, mainte
     pricingData.coupon = null;
     pricingData.couponDiscount = 0;
 
+    // Store original base price before any coupon modifications
+    // This ensures basePrice is NEVER changed by coupon logic
+    var originalBasePrice = pricingData.basePrice;
+
     if (selectedCouponCode && this.coupons) {
-        var validation = this.validateCoupon(selectedCouponCode, pricingData.packageType, pricingData.total);
+        // For custom quotes, calculate coupon based on the entered price (basePrice), not total
+        // This prevents double-discounting if something modified total
+        var couponBase = pricingData.packageType === 'custom' ? pricingData.basePrice : pricingData.total;
+        var validation = this.validateCoupon(selectedCouponCode, pricingData.packageType, couponBase);
         if (validation.valid) {
             pricingData.coupon = validation.coupon;
             pricingData.couponDiscount = validation.discount;
-            pricingData.total = Math.max(0, pricingData.total - validation.discount);
+            pricingData.total = Math.max(0, pricingData.basePrice - validation.discount);
+            // Ensure basePrice remains the original entered value
+            pricingData.basePrice = originalBasePrice;
 
             // Show success message
             if (couponMessage) {
@@ -6906,7 +6926,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         'none': {
             name: 'No Maintenance Plan',
             price: '$0/month',
-            description: 'No ongoing maintenance. Support ends after the included post-launch period.',
+            description: 'Developer will NOT provide any ongoing maintenance, updates, or support after the post-launch period ends. Client is solely responsible for website maintenance.',
             includes: []
         },
         'basic': {
@@ -7196,26 +7216,17 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '<td style="width: 30%; text-align: right;"><strong>$' + basePrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
     '</tr>';
 
-    // Add-ons
+    // Add-ons / Included Features (for custom quotes, show as "Included" instead of price)
     if (addOns && addOns.length > 0) {
         addOns.forEach(function(addon) {
+            var priceDisplay = addon.price === 0 ?
+                '<span style="color: #2e7d32; font-style: italic;">Included</span>' :
+                '<span style="color: #2e7d32;">+$' + addon.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>';
             htmlContent += '<tr>' +
             '<td>' + addon.label + '</td>' +
-            '<td style="text-align: right; color: #2e7d32;">+$' + addon.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+            '<td style="text-align: right;">' + priceDisplay + '</td>' +
             '</tr>';
         });
-    }
-
-    // E-commerce option
-    if (ecommerceOption && ecommerceOption !== 'none' && ecommercePrice > 0) {
-        var ecommerceLabels = {
-            'basic_cart': 'Basic E-Commerce Setup',
-            'full_store': 'Full E-Commerce Store'
-        };
-        htmlContent += '<tr>' +
-        '<td>' + (ecommerceLabels[ecommerceOption] || 'E-Commerce') + '</td>' +
-        '<td style="text-align: right; color: #2e7d32;">+$' + ecommercePrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
-        '</tr>';
     }
 
     // Discounts (removed features)
@@ -7253,10 +7264,26 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         'starter': { local: '$4,000 - $8,000', localHigh: 8000 },
         'growth': { local: '$8,000 - $15,000', localHigh: 15000 },
         'professional': { local: '$15,000 - $35,000', localHigh: 35000 },
-        'enterprise': { local: '$35,000 - $80,000', localHigh: 80000 },
-        'custom': { local: '$20,000 - $80,000+', localHigh: 80000 }
+        'enterprise': { local: '$35,000 - $80,000', localHigh: 80000 }
     };
-    var tierRates = marketRates[packageType] || marketRates['starter'];
+
+    // For custom quotes, match to the closest tier based on the actual price
+    var tierRates;
+    if (packageType === 'custom') {
+        if (totalPrice <= 3000) {
+            tierRates = marketRates['essential'];
+        } else if (totalPrice <= 6000) {
+            tierRates = marketRates['starter'];
+        } else if (totalPrice <= 12000) {
+            tierRates = marketRates['growth'];
+        } else if (totalPrice <= 25000) {
+            tierRates = marketRates['professional'];
+        } else {
+            tierRates = marketRates['enterprise'];
+        }
+    } else {
+        tierRates = marketRates[packageType] || marketRates['starter'];
+    }
     var potentialSavings = Math.max(0, tierRates.localHigh - totalPrice);
 
     htmlContent += '<div class="section" style="page-break-inside: avoid;">' +
@@ -7365,6 +7392,14 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         '</div>' +
         '<p style="font-size: 9pt; margin: 10px 0;">' + maintenanceInfo.description + '</p>';
 
+        // Show warning box for No Maintenance selection
+        if (maintenancePlan === 'none') {
+            htmlContent += '<div style="background: #fff3cd; border: 2px solid #856404; padding: 12px; margin: 10px 0; border-radius: 4px;">' +
+                '<p style="font-size: 9pt; margin: 0; color: #856404; font-weight: bold;">⚠️ IMPORTANT NOTICE:</p>' +
+                '<p style="font-size: 9pt; margin: 5px 0 0; color: #856404;">By selecting No Maintenance Plan, Client acknowledges and agrees that Developer will NOT provide any ongoing maintenance, updates, security patches, bug fixes, or technical support after the included post-launch support period ends. Client assumes full responsibility for all website maintenance going forward.</p>' +
+                '</div>';
+        }
+
         if (maintenanceInfo.includes && maintenanceInfo.includes.length > 0) {
             htmlContent += '<h3 style="font-size: 9pt; margin-top: 10px;">Maintenance Includes:</h3>' +
             '<ul>';
@@ -7374,9 +7409,15 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
             htmlContent += '</ul>';
         }
 
-        htmlContent += '</div>' +
-    '<p style="font-size: 8pt; font-style: italic;">Begins after post-launch support. Billed monthly. 30-day cancellation notice. See Agreement Section 7.</p>' +
-    '</div>';
+        htmlContent += '</div>';
+
+    // Different footer text based on maintenance selection
+    if (maintenancePlan === 'none') {
+        htmlContent += '<p style="font-size: 8pt; font-style: italic;">Support ends after the included post-launch period. See Agreement Section 7.</p>';
+    } else {
+        htmlContent += '<p style="font-size: 8pt; font-style: italic;">Begins after post-launch support. Billed monthly. 30-day cancellation notice. See Agreement Section 7.</p>';
+    }
+    htmlContent += '</div>';
 
     sectionNum++;
 
@@ -7555,7 +7596,11 @@ ContractFormHandler.prototype.editSOW = function(sow) {
             if (sow.packageType === 'custom') {
                 if (fields.customSection) fields.customSection.style.display = 'block';
                 if (fields.customPrice && sow.payment) {
-                    fields.customPrice.value = sow.payment.total || '';
+                    // Use original basePrice from breakdown, NOT the discounted total
+                    var originalPrice = (sow.payment.breakdown && sow.payment.breakdown.basePrice)
+                        ? sow.payment.breakdown.basePrice
+                        : sow.payment.total;
+                    fields.customPrice.value = originalPrice || '';
                 }
             }
         }
@@ -10784,7 +10829,15 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>';
     
     // Maintenance
-    if (sowData.maintenancePlan && sowData.maintenancePlan !== 'none') {
+    if (sowData.maintenancePlan === 'none') {
+        htmlContent += '<div class="section">' +
+            '<h2>Ongoing Maintenance</h2>' +
+            '<div class="info-box" style="background: #fff3cd; border-color: #856404;">' +
+            '<h3 style="color: #856404;">No Maintenance Plan — $0/month</h3>' +
+            '<p style="color: #856404;"><strong>⚠️ IMPORTANT:</strong> Developer will NOT provide any ongoing maintenance, updates, security patches, bug fixes, or technical support after the post-launch period ends. Client is solely responsible for website maintenance.</p>' +
+            '</div>' +
+            '</div>';
+    } else if (sowData.maintenancePlan) {
         htmlContent += '<div class="section">' +
             '<h2>Ongoing Maintenance</h2>' +
             '<div class="info-box">' +
