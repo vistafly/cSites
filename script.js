@@ -7135,6 +7135,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     '.maintenance-name { font-weight: bold; font-size: 10pt; }' +
     '.maintenance-price { font-weight: bold; }' +
     '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
+    '@media screen and (max-width: 768px) { body { padding: 0.3in 0.25in; } .sow-container { max-width: 100%; } }' +
     '@media print { body { padding: 0.4in 0.6in; } @page { margin: 0.5in 0.75in 0.5in 0.75in; } }' +
     '@page { margin: 0.5in 0.75in; size: letter; }' +
     '</style>' +
@@ -10389,6 +10390,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '.important { font-weight: bold; text-transform: uppercase; }' +
         '.indented { margin-left: 25px; }' +
         '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
+        '@media screen and (max-width: 768px) { body { padding: 0.3in 0.25in; } .contract-container { max-width: 100%; } }' +
         '@media print { body { padding: 0.5in 0.75in; } .signature-page { page-break-before: always; } }' +
         '@page { margin: 0.75in 1in; size: letter; }' +
         '</style>' +
@@ -10677,6 +10679,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '.total-row { font-weight: bold; font-size: 11pt; border-top: 2px solid #000; }' +
         '.highlight { font-weight: bold; }' +
         '.logo { max-width: 180px; max-height: 60px; margin-bottom: 15px; }' +
+        '@media screen and (max-width: 768px) { body { padding: 0.3in 0.25in; } }' +
         '@media print { body { padding: 0.5in 0.75in; } .signature-page, .page-break { page-break-before: always; } }' +
         '@page { margin: 0.75in 1in; size: letter; }' +
         '</style>' +
