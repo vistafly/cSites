@@ -5815,6 +5815,29 @@ function prefillSOWFromURL() {
     if (email || phone) {
         var addUserForm = document.getElementById('addUserForm');
         if (addUserForm) addUserForm.style.display = 'block';
+
+        // Set client ID toggle to correct mode (email vs phone)
+        var clientIdToggle = document.getElementById('clientIdTypeToggle');
+        var sowClientEmail = document.getElementById('sowClientEmail');
+        var sowClientPhone = document.getElementById('sowClientPhone');
+        var emailLabel = document.getElementById('emailToggleLabel');
+        var phoneLabel = document.getElementById('phoneToggleLabel');
+
+        if (phone && !email) {
+            // Phone mode
+            if (clientIdToggle) clientIdToggle.checked = true;
+            if (sowClientEmail) sowClientEmail.style.display = 'none';
+            if (sowClientPhone) sowClientPhone.style.display = 'block';
+            if (emailLabel) emailLabel.classList.remove('active');
+            if (phoneLabel) phoneLabel.classList.add('active');
+        } else if (email) {
+            // Email mode (default)
+            if (clientIdToggle) clientIdToggle.checked = false;
+            if (sowClientPhone) sowClientPhone.style.display = 'none';
+            if (sowClientEmail) sowClientEmail.style.display = 'block';
+            if (phoneLabel) phoneLabel.classList.remove('active');
+            if (emailLabel) emailLabel.classList.add('active');
+        }
     }
 
     if (pkg && validPackages.indexOf(pkg) !== -1) {
