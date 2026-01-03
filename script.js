@@ -752,7 +752,7 @@ RotatingText.prototype.rotate = function() {
         }
 
         // Skip developer email - they don't need to be in the users dropdown
-        var developerEmail = window.VITE_DEVELOPER_EMAIL || 'vistafly.services@gmail.com';
+        var developerEmail = window.VITE_DEVELOPER_EMAIL || '';
         if (user.email && user.email.toLowerCase() === developerEmail.toLowerCase()) {
             console.log('⚠️ Developer email, skipping save');
             return;
@@ -5809,7 +5809,14 @@ function checkSOWURLParams() {
     var hasSOWParams = params.has('business') || params.has('phone') || params.has('email') || params.has('package');
 
     if (hasSOWParams && window.contractFormHandler && typeof window.contractFormHandler.showSOWCreator === 'function') {
-        window.contractFormHandler.showSOWCreator();
+        // Switch to SOW tab first
+        if (typeof window.contractFormHandler.switchTab === 'function') {
+            window.contractFormHandler.switchTab('sow');
+        }
+        // Small delay to ensure tab is visible before opening creator
+        setTimeout(function() {
+            window.contractFormHandler.showSOWCreator();
+        }, 100);
     }
 }
 
