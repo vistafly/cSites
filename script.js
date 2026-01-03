@@ -5762,7 +5762,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
 };
 
 // Prefill SOW form from URL parameters
-// Usage: scarlo.dev/sow?business=BusinessName&phone=5551234567&email=test@email.com&package=essential
+// Usage: scarlo.dev/sow?business=BusinessName&phone=5551234567&email=test@email.com&package=essential&features=responsive_design,analytics,firebase_auth&ecommerce=basic_cart&maintenance=basic
 function prefillSOWFromURL() {
     var params = new URLSearchParams(window.location.search);
 
@@ -5770,9 +5770,23 @@ function prefillSOWFromURL() {
     var phone = params.get('phone');
     var email = params.get('email');
     var pkg = params.get('package');
+    var features = params.get('features');
+    var ecommerce = params.get('ecommerce');
+    var maintenance = params.get('maintenance');
 
-    // Validate package against allowed values
+    // Validate against allowed values
     var validPackages = ['essential', 'starter', 'growth', 'professional', 'enterprise', 'custom'];
+    var validFeatures = [
+        // Standard Features
+        'responsive_design', 'custom_ui', 'animations', 'seo_optimization', 'analytics', 'contact_forms',
+        // Premium Add-ons
+        'firebase_auth', 'firebase_db', 'user_profiles', 'file_storage', 'api_integration',
+        'email_integration', 'music_media', 'booking_basic', 'newsletter', 'social_feed',
+        // Enterprise Features
+        'user_roles', 'cms_integration', 'booking_system', 'blog', 'gallery', 'notifications'
+    ];
+    var validEcommerce = ['none', 'basic_cart', 'full_store'];
+    var validMaintenance = ['none', 'basic', 'professional', 'premium'];
 
     if (business) {
         var businessNameField = document.getElementById('sowBusinessName');
@@ -5783,14 +5797,18 @@ function prefillSOWFromURL() {
     if (phone) {
         var clientPhoneField = document.getElementById('sowClientPhone');
         var businessPhoneField = document.getElementById('sowBusinessPhone');
+        var addUserPhoneField = document.getElementById('addUserPhone');
         if (clientPhoneField) clientPhoneField.value = phone;
         if (businessPhoneField) businessPhoneField.value = phone;
+        if (addUserPhoneField) addUserPhoneField.value = phone;
     }
     if (email) {
         var clientEmailField = document.getElementById('sowClientEmail');
         var businessEmailField = document.getElementById('sowBusinessEmail');
+        var addUserEmailField = document.getElementById('addUserEmail');
         if (clientEmailField) clientEmailField.value = email;
         if (businessEmailField) businessEmailField.value = email;
+        if (addUserEmailField) addUserEmailField.value = email;
     }
     if (pkg && validPackages.indexOf(pkg) !== -1) {
         var packageSelect = document.getElementById('sowPackage');
@@ -5799,6 +5817,42 @@ function prefillSOWFromURL() {
             // Trigger change event to update pricing
             var event = new Event('change', { bubbles: true });
             packageSelect.dispatchEvent(event);
+        }
+    }
+
+    // Check feature checkboxes from comma-separated list
+    if (features) {
+        var featureList = features.split(',').map(function(f) { return f.trim().toLowerCase(); });
+        featureList.forEach(function(featureValue) {
+            if (validFeatures.indexOf(featureValue) !== -1) {
+                var checkbox = document.querySelector('.sow-checkboxes input[type="checkbox"][value="' + featureValue + '"]');
+                if (checkbox) {
+                    checkbox.checked = true;
+                    // Trigger change event for pricing update
+                    var event = new Event('change', { bubbles: true });
+                    checkbox.dispatchEvent(event);
+                }
+            }
+        });
+    }
+
+    // Set e-commerce option (radio button)
+    if (ecommerce && validEcommerce.indexOf(ecommerce) !== -1) {
+        var ecommerceRadio = document.querySelector('input[name="ecommerce_option"][value="' + ecommerce + '"]');
+        if (ecommerceRadio) {
+            ecommerceRadio.checked = true;
+            var event = new Event('change', { bubbles: true });
+            ecommerceRadio.dispatchEvent(event);
+        }
+    }
+
+    // Set maintenance plan
+    if (maintenance && validMaintenance.indexOf(maintenance) !== -1) {
+        var maintenanceSelect = document.getElementById('sowMaintenance');
+        if (maintenanceSelect) {
+            maintenanceSelect.value = maintenance;
+            var event = new Event('change', { bubbles: true });
+            maintenanceSelect.dispatchEvent(event);
         }
     }
 }
