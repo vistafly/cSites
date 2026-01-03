@@ -700,6 +700,7 @@ RotatingText.prototype.rotate = function() {
     };
 
     FirebaseAuthHandler.prototype.handleAuthStateChange = function(user) {
+        var self = this;
         this.currentUser = user;
 
         var authBtn = $('#authActionBtn');
@@ -720,6 +721,20 @@ RotatingText.prototype.rotate = function() {
 
             // Save/update user info in Firestore users collection
             this.saveUserToFirestore(user);
+
+            // Auto-open contract modal for developer if SOW URL params are present
+            var developerEmail = (window.VITE_DEVELOPER_EMAIL || '').trim().toLowerCase();
+            var userEmail = user.email ? user.email.trim().toLowerCase() : '';
+            if (userEmail && userEmail === developerEmail) {
+                var params = new URLSearchParams(window.location.search);
+                var hasSOWParams = params.has('business') || params.has('phone') || params.has('email') || params.has('package');
+                if (hasSOWParams) {
+                    // Delay slightly to ensure everything is initialized
+                    setTimeout(function() {
+                        self.showContractModal();
+                    }, 300);
+                }
+            }
         } else {
             console.log('User signed out');
             if (authBtn) authBtn.classList.remove('logged-in');
@@ -3714,10 +3729,13 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
     
     // SOW Creator Container
     html += '<div id="sowCreatorContainer" style="display: none;"></div>';
-    
+
     sowContent.innerHTML = html;
-    
+
     console.log('✓ SOW tab rendered with', sows.length, 'items');
+
+    // Check for SOW URL parameters and auto-open SOW creator (now that container exists)
+    checkSOWURLParams();
 };
 
 // Helper function to view SOW details
@@ -11398,9 +11416,6 @@ var SectionSeparatorGlow = function() {
     new FormHandler();
     new FirebaseAuthHandler();
     window.contractFormHandler = new ContractFormHandler();
-
-    // Check for SOW URL parameters and auto-open SOW creator
-    checkSOWURLParams();
 
     new PageLoader();
     new CustomCursor();
