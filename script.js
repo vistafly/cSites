@@ -5738,7 +5738,62 @@ ContractFormHandler.prototype.showSOWCreator = function() {
             self.generateSOWPDF();
         });
     }
+
+    // Prefill SOW form from URL parameters
+    prefillSOWFromURL();
 };
+
+// Prefill SOW form from URL parameters
+// Usage: scarlo.dev/sow?business=BusinessName&phone=5551234567&email=test@email.com&package=essential
+function prefillSOWFromURL() {
+    var params = new URLSearchParams(window.location.search);
+
+    var business = params.get('business');
+    var phone = params.get('phone');
+    var email = params.get('email');
+    var pkg = params.get('package');
+
+    // Validate package against allowed values
+    var validPackages = ['essential', 'starter', 'growth', 'professional', 'enterprise', 'custom'];
+
+    if (business) {
+        var businessNameField = document.getElementById('sowBusinessName');
+        var clientNameField = document.getElementById('sowClientName');
+        if (businessNameField) businessNameField.value = business;
+        if (clientNameField) clientNameField.value = business;
+    }
+    if (phone) {
+        var clientPhoneField = document.getElementById('sowClientPhone');
+        var businessPhoneField = document.getElementById('sowBusinessPhone');
+        if (clientPhoneField) clientPhoneField.value = phone;
+        if (businessPhoneField) businessPhoneField.value = phone;
+    }
+    if (email) {
+        var clientEmailField = document.getElementById('sowClientEmail');
+        var businessEmailField = document.getElementById('sowBusinessEmail');
+        if (clientEmailField) clientEmailField.value = email;
+        if (businessEmailField) businessEmailField.value = email;
+    }
+    if (pkg && validPackages.indexOf(pkg) !== -1) {
+        var packageSelect = document.getElementById('sowPackage');
+        if (packageSelect) {
+            packageSelect.value = pkg;
+            // Trigger change event to update pricing
+            var event = new Event('change', { bubbles: true });
+            packageSelect.dispatchEvent(event);
+        }
+    }
+}
+
+// Auto-open SOW creator if URL has SOW parameters
+function checkSOWURLParams() {
+    var params = new URLSearchParams(window.location.search);
+    var hasSOWParams = params.has('business') || params.has('phone') || params.has('email') || params.has('package');
+
+    if (hasSOWParams && window.contractFormHandler && typeof window.contractFormHandler.showSOWCreator === 'function') {
+        window.contractFormHandler.showSOWCreator();
+    }
+}
 
 // Feature-based pricing calculation
 ContractFormHandler.prototype.calculateFeatureBasedPricing = function(packagePricing, featurePricing, ecommercePricing, packageIncludedFeatures) {
@@ -11343,6 +11398,10 @@ var SectionSeparatorGlow = function() {
     new FormHandler();
     new FirebaseAuthHandler();
     window.contractFormHandler = new ContractFormHandler();
+
+    // Check for SOW URL parameters and auto-open SOW creator
+    checkSOWURLParams();
+
     new PageLoader();
     new CustomCursor();
     new ViewportFix();
