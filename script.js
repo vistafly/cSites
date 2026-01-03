@@ -5810,6 +5810,13 @@ function prefillSOWFromURL() {
         if (businessEmailField) businessEmailField.value = email;
         if (addUserEmailField) addUserEmailField.value = email;
     }
+
+    // Show Add User form if email or phone is provided
+    if (email || phone) {
+        var addUserForm = document.getElementById('addUserForm');
+        if (addUserForm) addUserForm.style.display = 'block';
+    }
+
     if (pkg && validPackages.indexOf(pkg) !== -1) {
         var packageSelect = document.getElementById('sowPackage');
         if (packageSelect) {
