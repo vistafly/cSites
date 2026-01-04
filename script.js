@@ -3054,7 +3054,7 @@ ContractFormHandler.prototype.renderCouponCard = function(coupon) {
 
     var discountDisplay = coupon.discountType === 'percentage'
         ? coupon.discountValue + '% OFF'
-        : '$' + parseFloat(coupon.discountValue || 0).toFixed(2) + ' OFF';
+        : '$' + parseFloat(coupon.discountValue || 0).toFixed(0) + ' OFF';
 
     var statusBadge = '';
     if (!coupon.active) {
@@ -3083,7 +3083,7 @@ ContractFormHandler.prototype.renderCouponCard = function(coupon) {
         html += '<div class="detail-row"><span class="detail-label">Description:</span> ' + coupon.description + '</div>';
     }
     if (coupon.minPurchase && coupon.minPurchase > 0) {
-        html += '<div class="detail-row"><span class="detail-label">Min. Purchase:</span> $' + parseFloat(coupon.minPurchase).toFixed(2) + '</div>';
+        html += '<div class="detail-row"><span class="detail-label">Min. Purchase:</span> $' + parseFloat(coupon.minPurchase).toFixed(0) + '</div>';
     }
     if (coupon.usageLimit) {
         html += '<div class="detail-row"><span class="detail-label">Usage:</span> ' + (coupon.usageCount || 0) + ' / ' + coupon.usageLimit + '</div>';
@@ -3382,7 +3382,7 @@ ContractFormHandler.prototype.validateCoupon = function(code, packageType, order
 
     // Check minimum purchase
     if (coupon.minPurchase && orderTotal < coupon.minPurchase) {
-        return { valid: false, error: 'Minimum purchase of $' + coupon.minPurchase.toFixed(2) + ' required' };
+        return { valid: false, error: 'Minimum purchase of $' + coupon.minPurchase.toFixed(0) + ' required' };
     }
 
     // Check tier restriction
@@ -3404,7 +3404,7 @@ ContractFormHandler.prototype.validateCoupon = function(code, packageType, order
         valid: true,
         coupon: coupon,
         discount: discount,
-        discountDisplay: coupon.discountType === 'percentage' ? coupon.discountValue + '%' : '$' + coupon.discountValue.toFixed(2)
+        discountDisplay: coupon.discountType === 'percentage' ? coupon.discountValue + '%' : '$' + coupon.discountValue.toFixed(0)
     };
 };
 
@@ -3675,7 +3675,7 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
                 '</div>' +
                 '<div class="sow-detail-row">' +
                 '<span class="detail-label">💰 Total:</span>' +
-                '<span class="detail-value">$' + ((sow.payment && sow.payment.total) ? sow.payment.total.toFixed(2) : '0.00') + '</span>' +
+                '<span class="detail-value">$' + ((sow.payment && sow.payment.total) ? sow.payment.total.toFixed(0) : '0') + '</span>' +
                 '</div>' +
                 '<div class="sow-detail-row">' +
                 '<span class="detail-label">⏱️ Timeline:</span>' +
@@ -3742,7 +3742,7 @@ ContractFormHandler.prototype.renderSOWTab = function(sows) {
 ContractFormHandler.prototype.viewSOWDetails = function(sow) {
     alert('SOW Details for: ' + sow.clientName + '\n\n' +
         'Package: ' + sow.packageType + '\n' +
-        'Total: $' + (sow.payment ? sow.payment.total.toFixed(2) : '0.00') + '\n' +
+        'Total: $' + (sow.payment ? sow.payment.total.toFixed(0) : '0') + '\n' +
         'Timeline: ' + (sow.estimatedWeeks || 'TBD') + ' weeks\n' +
         'Features: ' + (sow.features ? sow.features.length : 0) + ' selected');
 };
@@ -3828,7 +3828,7 @@ ContractFormHandler.prototype.showChangeRequestModal = function(sowData) {
 
         '<div class="change-request-info" style="background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 1rem; margin-bottom: 1.5rem;">' +
         '<p style="margin: 0; font-size: 0.9rem;"><strong>📋 SOW:</strong> ' + (sowData.packageType || 'N/A') + ' Package</p>' +
-        '<p style="margin: 0.5rem 0 0; font-size: 0.9rem;"><strong>💰 Current Total:</strong> $' + (sowData.payment ? sowData.payment.total.toFixed(2) : '0.00') + '</p>' +
+        '<p style="margin: 0.5rem 0 0; font-size: 0.9rem;"><strong>💰 Current Total:</strong> $' + (sowData.payment ? sowData.payment.total.toFixed(0) : '0') + '</p>' +
         '</div>' +
 
         '<div class="form-group">' +
@@ -4168,7 +4168,7 @@ if (self.isDeveloper && request.status === 'pending') {
         '</div>' +
         '<div style="background: rgba(255,255,255,0.05); padding: 1rem; border-radius: 8px;">' +
         '<p style="margin: 0; font-size: 0.8rem; opacity: 0.7;">CURRENT TOTAL</p>' +
-        '<p style="margin: 0.25rem 0 0; font-weight: 600;">$' + (request.sowData.payment ? request.sowData.payment.total.toFixed(2) : '0.00') + '</p>' +
+        '<p style="margin: 0.25rem 0 0; font-weight: 600;">$' + (request.sowData.payment ? request.sowData.payment.total.toFixed(0) : '0') + '</p>' +
         '</div>' +
         '</div>' +
 
@@ -5166,7 +5166,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         activeCoupons.forEach(function(coupon) {
             var discountText = coupon.discountType === 'percentage'
                 ? coupon.discountValue + '% off'
-                : '$' + (coupon.discountValue || 0).toFixed(2) + ' off';
+                : '$' + (coupon.discountValue || 0).toFixed(0) + ' off';
             var option = document.createElement('option');
             option.value = coupon.code;
             option.textContent = coupon.code + ' — ' + discountText;
@@ -6055,7 +6055,7 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
     var packageLabel = packageTierNames[packageType] || (packageType.charAt(0).toUpperCase() + packageType.slice(1) + ' Package');
     html += '<div class="pricing-package-header">' +
         '<span class="package-name">' + packageLabel + '</span>' +
-        '<span class="package-price">$' + pricingData.basePrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
+        '<span class="package-price">$' + pricingData.basePrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span>' +
         '</div>';
 
     // Get included features for this package
@@ -6090,7 +6090,7 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
             var label = featureLabels[item.key] || item.label;
             var priceDisplay = item.price === 0 ?
                 '<span class="included-badge">Included</span>' :
-                '+$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+                '+$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
             html += '<div class="pricing-line-item add-on">' +
                 '<span class="item-label">' + label +
                 (item.thirdParty ? ' <span class="third-party-note">+ ' + item.note + '</span>' : '') +
@@ -6107,7 +6107,7 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
         }
         var ecommercePriceDisplay = ecommerceAddOn.price === 0 ?
             '<span class="included-badge">Included</span>' :
-            '+$' + ecommerceAddOn.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            '+$' + ecommerceAddOn.price.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0});
         html += '<div class="pricing-line-item add-on ecommerce-item">' +
             '<span class="item-label">' + ecommerceAddOn.label +
             (ecommerceAddOn.thirdParty ? ' <span class="third-party-note">+ ' + ecommerceAddOn.note + '</span>' : '') +
@@ -6123,7 +6123,7 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
             var label = featureLabels[item.key] || item.label;
             html += '<div class="pricing-line-item discount">' +
                 '<span class="item-label">' + label + '</span>' +
-                '<span class="item-price discount-value">-$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
+                '<span class="item-price discount-value">-$' + item.price.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span>' +
                 '</div>';
         });
     }
@@ -6135,12 +6135,12 @@ ContractFormHandler.prototype.renderItemizedPricing = function(pricingData, pack
         if (coupon.discountType === 'percentage') {
             discountLabel += ' (' + coupon.discountValue + '% off)';
         } else {
-            discountLabel += ' ($' + coupon.discountValue.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + ' off)';
+            discountLabel += ' ($' + coupon.discountValue.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + ' off)';
         }
         html += '<div class="pricing-section-header coupon-header">Discount Applied</div>';
         html += '<div class="pricing-line-item coupon-discount">' +
             '<span class="item-label"><span class="coupon-icon">🎟️</span> ' + discountLabel + '</span>' +
-            '<span class="item-price coupon-value">-$' + pricingData.couponDiscount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>' +
+            '<span class="item-price coupon-value">-$' + pricingData.couponDiscount.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span>' +
             '</div>';
     }
 
@@ -6198,7 +6198,7 @@ ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, mainte
         if (validation.valid) {
             pricingData.coupon = validation.coupon;
             pricingData.couponDiscount = validation.discount;
-            pricingData.total = Math.max(0, pricingData.basePrice - validation.discount);
+            pricingData.total = Math.max(0, pricingData.total - validation.discount);
             // Ensure basePrice remains the original entered value
             pricingData.basePrice = originalBasePrice;
 
@@ -6240,10 +6240,10 @@ ContractFormHandler.prototype.updateSOWPricing = function(packagePricing, mainte
     var maintenanceEl = $('#sowMaintenanceCalc');
     var maintenanceRow = $('#maintenanceRow');
 
-    if (totalPriceEl) totalPriceEl.textContent = '$' + totalPrice.toFixed(2);
-    if (depositEl) depositEl.textContent = '$' + deposit.toFixed(2);
-    if (milestone1El) milestone1El.textContent = '$' + milestone1.toFixed(2);
-    if (finalEl) finalEl.textContent = '$' + finalPayment.toFixed(2);
+    if (totalPriceEl) totalPriceEl.textContent = '$' + totalPrice.toFixed(0);
+    if (depositEl) depositEl.textContent = '$' + deposit.toFixed(0);
+    if (milestone1El) milestone1El.textContent = '$' + milestone1.toFixed(0);
+    if (finalEl) finalEl.textContent = '$' + finalPayment.toFixed(0);
 
     // Always show maintenance row (maintenance is required)
     if (maintenanceRow) maintenanceRow.style.display = 'flex';
@@ -6532,7 +6532,7 @@ ContractFormHandler.prototype.renderSOWSigningModal = function(sowData) {
         '<h2>SOW Summary</h2>' +
         '<p><strong>Client:</strong> ' + sowData.clientName + '</p>' +
         '<p><strong>Package:</strong> ' + sowData.packageType + '</p>' +
-        '<p><strong>Total Cost:</strong> $' + (sowData.payment ? sowData.payment.total.toFixed(2) : '0.00') + '</p>' +
+        '<p><strong>Total Cost:</strong> $' + (sowData.payment ? sowData.payment.total.toFixed(0) : '0') + '</p>' +
         '<p><strong>Timeline:</strong> ' + (sowData.estimatedWeeks || 'TBD') + ' weeks</p>' +
         '<p><strong>Features:</strong> ' + (sowData.features ? sowData.features.length : 0) + ' selected</p>' +
         '</div>' +
@@ -7437,7 +7437,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     // Base package
     htmlContent += '<tr>' +
     '<td style="width: 70%;"><strong>' + packageInfo.name + '</strong></td>' +
-    '<td style="width: 30%; text-align: right;"><strong>$' + basePrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '<td style="width: 30%; text-align: right;"><strong>$' + basePrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></td>' +
     '</tr>';
 
     // Add-ons / Included Features (for custom quotes, show as "Included" instead of price)
@@ -7445,7 +7445,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         addOns.forEach(function(addon) {
             var priceDisplay = addon.price === 0 ?
                 '<span style="color: #2e7d32; font-style: italic;">Included</span>' :
-                '<span style="color: #2e7d32;">+$' + addon.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</span>';
+                '<span style="color: #2e7d32;">+$' + addon.price.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</span>';
             htmlContent += '<tr>' +
             '<td>' + addon.label + '</td>' +
             '<td style="text-align: right;">' + priceDisplay + '</td>' +
@@ -7458,7 +7458,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         discounts.forEach(function(discount) {
             htmlContent += '<tr>' +
             '<td>' + discount.label + ' <span style="font-size: 8pt; color: #666;">(removed)</span></td>' +
-            '<td style="text-align: right; color: #c62828;">-$' + discount.price.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+            '<td style="text-align: right; color: #c62828;">-$' + discount.price.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</td>' +
             '</tr>';
         });
     }
@@ -7467,14 +7467,14 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
     if (couponCode && couponDiscount > 0) {
         htmlContent += '<tr>' +
         '<td>Coupon: ' + couponCode + '</td>' +
-        '<td style="text-align: right; color: #c62828;">-$' + couponDiscount.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</td>' +
+        '<td style="text-align: right; color: #c62828;">-$' + couponDiscount.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</td>' +
         '</tr>';
     }
 
     // Total row
     htmlContent += '<tr style="border-top: 2px solid #333;">' +
     '<td><strong>TOTAL</strong></td>' +
-    '<td style="text-align: right;"><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+    '<td style="text-align: right;"><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></td>' +
     '</tr>' +
     '</tbody>' +
     '</table>' +
@@ -7555,7 +7555,7 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         '<h2>' + sectionNum + '. Payment Summary</h2>' +
         '<div class="info-box" style="text-align: center; padding: 15px;">' +
         '<div style="font-size: 10pt; color: #666; margin-bottom: 5px;">Total Project Cost</div>' +
-        '<div style="font-size: 16pt; font-weight: bold;">$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</div>' +
+        '<div style="font-size: 16pt; font-weight: bold;">$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</div>' +
         '</div>' +
         '<p style="font-size: 9pt; font-style: italic;">Payment terms as agreed. IP rights transfer upon full payment (Section 6.6).</p>' +
         '</div>';
@@ -7578,24 +7578,24 @@ ContractFormHandler.prototype.generateSOWPDF = function(sowData) {
         '<td><strong>Deposit</strong></td>' +
         '<td>Before work begins</td>' +
         '<td>50%</td>' +
-        '<td><strong>$' + deposit.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '<td><strong>$' + deposit.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></td>' +
         '</tr>' +
         '<tr>' +
         '<td><strong>Milestone</strong></td>' +
         '<td>Upon design approval</td>' +
         '<td>25%</td>' +
-        '<td><strong>$' + milestone1.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '<td><strong>$' + milestone1.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></td>' +
         '</tr>' +
         '<tr>' +
         '<td><strong>Final</strong></td>' +
         '<td>Prior to deployment</td>' +
         '<td>25%</td>' +
-        '<td><strong>$' + finalPayment.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '<td><strong>$' + finalPayment.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></td>' +
         '</tr>' +
         '<tr class="total-row">' +
         '<td colspan="2"><strong>TOTAL PROJECT COST</strong></td>' +
         '<td><strong>100%</strong></td>' +
-        '<td><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 2, maximumFractionDigits: 2}) + '</strong></td>' +
+        '<td><strong>$' + totalPrice.toLocaleString('en-US', {minimumFractionDigits: 0, maximumFractionDigits: 0}) + '</strong></td>' +
         '</tr>' +
         '</tbody>' +
         '</table>' +
@@ -9104,7 +9104,7 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         '<tr class="base-package-row">' +
         '<td><strong>' + (packageNames[sowData.packageType] || 'Package') + '</strong></td>' +
         '<td>Base package price</td>' +
-        '<td><strong>$' + basePrice.toFixed(2) + '</strong></td>' +
+        '<td><strong>$' + basePrice.toFixed(0) + '</strong></td>' +
         '</tr>';
 
     // Add-ons (features added beyond package)
@@ -9114,7 +9114,7 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
             html += '<tr class="addon-row">' +
                 '<td>' + addon.label + thirdPartyNote + '</td>' +
                 '<td>Additional feature</td>' +
-                '<td class="addon-price">+$' + addon.price.toFixed(2) + '</td>' +
+                '<td class="addon-price">+$' + addon.price.toFixed(0) + '</td>' +
                 '</tr>';
         });
     }
@@ -9125,7 +9125,7 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
             html += '<tr class="discount-row">' +
                 '<td>' + discount.label + '</td>' +
                 '<td>Feature removed (50% credit)</td>' +
-                '<td class="discount-price">-$' + discount.price.toFixed(2) + '</td>' +
+                '<td class="discount-price">-$' + discount.price.toFixed(0) + '</td>' +
                 '</tr>';
         });
     }
@@ -9135,13 +9135,13 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         html += '<tr class="coupon-row">' +
             '<td>' + couponCode + '</td>' +
             '<td>Coupon discount</td>' +
-            '<td class="discount-price">-$' + couponDiscount.toFixed(2) + '</td>' +
+            '<td class="discount-price">-$' + couponDiscount.toFixed(0) + '</td>' +
             '</tr>';
     }
 
     html += '<tr class="sow-total-row">' +
         '<td colspan="2"><strong>Total Project Cost</strong></td>' +
-        '<td><strong>$' + totalPrice.toFixed(2) + '</strong></td>' +
+        '<td><strong>$' + totalPrice.toFixed(0) + '</strong></td>' +
         '</tr>' +
         '</tbody>' +
         '</table>';
@@ -9174,17 +9174,17 @@ ContractFormHandler.prototype.renderSOWForClientSigning = function(sowData) {
         '<tr>' +
         '<td><strong>Initial Deposit</strong></td>' +
         '<td>Due before work begins (50%)</td>' +
-        '<td><strong>$' + deposit.toFixed(2) + '</strong></td>' +
+        '<td><strong>$' + deposit.toFixed(0) + '</strong></td>' +
         '</tr>' +
         '<tr>' +
         '<td><strong>Milestone 1</strong></td>' +
         '<td>UI/UX Design Approval (25%)</td>' +
-        '<td><strong>$' + milestone1.toFixed(2) + '</strong></td>' +
+        '<td><strong>$' + milestone1.toFixed(0) + '</strong></td>' +
         '</tr>' +
         '<tr>' +
         '<td><strong>Final Payment</strong></td>' +
         '<td>Prior to deployment (25%)</td>' +
-        '<td><strong>$' + finalPayment.toFixed(2) + '</strong></td>' +
+        '<td><strong>$' + finalPayment.toFixed(0) + '</strong></td>' +
         '</tr>' +
         '</tbody>' +
         '</table>' +
@@ -10168,7 +10168,7 @@ ContractFormHandler.prototype.renderExistingCompletionView = function(contractDa
             '<div class="doc-card-body">' +
             '<div class="doc-field-row"><span class="field-label">Client Name:</span><span class="field-value">' + (sowData.clientName || 'N/A') + '</span></div>' +
             '<div class="doc-field-row"><span class="field-label">Package:</span><span class="field-value">' + (sowData.packageType || 'N/A') + '</span></div>' +
-            '<div class="doc-field-row"><span class="field-label">Total Cost:</span><span class="field-value">$' + (sowData.payment ? sowData.payment.total.toFixed(2) : '0.00') + '</span></div>' +
+            '<div class="doc-field-row"><span class="field-label">Total Cost:</span><span class="field-value">$' + (sowData.payment ? sowData.payment.total.toFixed(0) : '0') + '</span></div>' +
             '<div class="doc-field-row"><span class="field-label">Timeline:</span><span class="field-value">' + (sowData.estimatedWeeks || 'TBD') + ' weeks</span></div>' +
             '<div class="doc-field-row"><span class="field-label">Client Signed:</span><span class="field-value">' + (sowData.clientSignedDate || 'N/A') + '</span></div>' +
             (sowFullySigned ? '<div class="doc-field-row"><span class="field-label">Developer Signed:</span><span class="field-value">' + (sowData.devSignedDate || 'N/A') + '</span></div>' : '') +
@@ -10332,7 +10332,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '</div>' +
         '<div class="doc-field-row">' +
         '<span class="field-label">Total Cost:</span>' +
-        '<span class="field-value">$' + (sowData.payment ? sowData.payment.total.toFixed(2) : '0.00') + '</span>' +
+        '<span class="field-value">$' + (sowData.payment ? sowData.payment.total.toFixed(0) : '0') + '</span>' +
         '</div>' +
         '<div class="doc-field-row">' +
         '<span class="field-label">Timeline:</span>' +
@@ -11023,7 +11023,7 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
               '<p><strong>Representative:</strong> ' + representativeName + ', ' + representativeTitle + '</p>'
             : '<p><strong>Client Name:</strong> ' + (sowData.clientName || clientName) + '</p>') +
         '<p><strong>Contact:</strong> ' + (sowData.clientEmail || sowData.clientPhone || clientEmail || 'N/A') + '</p>' +
-        '<p><strong>Package:</strong> ' + (packageNames[sowData.packageType] || sowData.packageType) + ' <span class="highlight">$' + totalPrice.toFixed(2) + '</span></p>' +
+        '<p><strong>Package:</strong> ' + (packageNames[sowData.packageType] || sowData.packageType) + ' <span class="highlight">$' + totalPrice.toFixed(0) + '</span></p>' +
         '<p><strong>Estimated Timeline:</strong> ' + (sowData.estimatedWeeks || 'TBD') + ' weeks' + (sowData.startDate ? ' (Starting ' + new Date(sowData.startDate).toLocaleDateString() + ')' : '') + '</p>' +
         '</div>' +
         
@@ -11064,10 +11064,10 @@ ContractFormHandler.prototype.showDualSigningCompleted = function(contractData, 
         '<table class="payment-table">' +
         '<thead><tr><th>Payment Milestone</th><th>Description</th><th>Amount</th></tr></thead>' +
         '<tbody>' +
-        '<tr><td><strong>Initial Deposit</strong></td><td>Due before work begins (50%)</td><td><strong>$' + deposit.toFixed(2) + '</strong></td></tr>' +
-        '<tr><td><strong>Milestone 1</strong></td><td>UI/UX Design Approval (25%)</td><td><strong>$' + milestone1.toFixed(2) + '</strong></td></tr>' +
-        '<tr><td><strong>Final Payment</strong></td><td>Prior to deployment (25%)</td><td><strong>$' + finalPayment.toFixed(2) + '</strong></td></tr>' +
-        '<tr class="total-row"><td colspan="2">Total Project Cost</td><td>$' + totalPrice.toFixed(2) + '</td></tr>' +
+        '<tr><td><strong>Initial Deposit</strong></td><td>Due before work begins (50%)</td><td><strong>$' + deposit.toFixed(0) + '</strong></td></tr>' +
+        '<tr><td><strong>Milestone 1</strong></td><td>UI/UX Design Approval (25%)</td><td><strong>$' + milestone1.toFixed(0) + '</strong></td></tr>' +
+        '<tr><td><strong>Final Payment</strong></td><td>Prior to deployment (25%)</td><td><strong>$' + finalPayment.toFixed(0) + '</strong></td></tr>' +
+        '<tr class="total-row"><td colspan="2">Total Project Cost</td><td>$' + totalPrice.toFixed(0) + '</td></tr>' +
         '</tbody></table>' +
         '</div>';
     
