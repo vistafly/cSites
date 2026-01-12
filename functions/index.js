@@ -224,9 +224,12 @@ exports.addAuthUser = functions.https.onCall(async (data, context) => {
 
         // Create new user if not found
         if (!userRecord) {
-            const createData = {
-                displayName: displayName || null
-            };
+            const createData = {};
+
+            // Only add displayName if it's a non-empty string
+            if (displayName && displayName.trim()) {
+                createData.displayName = displayName.trim();
+            }
 
             if (hasEmail) {
                 createData.email = normalizedEmail;
@@ -269,15 +272,21 @@ exports.addAuthUser = functions.https.onCall(async (data, context) => {
         }
 
         // Add to users collection (for sowUserSearch)
-        await admin.firestore().collection('users').doc(userRecord.uid).set({
+        const userData = {
             uid: userRecord.uid,
             phoneNumber: normalizedPhone,
             email: normalizedEmail,
-            displayName: displayName || null,
             authType: hasEmail ? 'email' : 'phone',
             createdAt: admin.firestore.FieldValue.serverTimestamp(),
             createdBy: context.auth.uid
-        }, { merge: true });
+        };
+
+        // Only add displayName if it's a non-empty string
+        if (displayName && displayName.trim()) {
+            userData.displayName = displayName.trim();
+        }
+
+        await admin.firestore().collection('users').doc(userRecord.uid).set(userData, { merge: true });
 
         console.log(`User added: ${normalizedEmail || normalizedPhone}, UID: ${userRecord.uid}`);
 
@@ -291,9 +300,14 @@ exports.addAuthUser = functions.https.onCall(async (data, context) => {
 
     } catch (error) {
         console.error('Error adding user:', error);
+        console.error('Error details:', {
+            code: error.code,
+            message: error.message,
+            stack: error.stack
+        });
         throw new functions.https.HttpsError(
             'internal',
-            'Failed to add user.',
+            'Failed to add user: ' + error.message,
             error.message
         );
     }
@@ -444,10 +458,16 @@ exports.addTestPhoneNumber = functions.https.onCall(async (data, context) => {
         } catch (error) {
             if (error.code === 'auth/user-not-found') {
                 // Create new user with this phone number
-                userRecord = await admin.auth().createUser({
-                    phoneNumber: normalizedPhone,
-                    displayName: displayName || null
-                });
+                const createData = {
+                    phoneNumber: normalizedPhone
+                };
+
+                // Only add displayName if it's a non-empty string
+                if (displayName && displayName.trim()) {
+                    createData.displayName = displayName.trim();
+                }
+
+                userRecord = await admin.auth().createUser(createData);
                 console.log(`Created new Firebase Auth user: ${userRecord.uid}`);
             } else {
                 throw error;
@@ -676,10 +696,16 @@ exports.verifyTestPhoneNumber = functions.https.onCall(async (data, context) => 
         } catch (error) {
             if (error.code === 'auth/user-not-found') {
                 // Create new user with this phone number
-                userRecord = await admin.auth().createUser({
-                    phoneNumber: normalizedPhone,
-                    displayName: testPhoneData.displayName || null
-                });
+                const createData = {
+                    phoneNumber: normalizedPhone
+                };
+
+                // Only add displayName if it's a non-empty string
+                if (testPhoneData.displayName && testPhoneData.displayName.trim()) {
+                    createData.displayName = testPhoneData.displayName.trim();
+                }
+
+                userRecord = await admin.auth().createUser(createData);
                 console.log(`Created new test user: ${userRecord.uid}`);
             } else {
                 throw error;
