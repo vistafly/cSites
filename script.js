@@ -73,42 +73,61 @@
         return cachedLogoBase64 || 'https://scarlo.dev/images/scarlo-logo.png';
     };
 
-    // Format phone number to (xxx) xxx-xxxx or +1 (xxx) xxx-xxxx
-    var formatPhoneNumber = function(phone) {
+    // Country code configuration with digit limits
+    var countryCodeConfig = {
+        '+1': { maxDigits: 10, format: 'US' },    // US/Canada
+        '+44': { maxDigits: 10, format: 'UK' },   // UK
+        '+91': { maxDigits: 10, format: 'IN' },   // India
+        '+61': { maxDigits: 9, format: 'AU' },    // Australia
+        '+81': { maxDigits: 10, format: 'JP' },   // Japan
+        '+49': { maxDigits: 11, format: 'DE' },   // Germany
+        '+33': { maxDigits: 9, format: 'FR' },    // France
+        '+86': { maxDigits: 11, format: 'CN' },   // China
+        '+52': { maxDigits: 10, format: 'MX' },   // Mexico
+        '+55': { maxDigits: 11, format: 'BR' }    // Brazil
+    };
+
+    // Format phone number based on country code
+    var formatPhoneNumber = function(phone, countryCode) {
         if (!phone) return '';
 
-        // Check if user typed + at the start
-        var wantsCountryCode = phone.indexOf('+') !== -1;
+        // Default to +1 if not specified
+        countryCode = countryCode || '+1';
+        var config = countryCodeConfig[countryCode] || countryCodeConfig['+1'];
 
         // Remove all non-digits
         var digits = phone.replace(/\D/g, '');
 
-        // If 11 digits starting with 1, treat as country code
-        if (digits.length === 11 && digits.charAt(0) === '1') {
-            wantsCountryCode = true;
-            digits = digits.substring(1);
+        // Limit to max digits for the country
+        if (digits.length > config.maxDigits) {
+            digits = digits.substring(0, config.maxDigits);
         }
 
-        // Limit to 10 digits
-        if (digits.length > 10) {
-            digits = digits.substring(0, 10);
-        }
-
-        // Build formatted number
+        // Build formatted number based on country
         var result = '';
-        if (digits.length > 0) {
-            result = '(' + digits.substring(0, Math.min(3, digits.length));
-        }
-        if (digits.length > 3) {
-            result += ') ' + digits.substring(3, Math.min(6, digits.length));
-        }
-        if (digits.length > 6) {
-            result += '-' + digits.substring(6, 10);
-        }
-
-        // Add +1 prefix if requested
-        if (wantsCountryCode && digits.length > 0) {
-            result = '+1 ' + result;
+        if (config.format === 'US') {
+            // US/Canada format: (xxx) xxx-xxxx
+            if (digits.length > 0) {
+                result = '(' + digits.substring(0, Math.min(3, digits.length));
+            }
+            if (digits.length > 3) {
+                result += ') ' + digits.substring(3, Math.min(6, digits.length));
+            }
+            if (digits.length > 6) {
+                result += '-' + digits.substring(6, 10);
+            }
+        } else {
+            // International format: just add spaces every 3-4 digits
+            result = digits;
+            if (digits.length > 3) {
+                result = digits.substring(0, 3) + ' ' + digits.substring(3);
+            }
+            if (digits.length > 6) {
+                result = digits.substring(0, 3) + ' ' + digits.substring(3, 6) + ' ' + digits.substring(6);
+            }
+            if (digits.length > 9) {
+                result = digits.substring(0, 3) + ' ' + digits.substring(3, 6) + ' ' + digits.substring(6, 9) + ' ' + digits.substring(9);
+            }
         }
 
         return result;
@@ -4755,7 +4774,22 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '</div>' +
         '<div class="add-user-auth-divider"><span>OR</span></div>' +
         '<div class="add-user-auth-row">' +
+        '<div class="phone-input-wrapper sow-phone-wrapper">' +
+        '<select id="addUserPhoneCountryCode" class="country-code-select sow-country-code">' +
+        '<option value="+1" selected>US +1</option>' +
+        '<option value="+1">CA +1</option>' +
+        '<option value="+44">UK +44</option>' +
+        '<option value="+91">IN +91</option>' +
+        '<option value="+61">AU +61</option>' +
+        '<option value="+81">JP +81</option>' +
+        '<option value="+49">DE +49</option>' +
+        '<option value="+33">FR +33</option>' +
+        '<option value="+86">CN +86</option>' +
+        '<option value="+52">MX +52</option>' +
+        '<option value="+55">BR +55</option>' +
+        '</select>' +
         '<input type="tel" id="addUserPhone" placeholder="Phone Number" class="sow-input" oninput="window.toggleAuthFields()" />' +
+        '</div>' +
         '<input type="text" id="addUserCode" placeholder="Verification Code (4-6 digits)" class="sow-input" style="display: none;" maxlength="6" />' +
         '</div>' +
         '</div>' +
@@ -4791,8 +4825,25 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '<div id="sowIndividualFields">' +
         '<div class="sow-input-group client-inputs-row">' +
         '<input type="text" id="sowClientName" placeholder="Client Name *" class="sow-input" required />' +
+        '<div id="sowClientEmailWrapper" class="sow-input-wrapper-single">' +
         '<input type="email" id="sowClientEmail" placeholder="Client Email *" class="sow-input" />' +
-        '<input type="tel" id="sowClientPhone" placeholder="Client Phone (e.g., +15551234567) *" class="sow-input" style="display: none;" />' +
+        '</div>' +
+        '<div id="sowClientPhoneWrapper" class="phone-input-wrapper sow-phone-wrapper" style="display: none;">' +
+        '<select id="sowClientPhoneCountryCode" class="country-code-select sow-country-code">' +
+        '<option value="+1" selected>US +1</option>' +
+        '<option value="+1">CA +1</option>' +
+        '<option value="+44">UK +44</option>' +
+        '<option value="+91">IN +91</option>' +
+        '<option value="+61">AU +61</option>' +
+        '<option value="+81">JP +81</option>' +
+        '<option value="+49">DE +49</option>' +
+        '<option value="+33">FR +33</option>' +
+        '<option value="+86">CN +86</option>' +
+        '<option value="+52">MX +52</option>' +
+        '<option value="+55">BR +55</option>' +
+        '</select>' +
+        '<input type="tel" id="sowClientPhone" placeholder="Client Phone *" class="sow-input" />' +
+        '</div>' +
         '</div>' +
         '</div>' +
 
@@ -4810,8 +4861,25 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         '</div>' +
         '<div class="sow-input-group">' +
         '<input type="text" id="sowStateOfFormation" placeholder="State of Formation (optional)" class="sow-input" />' +
+        '<div id="sowBusinessEmailWrapper" class="sow-input-wrapper-single">' +
         '<input type="email" id="sowBusinessEmail" placeholder="Business Email *" class="sow-input" />' +
-        '<input type="tel" id="sowBusinessPhone" placeholder="Business Phone *" class="sow-input" style="display: none;" />' +
+        '</div>' +
+        '<div id="sowBusinessPhoneWrapper" class="phone-input-wrapper sow-phone-wrapper" style="display: none;">' +
+        '<select id="sowBusinessPhoneCountryCode" class="country-code-select sow-country-code">' +
+        '<option value="+1" selected>US +1</option>' +
+        '<option value="+1">CA +1</option>' +
+        '<option value="+44">UK +44</option>' +
+        '<option value="+91">IN +91</option>' +
+        '<option value="+61">AU +61</option>' +
+        '<option value="+81">JP +81</option>' +
+        '<option value="+49">DE +49</option>' +
+        '<option value="+33">FR +33</option>' +
+        '<option value="+86">CN +86</option>' +
+        '<option value="+52">MX +52</option>' +
+        '<option value="+55">BR +55</option>' +
+        '</select>' +
+        '<input type="tel" id="sowBusinessPhone" placeholder="Business Phone *" class="sow-input" />' +
+        '</div>' +
         '</div>' +
         '<div class="sow-input-group">' +
         '<input type="text" id="sowRepName" placeholder="Representative Name *" class="sow-input" />' +
@@ -5234,6 +5302,8 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     var clientIdToggle = $('#clientIdTypeToggle');
     var emailInput = $('#sowClientEmail');
     var phoneInput = $('#sowClientPhone');
+    var emailWrapper = $('#sowClientEmailWrapper');
+    var phoneWrapper = $('#sowClientPhoneWrapper');
     var emailLabel = $('#emailToggleLabel');
     var phoneLabel = $('#phoneToggleLabel');
 
@@ -5241,16 +5311,16 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         clientIdToggle.addEventListener('change', function() {
             if (this.checked) {
                 // Phone mode
-                emailInput.style.display = 'none';
-                emailInput.value = '';
-                phoneInput.style.display = 'block';
+                if (emailWrapper) emailWrapper.style.display = 'none';
+                if (emailInput) emailInput.value = '';
+                if (phoneWrapper) phoneWrapper.style.display = 'flex';
                 emailLabel.classList.remove('active');
                 phoneLabel.classList.add('active');
             } else {
                 // Email mode
-                phoneInput.style.display = 'none';
-                phoneInput.value = '';
-                emailInput.style.display = 'block';
+                if (phoneWrapper) phoneWrapper.style.display = 'none';
+                if (phoneInput) phoneInput.value = '';
+                if (emailWrapper) emailWrapper.style.display = 'block';
                 phoneLabel.classList.remove('active');
                 emailLabel.classList.add('active');
             }
@@ -5267,6 +5337,8 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     var businessLabel = $('#sowBusinessLabel');
     var businessEmailInput = $('#sowBusinessEmail');
     var businessPhoneInput = $('#sowBusinessPhone');
+    var businessEmailWrapper = $('#sowBusinessEmailWrapper');
+    var businessPhoneWrapper = $('#sowBusinessPhoneWrapper');
 
     if (entityTypeToggle) {
         entityTypeToggle.addEventListener('change', function() {
@@ -5278,11 +5350,11 @@ ContractFormHandler.prototype.showSOWCreator = function() {
                 if (businessLabel) businessLabel.classList.add('active');
                 // Sync email/phone visibility for business fields based on clientIdToggle
                 if (clientIdToggle && clientIdToggle.checked) {
-                    if (businessEmailInput) businessEmailInput.style.display = 'none';
-                    if (businessPhoneInput) businessPhoneInput.style.display = 'block';
+                    if (businessEmailWrapper) businessEmailWrapper.style.display = 'none';
+                    if (businessPhoneWrapper) businessPhoneWrapper.style.display = 'flex';
                 } else {
-                    if (businessEmailInput) businessEmailInput.style.display = 'block';
-                    if (businessPhoneInput) businessPhoneInput.style.display = 'none';
+                    if (businessEmailWrapper) businessEmailWrapper.style.display = 'block';
+                    if (businessPhoneWrapper) businessPhoneWrapper.style.display = 'none';
                 }
             } else {
                 // Individual mode
@@ -5303,18 +5375,14 @@ ContractFormHandler.prototype.showSOWCreator = function() {
             if (entityTypeToggle && entityTypeToggle.checked) {
                 if (this.checked) {
                     // Phone mode for business
-                    if (businessEmailInput) {
-                        businessEmailInput.style.display = 'none';
-                        businessEmailInput.value = '';
-                    }
-                    if (businessPhoneInput) businessPhoneInput.style.display = 'block';
+                    if (businessEmailWrapper) businessEmailWrapper.style.display = 'none';
+                    if (businessEmailInput) businessEmailInput.value = '';
+                    if (businessPhoneWrapper) businessPhoneWrapper.style.display = 'flex';
                 } else {
                     // Email mode for business
-                    if (businessPhoneInput) {
-                        businessPhoneInput.style.display = 'none';
-                        businessPhoneInput.value = '';
-                    }
-                    if (businessEmailInput) businessEmailInput.style.display = 'block';
+                    if (businessPhoneWrapper) businessPhoneWrapper.style.display = 'none';
+                    if (businessPhoneInput) businessPhoneInput.value = '';
+                    if (businessEmailWrapper) businessEmailWrapper.style.display = 'block';
                 }
             }
         });
@@ -5462,6 +5530,7 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         var passwordInput = $('#addUserPassword');
         var phoneInput = $('#addUserPhone');
         var codeInput = $('#addUserCode');
+        var countryCodeSelect = $('#addUserPhoneCountryCode');
 
         if (emailInput && passwordInput) {
             var hasEmail = emailInput.value && emailInput.value.trim().length > 0;
@@ -5475,7 +5544,10 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         }
 
         if (phoneInput && codeInput) {
-            var hasPhone = phoneInput.value && phoneInput.value.replace(/\D/g, '').length >= 10;
+            var countryCode = countryCodeSelect ? countryCodeSelect.value : '+1';
+            var config = countryCodeConfig[countryCode] || countryCodeConfig['+1'];
+            var digitCount = phoneInput.value.replace(/\D/g, '').length;
+            var hasPhone = phoneInput.value && digitCount >= config.maxDigits;
             codeInput.style.display = hasPhone ? 'block' : 'none';
             if (hasPhone) {
                 codeInput.required = true;
@@ -5598,19 +5670,22 @@ ContractFormHandler.prototype.showSOWCreator = function() {
         if (email) {
             // Set to email mode
             clientIdToggle.checked = false;
-            emailInput.style.display = 'block';
-            phoneInput.style.display = 'none';
-            emailInput.value = email;
-            phoneInput.value = '';
+            if (emailWrapper) emailWrapper.style.display = 'block';
+            if (phoneWrapper) phoneWrapper.style.display = 'none';
+            if (emailInput) emailInput.value = email;
+            if (phoneInput) phoneInput.value = '';
             emailLabel.classList.add('active');
             phoneLabel.classList.remove('active');
         } else if (phone) {
             // Set to phone mode
             clientIdToggle.checked = true;
-            phoneInput.style.display = 'block';
-            emailInput.style.display = 'none';
-            phoneInput.value = formatPhoneNumber(phone);
-            emailInput.value = '';
+            if (phoneWrapper) phoneWrapper.style.display = 'flex';
+            if (emailWrapper) emailWrapper.style.display = 'none';
+            if (phoneInput) {
+                var countryCode = $('#sowClientPhoneCountryCode') ? $('#sowClientPhoneCountryCode').value : '+1';
+                phoneInput.value = formatPhoneNumber(phone, countryCode);
+            }
+            if (emailInput) emailInput.value = '';
             phoneLabel.classList.add('active');
             emailLabel.classList.remove('active');
         }
@@ -5732,13 +5807,59 @@ ContractFormHandler.prototype.showSOWCreator = function() {
     }
 
     // Format phone number in add user form
+    var addUserPhoneCountryCode = $('#addUserPhoneCountryCode');
     if (addUserPhone) {
-        addUserPhone.addEventListener('input', function() {
-            var formatted = formatPhoneNumber(this.value);
-            if (formatted !== this.value) {
-                this.value = formatted;
+        var formatAddUserPhone = function() {
+            var countryCode = addUserPhoneCountryCode ? addUserPhoneCountryCode.value : '+1';
+            var formatted = formatPhoneNumber(addUserPhone.value, countryCode);
+            if (formatted !== addUserPhone.value) {
+                addUserPhone.value = formatted;
             }
-        });
+        };
+
+        addUserPhone.addEventListener('input', formatAddUserPhone);
+
+        if (addUserPhoneCountryCode) {
+            addUserPhoneCountryCode.addEventListener('change', formatAddUserPhone);
+        }
+    }
+
+    // Format client phone number
+    var sowClientPhone = $('#sowClientPhone');
+    var sowClientPhoneCountryCode = $('#sowClientPhoneCountryCode');
+    if (sowClientPhone) {
+        var formatClientPhone = function() {
+            var countryCode = sowClientPhoneCountryCode ? sowClientPhoneCountryCode.value : '+1';
+            var formatted = formatPhoneNumber(sowClientPhone.value, countryCode);
+            if (formatted !== sowClientPhone.value) {
+                sowClientPhone.value = formatted;
+            }
+        };
+
+        sowClientPhone.addEventListener('input', formatClientPhone);
+
+        if (sowClientPhoneCountryCode) {
+            sowClientPhoneCountryCode.addEventListener('change', formatClientPhone);
+        }
+    }
+
+    // Format business phone number
+    var sowBusinessPhone = $('#sowBusinessPhone');
+    var sowBusinessPhoneCountryCode = $('#sowBusinessPhoneCountryCode');
+    if (sowBusinessPhone) {
+        var formatBusinessPhone = function() {
+            var countryCode = sowBusinessPhoneCountryCode ? sowBusinessPhoneCountryCode.value : '+1';
+            var formatted = formatPhoneNumber(sowBusinessPhone.value, countryCode);
+            if (formatted !== sowBusinessPhone.value) {
+                sowBusinessPhone.value = formatted;
+            }
+        };
+
+        sowBusinessPhone.addEventListener('input', formatBusinessPhone);
+
+        if (sowBusinessPhoneCountryCode) {
+            sowBusinessPhoneCountryCode.addEventListener('change', formatBusinessPhone);
+        }
     }
 
     // Save button
@@ -5818,23 +5939,23 @@ function prefillSOWFromURL() {
 
         // Set client ID toggle to correct mode (email vs phone)
         var clientIdToggle = document.getElementById('clientIdTypeToggle');
-        var sowClientEmail = document.getElementById('sowClientEmail');
-        var sowClientPhone = document.getElementById('sowClientPhone');
+        var sowClientEmailWrapper = document.getElementById('sowClientEmailWrapper');
+        var sowClientPhoneWrapper = document.getElementById('sowClientPhoneWrapper');
         var emailLabel = document.getElementById('emailToggleLabel');
         var phoneLabel = document.getElementById('phoneToggleLabel');
 
         if (phone && !email) {
             // Phone mode
             if (clientIdToggle) clientIdToggle.checked = true;
-            if (sowClientEmail) sowClientEmail.style.display = 'none';
-            if (sowClientPhone) sowClientPhone.style.display = 'block';
+            if (sowClientEmailWrapper) sowClientEmailWrapper.style.display = 'none';
+            if (sowClientPhoneWrapper) sowClientPhoneWrapper.style.display = 'flex';
             if (emailLabel) emailLabel.classList.remove('active');
             if (phoneLabel) phoneLabel.classList.add('active');
         } else if (email) {
             // Email mode (default)
             if (clientIdToggle) clientIdToggle.checked = false;
-            if (sowClientPhone) sowClientPhone.style.display = 'none';
-            if (sowClientEmail) sowClientEmail.style.display = 'block';
+            if (sowClientPhoneWrapper) sowClientPhoneWrapper.style.display = 'none';
+            if (sowClientEmailWrapper) sowClientEmailWrapper.style.display = 'block';
             if (phoneLabel) phoneLabel.classList.remove('active');
             if (emailLabel) emailLabel.classList.add('active');
         }

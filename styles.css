@@ -3312,6 +3312,60 @@ section {
     flex: 1;
 }
 
+/* SOW phone wrapper styles */
+.sow-phone-wrapper {
+    width: 100%;
+    max-width: 100%;
+}
+
+.sow-phone-wrapper .sow-input {
+    padding: 0.75rem 1rem;
+}
+
+.sow-input-wrapper-single {
+    width: 100%;
+}
+
+.sow-country-code {
+    width: 80px;
+    flex-shrink: 0;
+    padding: 0.75rem 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 0.5rem;
+    color: #fff;
+    font-size: 0.875rem;
+    cursor: pointer;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.4rem center;
+    padding-right: 1.25rem;
+}
+
+.sow-country-code:focus {
+    outline: none;
+    border-color: #6366f1;
+    background: rgba(255, 255, 255, 0.08);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.sow-country-code option {
+    background: #1a1a1a;
+    color: #fff;
+}
+
+.add-user-form .sow-phone-wrapper .sow-input {
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+}
+
+.add-user-form .sow-country-code {
+    padding: 0.5rem 0.4rem;
+    font-size: 0.75rem;
+    width: 70px;
+}
+
 /* === VERIFICATION CODE INPUT === */
 .code-input-wrapper input {
     text-align: center;
@@ -5119,6 +5173,11 @@ body.modal-open .custom-cursor {
 
 .add-user-auth-row .sow-input {
     flex: 1;
+}
+
+.add-user-auth-row .sow-phone-wrapper {
+    flex: 1;
+    min-width: 0;
 }
 
 .add-user-auth-divider {
